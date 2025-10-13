@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单按钮测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+
+        #console-output {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 200px;
+            background: rgba(0,0,0,0.9);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="info">
+            <h3>3D门按钮测试</h3>
+            <p>查看控制台输出了解按钮创建状态</p>
+            <p>寻找蓝色圆形按钮并点击</p>
+        </div>
+        <div id="console-output"></div>
+    </div>
+
+    <!-- Three.js 库 -->
+    <script src="car-assets/js/three.min.js"></script>
+    <script src="car-assets/js/GLTFLoader.js"></script>
+    <script src="car-assets/js/OrbitControls.js"></script>
+    
+    <!-- 3D渲染器 -->
+    <script src="car-assets/js/car-3d-renderer.js"></script>
+
+    <script>
+        // 重写console.log来显示在页面上
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.style.color = type === 'error' ? '#ff4444' : type === 'warn' ? '#ffaa00' : '#00ff00';
+            div.textContent = `[${timestamp}] ${message}`;
+            consoleOutput.appendChild(div);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+
+        let renderer;
+
+        // 初始化3D场景
+        function init() {
+            console.log('开始初始化3D场景...');
+            const container = document.getElementById('container');
+            
+            try {
+                // 创建3D渲染器实例
+                renderer = new Car3DRenderer(container);
+                console.log('3D渲染器创建成功');
+                
+                // 监听模型加载完成事件
+                renderer.onModelLoaded = function() {
+                    console.log('=== 模型加载完成 ===');
+                    console.log('门按钮状态:', {
+                        leftButton: !!renderer.doorButtons.leftDoor,
+                        rightButton: !!renderer.doorButtons.rightDoor,
+                        clickableObjects: renderer.clickableObjects.length
+                    });
+                };
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+
+        // 窗口大小变化时调整渲染器
+        window.addEventListener('resize', () => {
+            if (renderer) {
+                renderer.onWindowResize();
+            }
+        });
+    </script>
+</body>
+</html>

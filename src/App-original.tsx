@@ -79,7 +79,7 @@ function App() {
       await invoke("send_can_message", {
         id: sendId,
         data: sendData,
-        frameType: config.frameType,
+        frame_type: config.frameType,
       });
 
       // 添加到消息列表

@@ -71,7 +71,16 @@ class Car3DRenderer {
             keyframes: [],
             currentKeyframe: 0
         };
-        
+
+        // 3D按钮系统
+        this.doorButtons = {
+            leftDoor: null,
+            rightDoor: null
+        };
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        this.clickableObjects = [];
+
         this.init();
     }
 
@@ -82,8 +91,9 @@ class Car3DRenderer {
         this.createLights();
         this.loadCarModel();
         this.setupControls();
+        this.setupClickHandlers();
         this.animate();
-        
+
         // 监听窗口大小变化
         window.addEventListener('resize', () => this.onWindowResize());
     }
@@ -112,7 +122,9 @@ class Car3DRenderer {
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1;
-        
+
+        // 清空容器内容，防止重复渲染
+        this.container.innerHTML = '';
         this.container.appendChild(this.renderer.domElement);
     }
 
@@ -163,7 +175,7 @@ class Car3DRenderer {
         const loader = new THREE.GLTFLoader();
         
         loader.load(
-            './assets/models/Car.glb',
+            '/car-assets/models/Car.glb',
             (gltf) => {
                 console.log('车辆模型加载成功');
                 this.car = gltf.scene;
@@ -228,7 +240,10 @@ class Car3DRenderer {
 
                 // 添加地面
                 this.createGround();
-                
+
+                // 创建门按钮
+                this.createDoorButtons();
+
                 // 通知模型加载完成
                 this.onModelLoaded();
             },
@@ -618,7 +633,14 @@ class Car3DRenderer {
         if (loadingElement) {
             loadingElement.style.display = 'none';
         }
-        
+
+        console.log('3D车辆模型加载完成');
+        console.log('门按钮状态:', {
+            leftButton: !!this.doorButtons?.leftDoor,
+            rightButton: !!this.doorButtons?.rightDoor,
+            clickableObjects: this.clickableObjects?.length || 0
+        });
+
         // 触发自定义事件
         const event = new CustomEvent('car3dLoaded');
         document.dispatchEvent(event);
@@ -1686,6 +1708,234 @@ class Car3DRenderer {
             return false;
         }
         return this.doorStates[animationName] || false;
+    }
+
+    // 创建门按钮
+    createDoorButtons() {
+        console.log('开始创建门按钮...', {
+            leftDoor: !!this.leftDoor,
+            rightDoor: !!this.rightDoor
+        });
+
+        if (!this.leftDoor && !this.rightDoor) {
+            console.warn('未找到门对象，无法创建门按钮');
+            return;
+        }
+
+        // 创建左门按钮
+        if (this.leftDoor) {
+            this.doorButtons.leftDoor = this.createDoorButton('left', this.leftDoor);
+            console.log('✓ 左门按钮创建成功');
+        }
+
+        // 创建右门按钮
+        if (this.rightDoor) {
+            this.doorButtons.rightDoor = this.createDoorButton('right', this.rightDoor);
+            console.log('✓ 右门按钮创建成功');
+        }
+
+        console.log(`门按钮创建完成，共创建 ${this.clickableObjects.length} 个可点击对象`);
+
+        // 如果没有创建任何按钮，创建默认位置的按钮用于测试
+        if (this.clickableObjects.length === 0) {
+            console.log('未找到门对象，创建默认位置的测试按钮');
+            this.createDefaultButtons();
+        }
+    }
+
+    // 创建默认位置的测试按钮
+    createDefaultButtons() {
+        // 左侧按钮
+        const leftButton = this.createTestButton('left', new THREE.Vector3(-2, 0, 1));
+        this.doorButtons.leftDoor = leftButton;
+
+        // 右侧按钮
+        const rightButton = this.createTestButton('right', new THREE.Vector3(2, 0, 1));
+        this.doorButtons.rightDoor = rightButton;
+
+        console.log('默认测试按钮创建完成');
+    }
+
+    // 创建测试按钮
+    createTestButton(side, position) {
+        // 创建按钮几何体
+        const buttonGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+
+        // 创建按钮材质
+        const buttonMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00BFFF,
+            emissive: 0x004080,
+            shininess: 100,
+            transparent: true,
+            opacity: 0.95
+        });
+
+        const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        button.position.copy(position);
+
+        // 设置按钮的用户数据
+        button.userData = {
+            isButton: true,
+            doorSide: side,
+            originalColor: 0x00BFFF,
+            hoverColor: 0x40CFFF,
+            clickColor: 0x0080FF
+        };
+
+        // 添加到可点击对象列表
+        this.clickableObjects.push(button);
+
+        // 添加到场景
+        this.scene.add(button);
+
+        console.log(`创建${side}侧测试按钮，位置:`, position);
+        return button;
+
+    // 创建单个门按钮
+    createDoorButton(side, doorObject) {
+        // 创建按钮几何体 - 更大的圆形按钮
+        const buttonGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 16);
+
+        // 创建按钮材质 - 明亮的蓝色发光效果
+        const buttonMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00BFFF,      // 更亮的蓝色
+            emissive: 0x004080,   // 发光效果
+            shininess: 100,
+            transparent: true,
+            opacity: 0.95
+        });
+
+        const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+
+        // 计算门的边界框来确定按钮位置
+        const doorBox = new THREE.Box3().setFromObject(doorObject);
+        const doorCenter = doorBox.getCenter(new THREE.Vector3());
+        const doorSize = doorBox.getSize(new THREE.Vector3());
+
+        console.log(`${side}门信息:`, {
+            center: doorCenter,
+            size: doorSize
+        });
+
+        // 根据门的侧面设置按钮位置
+        if (side === 'left') {
+            // 左门按钮位置 - 在门的外侧中央，更显眼的位置
+            button.position.set(
+                doorCenter.x - 1.2, // 向外偏移更多
+                doorCenter.y + 0.2, // 稍微向上
+                doorCenter.z + 0.5  // 向前更多
+            );
+        } else {
+            // 右门按钮位置 - 在门的外侧中央，更显眼的位置
+            button.position.set(
+                doorCenter.x + 1.2, // 向外偏移更多
+                doorCenter.y + 0.2, // 稍微向上
+                doorCenter.z + 0.5  // 向前更多
+            );
+        }
+
+        // 设置按钮的用户数据
+        button.userData = {
+            isButton: true,
+            doorSide: side,
+            originalColor: 0x00BFFF,
+            hoverColor: 0x40CFFF,
+            clickColor: 0x0080FF
+        };
+
+        // 添加到可点击对象列表
+        this.clickableObjects.push(button);
+
+        // 添加到场景
+        this.scene.add(button);
+
+        console.log(`创建${side}门按钮成功`);
+        return button;
+    }
+
+    // 设置点击事件处理
+    setupClickHandlers() {
+        // 鼠标点击事件
+        this.renderer.domElement.addEventListener('click', (event) => {
+            this.onMouseClick(event);
+        });
+
+        // 鼠标移动事件（用于悬停效果）
+        this.renderer.domElement.addEventListener('mousemove', (event) => {
+            this.onMouseMove(event);
+        });
+    }
+
+    // 处理鼠标点击
+    onMouseClick(event) {
+        // 计算鼠标位置
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        // 射线检测
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.clickableObjects);
+
+        if (intersects.length > 0) {
+            const clickedObject = intersects[0].object;
+
+            if (clickedObject.userData.isButton) {
+                this.handleButtonClick(clickedObject);
+            }
+        }
+    }
+
+    // 处理鼠标移动（悬停效果）
+    onMouseMove(event) {
+        // 计算鼠标位置
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        // 射线检测
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.clickableObjects);
+
+        // 重置所有按钮颜色
+        this.clickableObjects.forEach(obj => {
+            if (obj.userData.isButton) {
+                obj.material.color.setHex(obj.userData.originalColor);
+                obj.material.emissive.setHex(0x004080);
+            }
+        });
+
+        // 设置悬停按钮颜色
+        if (intersects.length > 0) {
+            const hoveredObject = intersects[0].object;
+            if (hoveredObject.userData.isButton) {
+                hoveredObject.material.color.setHex(hoveredObject.userData.hoverColor);
+                hoveredObject.material.emissive.setHex(0x0060A0);
+                this.renderer.domElement.style.cursor = 'pointer';
+            }
+        } else {
+            this.renderer.domElement.style.cursor = 'default';
+        }
+    }
+
+    // 处理按钮点击
+    handleButtonClick(button) {
+        const doorSide = button.userData.doorSide;
+
+        // 按钮点击效果
+        button.material.color.setHex(button.userData.clickColor);
+        setTimeout(() => {
+            button.material.color.setHex(button.userData.originalColor);
+        }, 150);
+
+        // 触发门动画
+        if (doorSide === 'left') {
+            this.toggleDoor('Door_L_Action');
+        } else if (doorSide === 'right') {
+            this.toggleDoor('Door_R_Action');
+        }
+
+        console.log(`点击了${doorSide}门按钮`);
     }
 }
 

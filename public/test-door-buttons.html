@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D门按钮测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            max-width: 300px;
+            z-index: 100;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+
+        .control-button {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .control-button:hover {
+            background: #5BA0F2;
+        }
+
+        .control-button:active {
+            background: #2A70C2;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <div id="loading">加载3D模型中...</div>
+        
+        <div id="info-panel">
+            <h3>🚗 3D门按钮测试</h3>
+            <p><strong>操作说明：</strong></p>
+            <ul>
+                <li>🖱️ 鼠标拖拽：旋转视角</li>
+                <li>🔄 滚轮：缩放</li>
+                <li>🔵 点击蓝色按钮：开关车门</li>
+                <li>✨ 悬停按钮：高亮效果</li>
+            </ul>
+            <p><strong>按钮位置：</strong></p>
+            <p>在车门外侧中央位置寻找蓝色圆形按钮</p>
+        </div>
+
+        <div id="controls">
+            <h4>传统控制</h4>
+            <button class="control-button" onclick="renderer.toggleDoor('Door_L_Action')">
+                左门开关
+            </button>
+            <button class="control-button" onclick="renderer.toggleDoor('Door_R_Action')">
+                右门开关
+            </button>
+            <button class="control-button" onclick="renderer.toggleMultipleDoors(['Door_L_Action', 'Door_R_Action'])">
+                所有门开关
+            </button>
+        </div>
+    </div>
+
+    <!-- Three.js 库 -->
+    <script src="car-assets/js/three.min.js"></script>
+    <script src="car-assets/js/GLTFLoader.js"></script>
+    <script src="car-assets/js/OrbitControls.js"></script>
+    
+    <!-- 3D渲染器 -->
+    <script src="car-assets/js/car-3d-renderer.js"></script>
+
+    <script>
+        let renderer;
+
+        // 初始化3D场景
+        function init() {
+            const container = document.getElementById('canvas-container');
+            
+            // 创建3D渲染器实例
+            renderer = new Car3DRenderer(container);
+            
+            // 监听模型加载完成事件
+            renderer.onModelLoaded = function() {
+                document.getElementById('loading').style.display = 'none';
+                console.log('3D模型加载完成，门按钮已创建');
+            };
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+
+        // 窗口大小变化时调整渲染器
+        window.addEventListener('resize', () => {
+            if (renderer) {
+                renderer.onWindowResize();
+            }
+        });
+    </script>
+</body>
+</html>

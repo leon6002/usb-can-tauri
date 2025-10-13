@@ -22,6 +22,10 @@ interface SerialConfig {
   canBaudRate: number;
   frameType: string;
   canMode: string;
+  // 回环测试配置
+  isLoopbackTest: boolean;
+  loopbackPort1: string;
+  loopbackPort2: string;
 }
 
 interface CanMessage {
@@ -45,11 +49,14 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [isReceiving, setIsReceiving] = useState(false);
   const [config, setConfig] = useState<SerialConfig>({
-    port: "/dev/ttyUSB0",
-    baudRate: 115200,
-    canBaudRate: 500000,
-    frameType: "standard",
+    port: "COM22",
+    baudRate: 2000000,
+    canBaudRate: 2000000,
+    frameType: "extended",
     canMode: "normal",
+    isLoopbackTest: false,
+    loopbackPort1: "COM22",
+    loopbackPort2: "COM23",
   });
   const [messages, setMessages] = useState<CanMessage[]>([]);
   const [sendId, setSendId] = useState("123");
@@ -154,163 +161,145 @@ function App() {
 
   // 初始化3D场景
   useEffect(() => {
+    // 防止重复初始化
+    if ((window as any).car3DRenderer) {
+      console.log("Car3DRenderer already initialized, skipping...");
+      return;
+    }
+
+    let car3DRenderer: any = null;
+    let retryCount = 0;
+    const maxRetries = 10;
+
     const init3DScene = () => {
-      // 检查Three.js库是否加载
+      console.log(`Attempting to initialize 3D scene... (attempt ${retryCount + 1}/${maxRetries})`);
+
+      // 再次检查是否已经初始化
+      if ((window as any).car3DRenderer) {
+        console.log("Car3DRenderer already exists, aborting initialization");
+        return;
+      }
+
+      // 检查Three.js库和Car3DRenderer类是否加载
+      const THREE = (window as any).THREE;
+      const Car3DRenderer = (window as any).Car3DRenderer;
+
       if (
-        !(window as any).THREE ||
-        !(window as any).GLTFLoader ||
-        !(window as any).OrbitControls
+        !THREE ||
+        !THREE.GLTFLoader ||
+        !THREE.OrbitControls ||
+        !Car3DRenderer
       ) {
-        setTimeout(init3DScene, 1000);
+        console.log("Three.js libraries or Car3DRenderer not loaded yet, retrying...");
+        console.log("THREE:", !!THREE);
+        console.log("GLTFLoader:", !!(THREE && THREE.GLTFLoader));
+        console.log("OrbitControls:", !!(THREE && THREE.OrbitControls));
+        console.log("Car3DRenderer:", !!Car3DRenderer);
+
+        retryCount++;
+        if (retryCount < maxRetries) {
+          setTimeout(init3DScene, 1000);
+        } else {
+          console.error("Failed to load Three.js libraries or Car3DRenderer after maximum retries");
+          const container = document.getElementById("car-3d-container");
+          if (container) {
+            container.innerHTML = `
+              <div class="flex items-center justify-center h-full">
+                <div class="text-center">
+                  <p class="text-red-600 text-lg">3D库加载失败</p>
+                  <p class="text-gray-500 text-sm mt-2">请检查网络连接或刷新页面</p>
+                  <button onclick="location.reload()" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">重新加载</button>
+                </div>
+              </div>
+            `;
+          }
+        }
         return;
       }
 
       const container = document.getElementById("car-3d-container");
       if (!container) {
+        console.log("Container not found, retrying...");
         setTimeout(init3DScene, 500);
         return;
       }
 
-      console.log("Initializing 3D scene...");
+      // 清空容器，防止重复内容
+      container.innerHTML = `
+        <div class="loading-3d flex items-center justify-center h-full absolute inset-0 z-10">
+          <div class="text-center">
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-gray-600 text-lg">3D模型加载中...</p>
+            <p class="text-gray-500 text-sm mt-2">Three.js 3D车辆模型</p>
+            <p class="text-gray-400 text-xs mt-2">模型文件: Car.glb</p>
+          </div>
+        </div>
+      `;
 
-      // 创建场景
-      const scene = new (window as any).THREE.Scene();
-      scene.background = new (window as any).THREE.Color(0xf0f0f0);
+      console.log("Initializing Car3DRenderer...");
 
-      // 创建相机
-      const camera = new (window as any).THREE.PerspectiveCamera(
-        40,
-        container.clientWidth / container.clientHeight,
-        0.2,
-        1000
-      );
-      camera.position.set(-8, 2, 1.5);
+      try {
+        // 使用Car3DRenderer类初始化3D场景
+        car3DRenderer = new Car3DRenderer("car-3d-container");
+        // 将渲染器保存到全局变量，以便按钮可以访问
+        (window as any).car3DRenderer = car3DRenderer;
+        console.log("Car3DRenderer initialized successfully");
 
-      // 创建渲染器
-      const renderer = new (window as any).THREE.WebGLRenderer({
-        antialias: true,
-      });
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = (window as any).THREE.PCFSoftShadowMap;
-
-      // 清空容器并添加渲染器
-      container.innerHTML = "";
-      container.appendChild(renderer.domElement);
-
-      // 添加光源
-      const ambientLight = new (window as any).THREE.AmbientLight(0x404040, 2);
-      scene.add(ambientLight);
-
-      const directionalLight = new (window as any).THREE.DirectionalLight(
-        0xffffff,
-        1
-      );
-      directionalLight.position.set(-1, 1, 1);
-      directionalLight.castShadow = true;
-      directionalLight.shadow.mapSize.width = 2048;
-      directionalLight.shadow.mapSize.height = 2048;
-      scene.add(directionalLight);
-
-      // 添加地面
-      const groundGeometry = new (window as any).THREE.PlaneGeometry(20, 20);
-      const groundMaterial = new (window as any).THREE.MeshLambertMaterial({
-        color: 0xcccccc,
-      });
-      const ground = new (window as any).THREE.Mesh(
-        groundGeometry,
-        groundMaterial
-      );
-      ground.rotation.x = -Math.PI / 2;
-      ground.position.y = -0.5;
-      ground.receiveShadow = true;
-      scene.add(ground);
-
-      // 设置控制器
-      const controls = new (window as any).THREE.OrbitControls(
-        camera,
-        renderer.domElement
-      );
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.screenSpacePanning = false;
-      controls.minDistance = 3;
-      controls.maxDistance = 20;
-
-      // 加载模型
-      const loader = new (window as any).THREE.GLTFLoader();
-      console.log("Loading car model...");
-
-      loader.load(
-        "/car-assets/models/Car.glb",
-        (gltf: any) => {
-          console.log("Car model loaded successfully");
-          const car = gltf.scene;
-          car.scale.set(1, 1, 1);
-          car.position.set(0, -0.5, 0);
-
-          car.traverse((child: any) => {
-            if (child.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
+        // 监听模型加载完成事件
+        const handleModelLoaded = () => {
+          console.log("Car 3D model loaded successfully!");
+          // 检查门按钮状态
+          setTimeout(() => {
+            if (car3DRenderer) {
+              console.log("检查门按钮状态:", {
+                leftButton: !!car3DRenderer.doorButtons?.leftDoor,
+                rightButton: !!car3DRenderer.doorButtons?.rightDoor,
+                clickableObjects: car3DRenderer.clickableObjects?.length || 0
+              });
             }
-          });
+          }, 1000);
+        };
+        document.addEventListener('car3dLoaded', handleModelLoaded);
 
-          scene.add(car);
-        },
-        (progress: any) => {
-          console.log(
-            "Loading progress:",
-            (progress.loaded / progress.total) * 100 + "%"
-          );
-        },
-        (error: any) => {
-          console.error("Model loading failed:", error);
-        }
-      );
-
-      // 动画循环
-      const animate = () => {
-        requestAnimationFrame(animate);
-        if (controls) controls.update();
-        if (renderer && scene && camera) {
-          renderer.render(scene, camera);
-        }
-      };
-      animate();
-
-      // 窗口大小调整
-      const handleResize = () => {
-        if (!container || !camera || !renderer) return;
-
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height);
-      };
-
-      window.addEventListener("resize", handleResize);
-
-      // 清理函数
-      return () => {
-        console.log("Cleaning up 3D scene...");
-        window.removeEventListener("resize", handleResize);
-        if (renderer) {
-          if (container && container.contains(renderer.domElement)) {
-            container.removeChild(renderer.domElement);
+        return () => {
+          document.removeEventListener('car3dLoaded', handleModelLoaded);
+          if (car3DRenderer) {
+            // 清理3D渲染器资源
+            console.log("Cleaning up Car3DRenderer");
+            // 清理全局引用
+            (window as any).car3DRenderer = null;
           }
-          renderer.dispose();
+        };
+      } catch (error) {
+        console.error("Failed to initialize Car3DRenderer:", error);
+        const container = document.getElementById("car-3d-container");
+        if (container) {
+          container.innerHTML = `
+            <div class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <p class="text-red-600 text-lg">3D渲染器初始化失败</p>
+                <p class="text-gray-500 text-sm mt-2">${(error as Error).message || '未知错误'}</p>
+                <button onclick="location.reload()" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">重新加载</button>
+              </div>
+            </div>
+          `;
         }
-        if (scene) {
-          scene.clear();
-        }
-      };
+      }
     };
 
     const cleanup = init3DScene();
 
-    return cleanup;
+    return () => {
+      // 清理全局Car3DRenderer引用
+      if ((window as any).car3DRenderer) {
+        console.log("Cleaning up global Car3DRenderer reference");
+        (window as any).car3DRenderer = null;
+      }
+      // 执行其他清理函数
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
   }, []);
 
   // 连接/断开串口
@@ -321,7 +310,18 @@ function App() {
         setIsConnected(false);
         setIsReceiving(false);
       } else {
-        await invoke("connect_serial", { config });
+        // 转换字段名为Rust后端期望的格式
+        const rustConfig = {
+          port: config.port,
+          baud_rate: config.baudRate,
+          can_baud_rate: config.canBaudRate,
+          frame_type: config.frameType,
+          can_mode: config.canMode,
+          is_loopback_test: config.isLoopbackTest,
+          loopback_port1: config.loopbackPort1,
+          loopback_port2: config.loopbackPort2,
+        };
+        await invoke("connect_serial", { config: rustConfig });
         setIsConnected(true);
       }
     } catch (error) {
@@ -330,14 +330,27 @@ function App() {
     }
   };
 
+  // 断开串口连接
+  const handleDisconnect = async () => {
+    try {
+      await invoke("disconnect_serial");
+      setIsConnected(false);
+      setIsReceiving(false);
+    } catch (error) {
+      console.error("Disconnect error:", error);
+    }
+  };
+
   // 发送CAN消息
   const handleSendMessage = async () => {
     try {
-      await invoke("send_can_message", {
+      const params = {
         id: sendId,
         data: sendData,
         frameType: config.frameType,
-      });
+      };
+      console.log("发送CAN消息参数:", params);
+      await invoke("send_can_message", params);
 
       // 添加到消息列表
       const newMessage: CanMessage = {
@@ -360,11 +373,13 @@ function App() {
     if (!command) return;
 
     try {
-      await invoke("send_can_message", {
+      const params = {
         id: command.canId,
         data: command.data,
-        frameType: config.frameType,
-      });
+        frame_type: config.frameType,
+      };
+      console.log("发送车辆命令参数:", params);
+      await invoke("send_can_message", params);
 
       // 添加到消息列表
       const newMessage: CanMessage = {
@@ -533,6 +548,7 @@ function App() {
             sendData={sendData}
             isReceiving={isReceiving}
             onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
             onConfigChange={setConfig}
             onSendMessage={handleSendMessage}
             onReceivingToggle={handleReceiving}
@@ -613,8 +629,8 @@ function CarControlTab({
             3D车辆模型
           </h3>
           <div className="aspect-video bg-gray-100 rounded-lg relative">
-            <div id="car-3d-container" className="w-full h-full rounded-lg">
-              <div className="loading-3d flex items-center justify-center h-full">
+            <div id="car-3d-container" className="w-full h-full rounded-lg relative">
+              <div className="loading-3d flex items-center justify-center h-full absolute inset-0 z-10">
                 <div className="text-center">
                   <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                   <p className="text-gray-600 text-lg">3D模型加载中...</p>
@@ -626,22 +642,131 @@ function CarControlTab({
                   </p>
                 </div>
               </div>
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600 text-lg">3D模型加载中...</p>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Three.js 3D车辆模型
-                  </p>
-                  <p className="text-gray-400 text-xs mt-2">
-                    模型文件: Car.glb
-                  </p>
-                </div>
+
+              {/* 使用说明面板 */}
+              <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white p-3 rounded text-xs max-w-xs z-20">
+                <h4 className="font-semibold mb-2">🚗 3D交互说明</h4>
+                <ul className="space-y-1 text-xs">
+                  <li>🖱️ 拖拽：旋转视角</li>
+                  <li>🔄 滚轮：缩放模型</li>
+                  <li>🔵 点击蓝色按钮：开关车门</li>
+                  <li>✨ 悬停按钮：高亮效果</li>
+                </ul>
+                <p className="mt-2 text-yellow-300 text-xs">
+                  💡 在车门外侧寻找蓝色圆形按钮
+                </p>
+              </div>
+
+              {/* 运镜控制面板 */}
+              <div className="absolute top-2 left-2 flex flex-col gap-1 z-20">
+                <button
+                  className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-xs shadow-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    console.log("环绕运镜按钮被点击");
+                    const renderer = (window as any).car3DRenderer;
+                    if (renderer) {
+                      console.log("调用setCameraAnimationMode('orbit', 10000)");
+                      renderer.setCameraAnimationMode('orbit', 10000);
+                    } else {
+                      console.log("Car3DRenderer未找到");
+                    }
+                  }}
+                  title="环绕运镜"
+                >
+                  🔄
+                </button>
+                <button
+                  className="bg-green-600 hover:bg-green-700 text-white p-2 rounded text-xs shadow-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    console.log("展示运镜按钮被点击");
+                    const renderer = (window as any).car3DRenderer;
+                    if (renderer) {
+                      console.log("调用setCameraAnimationMode('showcase', 15000)");
+                      renderer.setCameraAnimationMode('showcase', 15000);
+                    } else {
+                      console.log("Car3DRenderer未找到");
+                    }
+                  }}
+                  title="展示运镜"
+                >
+                  📷
+                </button>
+                <button
+                  className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded text-xs shadow-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    console.log("电影运镜按钮被点击");
+                    const renderer = (window as any).car3DRenderer;
+                    if (renderer) {
+                      console.log("调用setCameraAnimationMode('cinematic', 20000)");
+                      renderer.setCameraAnimationMode('cinematic', 20000);
+                    } else {
+                      console.log("Car3DRenderer未找到");
+                    }
+                  }}
+                  title="电影运镜"
+                >
+                  🎬
+                </button>
+                <button
+                  className="bg-red-600 hover:bg-red-700 text-white p-2 rounded text-xs shadow-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    console.log("停止运镜按钮被点击");
+                    const renderer = (window as any).car3DRenderer;
+                    if (renderer) {
+                      console.log("调用stopCameraAnimation()");
+                      renderer.stopCameraAnimation();
+                    } else {
+                      console.log("Car3DRenderer未找到");
+                    }
+                  }}
+                  title="停止运镜"
+                >
+                  ⏹️
+                </button>
+              </div>
+
+              {/* 门控制面板 */}
+              <div className="absolute top-2 right-2 flex flex-col gap-1 z-20">
+                <button
+                  className="bg-orange-600 hover:bg-orange-700 text-white p-2 rounded text-xs shadow-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    console.log("开左门按钮被点击");
+                    const renderer = (window as any).car3DRenderer;
+                    if (renderer) {
+                      console.log("调用controlLeftDoor(1)");
+                      renderer.controlLeftDoor(1);
+                    } else {
+                      console.log("Car3DRenderer未找到");
+                    }
+                  }}
+                  title="开左门"
+                >
+                  🚪←
+                </button>
+                <button
+                  className="bg-orange-600 hover:bg-orange-700 text-white p-2 rounded text-xs shadow-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    console.log("关左门按钮被点击");
+                    const renderer = (window as any).car3DRenderer;
+                    if (renderer) {
+                      console.log("调用controlLeftDoor(2)");
+                      renderer.controlLeftDoor(2);
+                    } else {
+                      console.log("Car3DRenderer未找到");
+                    }
+                  }}
+                  title="关左门"
+                >
+                  🚪→
+                </button>
+              </div>
+
+              <div className="absolute bottom-2 right-2 text-xs text-gray-500 bg-white px-2 py-1 rounded shadow-lg z-20">
+                拖拽旋转 | 滚轮缩放
               </div>
             </div>
-            <div className="absolute bottom-2 right-2 text-xs text-gray-500 bg-white px-2 py-1 rounded">
-              拖拽旋转 | 滚轮缩放
-            </div>
+
+
           </div>
         </div>
       </div>
@@ -658,16 +783,16 @@ function CarControlTab({
           <div className="flex gap-4">
             <button
               onClick={() => onSendCommand("start_driving")}
-              disabled={!isConnected}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors"
+              disabled={false}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
             >
               <Play className="w-4 h-4 inline mr-2" />
               开始行驶
             </button>
             <button
               onClick={() => onSendCommand("update_data")}
-              disabled={!isConnected}
-              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors"
+              disabled={false}
+              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
             >
               数据更新
             </button>
@@ -680,22 +805,22 @@ function CarControlTab({
           <div className="flex gap-4">
             <button
               onClick={() => onSendCommand("left_door_open")}
-              disabled={!isConnected}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-md transition-colors"
+              disabled={false}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-md transition-colors cursor-pointer"
             >
               开门
             </button>
             <button
               onClick={() => onSendCommand("left_door_close")}
-              disabled={!isConnected}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md transition-colors"
+              disabled={false}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md transition-colors cursor-pointer"
             >
               关门
             </button>
             <button
               onClick={() => onSendCommand("left_door_stop")}
-              disabled={!isConnected}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-md transition-colors"
+              disabled={false}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-md transition-colors cursor-pointer"
             >
               停止
             </button>
@@ -711,8 +836,8 @@ function CarControlTab({
                 <button
                   key={level}
                   onClick={() => onSendCommand(`fan_level_${level}`)}
-                  disabled={!isConnected}
-                  className={`w-full px-4 py-2 rounded-md transition-colors ${
+                  disabled={false}
+                  className={`w-full px-4 py-2 rounded-md transition-colors cursor-pointer ${
                     carStates.fanLevel === level
                       ? "bg-blue-600 text-white"
                       : "bg-gray-200 hover:bg-gray-300 text-gray-700"
@@ -731,8 +856,8 @@ function CarControlTab({
                 <button
                   key={mode}
                   onClick={() => onSendCommand(`light_mode_${mode}`)}
-                  disabled={!isConnected}
-                  className={`w-full px-4 py-2 rounded-md transition-colors ${
+                  disabled={false}
+                  className={`w-full px-4 py-2 rounded-md transition-colors cursor-pointer ${
                     carStates.lightMode === mode
                       ? "bg-yellow-500 text-white"
                       : "bg-gray-200 hover:bg-gray-300 text-gray-700"
@@ -799,6 +924,7 @@ interface CanConfigTabProps {
   sendData: string;
   isReceiving: boolean;
   onConnect: () => void;
+  onDisconnect: () => Promise<void>;
   onConfigChange: (config: SerialConfig) => void;
   onSendMessage: () => void;
   onReceivingToggle: () => void;
@@ -815,13 +941,14 @@ interface CanConfigTabProps {
 function CanConfigTab({
   isConnected,
   config,
-  availablePorts,
+  availablePorts: _availablePorts,
   canCommands,
   messages,
   sendId,
   sendData,
   isReceiving,
   onConnect,
+  onDisconnect,
   onConfigChange,
   onSendMessage,
   onReceivingToggle,
@@ -836,71 +963,128 @@ function CanConfigTab({
       <div className="space-y-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">连接配置</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                串口
-              </label>
-              <select
-                value={config.port}
+
+          {/* 回环测试模式选择 */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="loopbackTest"
+                checked={config.isLoopbackTest}
                 onChange={(e) =>
-                  onConfigChange({ ...config, port: e.target.value })
+                  onConfigChange({ ...config, isLoopbackTest: e.target.checked })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="mr-2"
                 disabled={isConnected}
-              >
-                {availablePorts.map((port) => (
-                  <option key={port} value={port}>
-                    {port}
-                  </option>
-                ))}
-              </select>
+              />
+              <label htmlFor="loopbackTest" className="text-sm font-medium text-gray-700">
+                启用双设备回环测试模式
+              </label>
             </div>
+            <p className="text-xs text-gray-500 mb-2">
+              {config.isLoopbackTest
+                ? "🔄 双设备模式：使用两个USB-CAN设备进行回环测试"
+                : "📡 单设备模式：使用一个USB-CAN设备进行回环测试"}
+            </p>
+            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+              💡 <strong>单设备回环测试</strong>：适用于只有一个USB-CAN设备的情况，通过设置设备为回环模式来验证功能是否正常。
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* 根据模式显示不同的串口配置 */}
+            {config.isLoopbackTest ? (
+              // 回环测试模式：显示两个串口
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    发送端口 (Port 1)
+                  </label>
+                  <input
+                    type="text"
+                    value={config.loopbackPort1}
+                    onChange={(e) =>
+                      onConfigChange({ ...config, loopbackPort1: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="COM22"
+                    disabled={isConnected}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    接收端口 (Port 2)
+                  </label>
+                  <input
+                    type="text"
+                    value={config.loopbackPort2}
+                    onChange={(e) =>
+                      onConfigChange({ ...config, loopbackPort2: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="COM23"
+                    disabled={isConnected}
+                  />
+                </div>
+              </>
+            ) : (
+              // 普通模式：显示单个串口
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  串口
+                </label>
+                <input
+                  type="text"
+                  value={config.port}
+                  onChange={(e) =>
+                    onConfigChange({ ...config, port: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="COM22"
+                  disabled={isConnected}
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 串口波特率
               </label>
-              <select
+              <input
+                type="number"
                 value={config.baudRate}
                 onChange={(e) =>
                   onConfigChange({
                     ...config,
-                    baudRate: parseInt(e.target.value),
+                    baudRate: parseInt(e.target.value) || 2000000,
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="2000000"
                 disabled={isConnected}
-              >
-                <option value={9600}>9600</option>
-                <option value={19200}>19200</option>
-                <option value={38400}>38400</option>
-                <option value={57600}>57600</option>
-                <option value={115200}>115200</option>
-                <option value={230400}>230400</option>
-              </select>
+              />
+              <p className="text-xs text-gray-500 mt-1">电脑与USB-CAN设备间的通信速度</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 CAN波特率
               </label>
-              <select
+              <input
+                type="number"
                 value={config.canBaudRate}
                 onChange={(e) =>
                   onConfigChange({
                     ...config,
-                    canBaudRate: parseInt(e.target.value),
+                    canBaudRate: parseInt(e.target.value) || 2000000,
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="2000000"
                 disabled={isConnected}
-              >
-                <option value={125000}>125K</option>
-                <option value={250000}>250K</option>
-                <option value={500000}>500K</option>
-                <option value={1000000}>1M</option>
-              </select>
+              />
+              <p className="text-xs text-gray-500 mt-1">CAN总线上的通信速度</p>
             </div>
 
             <div>
@@ -975,7 +1159,7 @@ function CanConfigTab({
                 onChange={(e) => onSendIdChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="123"
-                disabled={!isConnected}
+                disabled={false}
               />
             </div>
 
@@ -989,24 +1173,149 @@ function CanConfigTab({
                 onChange={(e) => onSendDataChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="01 02 03 04"
-                disabled={!isConnected}
+                disabled={false}
               />
             </div>
 
             <button
               onClick={onSendMessage}
-              disabled={!isConnected}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors"
+              disabled={false}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
             >
               <Send className="w-4 h-4 inline mr-2" />
               发送消息
             </button>
 
+            {/* 参数测试按钮 */}
+            <button
+              onClick={async () => {
+                try {
+                  console.log("测试参数传递");
+                  const result = await invoke("test_params", {
+                    testId: sendId,
+                    testData: sendData,
+                  });
+                  alert(`参数测试成功！\n${result}`);
+                } catch (error) {
+                  console.error("参数测试失败:", error);
+                  alert(`参数测试失败：${error}`);
+                }
+              }}
+              className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-md font-medium transition-colors cursor-pointer"
+            >
+              测试参数传递
+            </button>
+
+            {/* 回环测试说明 */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="text-sm font-semibold text-blue-800 mb-2">🔍 回环测试说明</h4>
+              <div className="text-xs text-blue-700 space-y-1">
+                <p><strong>单设备回环测试</strong>：验证单个USB-CAN设备功能</p>
+                <p>• 自动设置设备为回环模式</p>
+                <p>• 发送数据并检查是否能接收到相同数据</p>
+                <p>• 适用于只有一个USB-CAN设备的情况</p>
+                <p className="text-blue-600 mt-2">💡 如果通电瞬间TX/RX灯闪烁，说明波特率正确</p>
+              </div>
+            </div>
+
+            {/* 单设备回环测试按钮 */}
+            <button
+              onClick={async () => {
+                try {
+                  console.log("开始单设备回环测试");
+                  console.log("测试端口:", config.port);
+
+                  // 如果当前已连接，先断开连接以释放端口
+                  if (isConnected) {
+                    console.log("断开当前连接以释放端口...");
+                    await onDisconnect();
+                    // 等待端口释放
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                  }
+
+                  // 调用Rust后端的单设备回环测试命令
+                  const result = await invoke("start_loopback_test", {
+                    config: {
+                      port: config.port,
+                      baud_rate: config.baudRate,
+                      can_baud_rate: config.canBaudRate,
+                      frame_type: config.frameType,
+                      can_mode: "loopback", // 强制设置为回环模式
+                      is_loopback_test: false, // 单设备测试
+                      loopback_port1: config.port,
+                      loopback_port2: config.port,
+                    },
+                    testId: sendId,
+                    testData: sendData,
+                  });
+
+                  alert(`单设备回环测试结果：\n${result}`);
+                  console.log("单设备回环测试结果:", result);
+                } catch (error) {
+                  console.error("单设备回环测试失败:", error);
+                  alert(`单设备回环测试失败：${error}`);
+                }
+              }}
+              disabled={false}
+              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4 inline mr-2" />
+              单设备回环测试
+            </button>
+
+            {/* 双设备回环测试按钮 */}
+            {config.isLoopbackTest && (
+              <button
+                onClick={async () => {
+                  try {
+                    console.log("开始双设备回环测试");
+                    console.log("发送端口:", config.loopbackPort1);
+                    console.log("接收端口:", config.loopbackPort2);
+
+                    // 如果当前已连接，先断开连接以释放端口
+                    if (isConnected) {
+                      console.log("断开当前连接以释放端口...");
+                      await onDisconnect();
+                      // 等待端口释放
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    // 调用Rust后端的双设备回环测试命令
+                    const result = await invoke("start_loopback_test", {
+                      config: {
+                        port: config.port,
+                        baud_rate: config.baudRate,
+                        can_baud_rate: config.canBaudRate,
+                        frame_type: config.frameType,
+                        can_mode: config.canMode,
+                        is_loopback_test: config.isLoopbackTest,
+                        loopback_port1: config.loopbackPort1,
+                        loopback_port2: config.loopbackPort2,
+                      },
+                      testId: sendId,
+                      testData: sendData,
+                    });
+
+                    alert(`双设备回环测试结果：\n${result}`);
+                    console.log("双设备回环测试结果:", result);
+                  } catch (error) {
+                    console.error("双设备回环测试失败:", error);
+                    alert(`双设备回环测试失败：${error}`);
+                  }
+                }}
+                disabled={false}
+                className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4 inline mr-2" />
+                双设备回环测试
+              </button>
+            )}
+
             <div className="flex gap-2">
               <button
                 onClick={onReceivingToggle}
-                disabled={!isConnected}
-                className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+                disabled={false}
+                className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer ${
                   isReceiving
                     ? "bg-red-600 hover:bg-red-700 text-white"
                     : "bg-green-600 hover:bg-green-700 text-white"
