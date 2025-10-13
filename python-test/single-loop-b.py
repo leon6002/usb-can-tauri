@@ -3,13 +3,18 @@ import time
 import threading
 
 
-def custom_receiver(ser):
+def custom_receiver(ser: serial.Serial):
     # Read data from serial port
     try:
+        # set_can_configuration(ser, 0x02)
         while ser.is_open:
+            print("looping...")
+            print("block waiting serial port data")
             data = ser.read(2)
+            print("serial port data received")
             hex_data1 = [hex(byte) for byte in data]
-            if (data[0] == 0xaa) and (data[1] & 0xc0 == 0xc0):  # frame header
+            if data and (data[0] == 0xaa) and (data[1] & 0xc0 == 0xc0):  # frame header
+                print("data[1] is", data[1])
                 len = data[1] & 0x0f
                 if data[1] & 0x10 == 0x00:
                     strFrameFormat = "Data Frame"
@@ -24,6 +29,7 @@ def custom_receiver(ser):
                     len2 = len + 5
 
                 data2 = ser.read(len2)
+                print("data2 is", data2)
                 hex_data = [hex(byte) for byte in data2]
                 hex_data1 += hex_data
                 print(hex_data1)
@@ -60,35 +66,37 @@ def custom_receiver(ser):
         print("\nReceiver stopped by user")
     finally:
         # Close serial port
-        # ser.close()
+        ser.close()
         print("Serial port closed")
+
+def set_can_configuration(ser: serial.Serial, loop_mode):
+    # 发送配置命令
+    set_can_baudrate = [
+        0xaa, 0x55, 0x12, 0x03, 0x02,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        loop_mode,  # 回环模式
+        0x00, 0x00, 0x00, 0x00, 0x00
+    ]
+    
+    checksum = sum(set_can_baudrate[2:]) & 0xff
+    set_can_baudrate.append(checksum)
+    
+    print(f"set_can_configuration with {loop_mode}...")
+    ser.write(bytes(set_can_baudrate))
+    time.sleep(1)  # 等待配置生效
 
 def main():
     try:
-        ser = serial.Serial("COM22", 2000000, timeout=0.1)
+        ser = serial.Serial("COM23", 2000000)
         print(f"Connected to {ser.portstr}")
         
-        # 发送配置命令
-        set_can_baudrate = [
-            0xaa, 0x55, 0x12, 0x03, 0x02,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x02,  # 回环模式
-            0x00, 0x00, 0x00, 0x00, 0x00
-        ]
-        
-        checksum = sum(set_can_baudrate[2:]) & 0xff
-        set_can_baudrate.append(checksum)
-        
-        print("Configuring CAN to loopback mode...")
-        ser.write(bytes(set_can_baudrate))
-        time.sleep(10)  # 等待配置生效
-        
+        set_can_configuration(ser, 0x02)
         # 启动调试接收线程
         # recv_thread = threading.Thread(target=debug_receiver_thread, args=(ser,))
-        recv_thread = threading.Thread(target=custom_receiver, args=(ser,))
-        recv_thread.daemon = True
-        recv_thread.start()
+        # recv_thread = threading.Thread(target=custom_receiver, args=(ser,))
+        # recv_thread.daemon = True
+        # recv_thread.start()
         
         # 发送测试数据
         test_frame = bytes([
@@ -100,7 +108,7 @@ def main():
         
         print("Starting to send test frames...")
         count = 0
-        while count < 10:  # 发送10次测试
+        while count < 1:  # 发送10次测试
             sent = ser.write(test_frame)
             print(f"→ Sent frame {count+1}, bytes: {sent}")
             count += 1
@@ -108,12 +116,14 @@ def main():
             
         print("Test completed")
         time.sleep(2)  # 等待最后的接收
+        custom_receiver(ser)
         
     except Exception as e:
         print(f"Error: {e}")
     finally:
         if 'ser' in locals():
-            ser.close()
+            # ser.close()
+            print("ready to close port in sending")
 
 if __name__ == "__main__":
     main()

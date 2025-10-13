@@ -3,7 +3,7 @@ import time
 
 print("The converter is equipped with two built - in conversion protocols, \none is a fixed 20 byte protocol and the other is a variable length protocol. \nPlease ensure that the variable length protocol is selected in the supporting software \nand click the Set and Start button to issue a configuration command to the converter")
 
-t = serial.Serial("COM22", 2000000)
+t = serial.Serial("COM23", 2000000)
 
 print(t.portstr)
 
@@ -27,7 +27,7 @@ set_can_baudrate = [
     0x00,     #  10 Mask ID2
     0x00,     #  11 Mask ID3
     0x00,     #  12 Mask ID4
-    0x02,     #  13 CAN mode:  normal mode  ##   0x00 normal mode,   0x01 silent mode,   0x02 loopback mode,   0x03 loopback silent mode ##
+    0x00,     #  13 CAN mode:  normal mode  ##   0x00 normal mode,   0x01 silent mode,   0x02 loopback mode,   0x03 loopback silent mode ##
     0x00,     #  14 automatic resend:  automatic retransmission
     0x00,     #  15 Spare
     0x00,     #  16 Spare

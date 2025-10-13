@@ -8,7 +8,7 @@ import sys
 def parse_arguments():
     """Parse command line arguments for serial port configuration."""
     parser = argparse.ArgumentParser(description='CAN bus receiver via USB-CAN-A converter')
-    parser.add_argument('--port', '-p', type=str, default='COM20',
+    parser.add_argument('--port', '-p', type=str, default='COM25',
                         help='Serial port name (default: COM20)')
     parser.add_argument('--baudrate', '-b', type=int, default=2000000,
                         help='Serial port baud rate (default: 2000000)')
