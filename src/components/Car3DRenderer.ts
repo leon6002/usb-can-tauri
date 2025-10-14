@@ -812,6 +812,28 @@ export class Car3DRenderer {
         }, 100);
     }
 
+    // 检查渲染器是否仍在运行
+    public isActive(): boolean {
+        return !!(this.animationId && this.renderer && this.container && this.container.parentNode);
+    }
+
+    // 暂停动画循环
+    public pauseAnimation(): void {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+            console.log('3D animation paused');
+        }
+    }
+
+    // 恢复动画循环
+    public resumeAnimation(): void {
+        if (!this.animationId && this.renderer) {
+            this.animate();
+            console.log('3D animation resumed');
+        }
+    }
+
     // 资源清理方法
     public dispose(): void {
         // 停止动画循环
