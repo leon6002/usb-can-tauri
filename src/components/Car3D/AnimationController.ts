@@ -21,10 +21,12 @@ export class AnimationController implements IAnimationController {
   private wheels: WheelObjects;
   private lights: LightObjects;
   private lightAnimation: NodeJS.Timeout | null = null;
+  private sceneManager: any; // SceneManager引用
 
-  constructor(wheels: WheelObjects, lights: LightObjects) {
+  constructor(wheels: WheelObjects, lights: LightObjects, sceneManager?: any) {
     this.wheels = wheels;
     this.lights = lights;
+    this.sceneManager = sceneManager;
 
     // 监听门按钮点击事件
     this.setupDoorButtonListener();
@@ -92,42 +94,46 @@ export class AnimationController implements IAnimationController {
   /**
    * 开始轮子旋转动画
    */
-  public startWheelRotation(speed: number, direction: number = 1): void {
-    this.wheelRotation.isRotating = true;
+  public startWheelRotation(speed: number = 5, direction: number = 1): void {
+    console.log('开始轮子旋转，速度:', speed);
     this.wheelRotation.speed = speed;
     this.wheelRotation.direction = direction;
-    
-    console.log(`开始轮子旋转动画 - 速度: ${speed}, 方向: ${direction > 0 ? '前进' : '后退'}`);
+    this.wheelRotation.isRotating = true;
+
+    // 显示找到的轮子状态
+    console.log('轮子状态:', {
+      frontLeft: !!this.wheels.frontLeft,
+      frontRight: !!this.wheels.frontRight,
+      rearLeft: !!this.wheels.rearLeft,
+      rearRight: !!this.wheels.rearRight
+    });
   }
 
   /**
    * 停止轮子旋转动画
    */
   public stopWheelRotation(): void {
+    console.log('停止轮子旋转');
     this.wheelRotation.isRotating = false;
     this.wheelRotation.speed = 0;
-    
-    console.log('停止轮子旋转动画');
   }
 
   /**
    * 开始道路移动动画
    */
-  public startRoadMovement(speed: number): void {
-    this.roadMovement.isMoving = true;
+  public startRoadMovement(speed: number = 2): void {
+    console.log('开始道路移动，速度:', speed);
     this.roadMovement.speed = speed;
-    
-    console.log(`开始道路移动动画 - 速度: ${speed}`);
+    this.roadMovement.isMoving = true;
   }
 
   /**
    * 停止道路移动动画
    */
   public stopRoadMovement(): void {
+    console.log('停止道路移动');
     this.roadMovement.isMoving = false;
     this.roadMovement.speed = 0;
-    
-    console.log('停止道路移动动画');
   }
 
   /**
@@ -186,35 +192,32 @@ export class AnimationController implements IAnimationController {
    * 更新轮子旋转
    */
   private updateWheelRotation(delta: number): void {
-    if (!this.wheelRotation.isRotating) return;
+    if (this.wheelRotation.isRotating && this.wheelRotation.speed > 0) {
+      // 计算旋转角度
+      const rotationAngle = this.wheelRotation.speed * this.wheelRotation.direction * delta;
 
-    const rotationSpeed = this.wheelRotation.speed * this.wheelRotation.direction * delta;
-    
-    // 旋转所有轮子
-    Object.values(this.wheels).forEach(wheel => {
-      if (wheel) {
-        wheel.rotation.x += rotationSpeed;
-      }
-    });
+      // 旋转所有轮子
+      Object.values(this.wheels).forEach(wheel => {
+        if (wheel) {
+          wheel.rotation.x -= rotationAngle;
+        }
+      });
+    }
   }
 
   /**
    * 更新道路移动
    */
   private updateRoadMovement(delta: number): void {
-    if (!this.roadMovement.isMoving) return;
+    if (this.roadMovement.isMoving && this.roadMovement.speed > 0 && this.sceneManager?.roadTexture) {
+      // 移动道路纹理的偏移
+      this.sceneManager.roadTexture.offset.y += this.roadMovement.speed * delta;
 
-    const moveSpeed = this.roadMovement.speed * delta;
-    
-    // 移动道路对象
-    this.roadMovement.objects.forEach(obj => {
-      obj.position.z += moveSpeed;
-      
-      // 如果对象移出视野，重置位置
-      if (obj.position.z > 10) {
-        obj.position.z = -10;
+      // 当偏移超过1时重置，创建无缝循环
+      if (this.sceneManager.roadTexture.offset.y >= 1) {
+        this.sceneManager.roadTexture.offset.y = 0;
       }
-    });
+    }
   }
 
   /**

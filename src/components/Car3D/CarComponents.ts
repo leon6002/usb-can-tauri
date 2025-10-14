@@ -30,22 +30,45 @@ export class CarComponents implements ICarComponents {
    * 初始化车辆组件
    */
   public initializeComponents(car: THREE.Group): void {
-    console.log('开始初始化车辆组件...');
+    console.log('🔍 开始初始化车辆组件...');
+
+    // 定义确切的轮子名称
+    const wheelNames = {
+      frontLeft: 'Front_Left_Wheel_36_66',
+      frontRight: 'Front_Right_Wheel_44_81',
+      rearLeft: 'Rear_Left_Wheel_28_51',
+      rearRight: 'Rear_Right_Wheel_52_96'
+    };
 
     car.traverse((child) => {
       if (child.name) {
         // 识别车灯对象
         this.identifyLights(child);
 
-        // 查找轮子对象
-        if (this.isWheelObject(child.name)) {
-          this.assignWheel(child, child.name);
+        // 直接通过名称查找轮子对象
+        if (child.name === wheelNames.frontLeft) {
+          this.wheels.frontLeft = child;
+          console.log('✓ 找到前左轮:', child.name);
+        } else if (child.name === wheelNames.frontRight) {
+          this.wheels.frontRight = child;
+          console.log('✓ 找到前右轮:', child.name);
+        } else if (child.name === wheelNames.rearLeft) {
+          this.wheels.rearLeft = child;
+          console.log('✓ 找到后左轮:', child.name);
+        } else if (child.name === wheelNames.rearRight) {
+          this.wheels.rearRight = child;
+          console.log('✓ 找到后右轮:', child.name);
         }
       }
     });
 
     console.log('✅ 车辆组件初始化完成');
-    console.log('轮子数量:', Object.keys(this.wheels).length);
+    console.log('🎯 找到的轮子:', {
+      frontLeft: this.wheels.frontLeft?.name || 'null',
+      frontRight: this.wheels.frontRight?.name || 'null',
+      rearLeft: this.wheels.rearLeft?.name || 'null',
+      rearRight: this.wheels.rearRight?.name || 'null'
+    });
     console.log('灯光数量:', Object.keys(this.lights).length);
     console.log('门动画将使用预制动画: DoorFLOpen, DoorFROpen');
   }
@@ -99,34 +122,7 @@ export class CarComponents implements ICarComponents {
 
 
 
-  /**
-   * 判断是否为轮子对象
-   */
-  private isWheelObject(name: string): boolean {
-    const nameLower = name.toLowerCase();
-    return /wheel|tire|rim/.test(nameLower) && !/brake|disc/.test(nameLower);
-  }
 
-  /**
-   * 分配轮子对象到对应位置
-   */
-  private assignWheel(child: THREE.Object3D, name: string): void {
-    const nameLower = name.toLowerCase();
-    
-    if (/front.*left|left.*front|fl_/.test(nameLower)) {
-      this.wheels.frontLeft = child;
-      console.log('✓ 找到前左轮:', name);
-    } else if (/front.*right|right.*front|fr_/.test(nameLower)) {
-      this.wheels.frontRight = child;
-      console.log('✓ 找到前右轮:', name);
-    } else if (/rear.*left|left.*rear|rl_/.test(nameLower)) {
-      this.wheels.rearLeft = child;
-      console.log('✓ 找到后左轮:', name);
-    } else if (/rear.*right|right.*rear|rr_/.test(nameLower)) {
-      this.wheels.rearRight = child;
-      console.log('✓ 找到后右轮:', name);
-    }
-  }
 
 
 

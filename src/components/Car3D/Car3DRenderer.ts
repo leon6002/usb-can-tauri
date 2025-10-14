@@ -44,7 +44,8 @@ export class Car3DRenderer {
     // 这些模块需要在场景创建后初始化
     this.animationController = new AnimationController(
       this.carComponents.wheels,
-      this.carComponents.lights
+      this.carComponents.lights,
+      this.sceneManager
     );
     
     this.init();

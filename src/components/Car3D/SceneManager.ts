@@ -9,6 +9,7 @@ export class SceneManager implements ISceneManager {
   public camera!: THREE.PerspectiveCamera;
   public renderer!: THREE.WebGLRenderer;
   public container: HTMLElement;
+  public roadTexture: THREE.CanvasTexture | null = null; // 暴露道路纹理
   
   private onWindowResizeBound: () => void;
 
@@ -195,15 +196,15 @@ export class SceneManager implements ISceneManager {
     ctx.stroke();
 
     // 创建纹理
-    const roadTexture = new THREE.CanvasTexture(canvas);
-    roadTexture.wrapS = THREE.RepeatWrapping;
-    roadTexture.wrapT = THREE.RepeatWrapping;
-    roadTexture.repeat.set(1, 5); // 重复5次，创建长道路效果
+    this.roadTexture = new THREE.CanvasTexture(canvas);
+    this.roadTexture.wrapS = THREE.RepeatWrapping;
+    this.roadTexture.wrapT = THREE.RepeatWrapping;
+    this.roadTexture.repeat.set(1, 5); // 重复5次，创建长道路效果
 
     // 创建道路几何体
     const roadGeometry = new THREE.PlaneGeometry(10, 150);
     const roadMaterial = new THREE.MeshLambertMaterial({
-      map: roadTexture,
+      map: this.roadTexture,
       transparent: false
     });
 
