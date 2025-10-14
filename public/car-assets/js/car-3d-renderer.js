@@ -12,6 +12,7 @@ class Car3DRenderer {
         this.car = null;
         this.mixer = null;
         this.clock = new THREE.Clock();
+        this.animationId = null;
         
         // 门对象和动画相关
         this.leftDoor = null;
@@ -95,7 +96,8 @@ class Car3DRenderer {
         this.animate();
 
         // 监听窗口大小变化
-        window.addEventListener('resize', () => this.onWindowResize());
+        this.onWindowResize = this.onWindowResize.bind(this);
+        window.addEventListener('resize', this.onWindowResize);
     }
 
     createScene() {
@@ -593,7 +595,7 @@ class Car3DRenderer {
     }
 
     animate() {
-        requestAnimationFrame(() => this.animate());
+        this.animationId = requestAnimationFrame(() => this.animate());
 
         const delta = this.clock.getDelta();
 
@@ -1790,7 +1792,7 @@ class Car3DRenderer {
 
         console.log(`创建${side}侧测试按钮，位置:`, position);
         return button;
-
+    }
     // 创建单个门按钮
     createDoorButton(side, doorObject) {
         // 创建按钮几何体 - 更大的圆形按钮
@@ -1855,15 +1857,15 @@ class Car3DRenderer {
 
     // 设置点击事件处理
     setupClickHandlers() {
+        // 绑定事件处理器
+        this.onMouseClick = this.onMouseClick.bind(this);
+        this.onMouseMove = this.onMouseMove.bind(this);
+
         // 鼠标点击事件
-        this.renderer.domElement.addEventListener('click', (event) => {
-            this.onMouseClick(event);
-        });
+        this.renderer.domElement.addEventListener('click', this.onMouseClick);
 
         // 鼠标移动事件（用于悬停效果）
-        this.renderer.domElement.addEventListener('mousemove', (event) => {
-            this.onMouseMove(event);
-        });
+        this.renderer.domElement.addEventListener('mousemove', this.onMouseMove);
     }
 
     // 处理鼠标点击
@@ -1936,6 +1938,82 @@ class Car3DRenderer {
         }
 
         console.log(`点击了${doorSide}门按钮`);
+    }
+
+    // 清理资源
+    dispose() {
+        console.log('Disposing Car3DRenderer...');
+
+        // 停止动画循环
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+
+        // 停止相机动画
+        this.stopCameraAnimation();
+
+        // 清理事件监听器
+        if (this.renderer && this.renderer.domElement) {
+            this.renderer.domElement.removeEventListener('click', this.onMouseClick);
+            this.renderer.domElement.removeEventListener('mousemove', this.onMouseMove);
+        }
+        window.removeEventListener('resize', this.onWindowResize);
+
+        // 清理Three.js资源
+        if (this.scene) {
+            // 递归清理场景中的所有对象
+            this.scene.traverse((child) => {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => {
+                            if (material.map) material.map.dispose();
+                            if (material.normalMap) material.normalMap.dispose();
+                            if (material.roughnessMap) material.roughnessMap.dispose();
+                            if (material.metalnessMap) material.metalnessMap.dispose();
+                            material.dispose();
+                        });
+                    } else {
+                        if (child.material.map) child.material.map.dispose();
+                        if (child.material.normalMap) child.material.normalMap.dispose();
+                        if (child.material.roughnessMap) child.material.roughnessMap.dispose();
+                        if (child.material.metalnessMap) child.material.metalnessMap.dispose();
+                        child.material.dispose();
+                    }
+                }
+            });
+            this.scene.clear();
+        }
+
+        // 清理渲染器
+        if (this.renderer) {
+            this.renderer.dispose();
+            if (this.container && this.renderer.domElement) {
+                this.container.removeChild(this.renderer.domElement);
+            }
+        }
+
+        // 清理动画混合器
+        if (this.mixer) {
+            this.mixer.stopAllAction();
+            this.mixer = null;
+        }
+
+        // 重置所有属性
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.car = null;
+        this.leftDoor = null;
+        this.rightDoor = null;
+        this.wheels = {};
+        this.lights = {};
+        this.clickableObjects = [];
+
+        console.log('Car3DRenderer disposed successfully');
     }
 }
 
