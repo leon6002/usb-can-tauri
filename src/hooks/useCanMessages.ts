@@ -39,7 +39,7 @@ export const useCanMessages = () => {
       const params = {
         id: canId,
         data: data,
-        frame_type: config.frameType,
+        frameType: config.frameType,
       };
       console.log("发送车辆命令参数:", params);
       await invoke("send_can_message", params);

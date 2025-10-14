@@ -28,6 +28,13 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
             开始行驶
           </button>
           <button
+            onClick={() => onSendCommand("stop_driving")}
+            disabled={!isConnected}
+            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
+          >
+            停止行驶
+          </button>
+          <button
             onClick={() => onSendCommand("update_data")}
             disabled={!isConnected}
             className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"

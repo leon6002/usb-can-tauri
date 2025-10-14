@@ -42,81 +42,200 @@ export class InteractionHandler implements IInteractionHandler {
    * 创建3D门按钮
    */
   public create3DDoorButtons(car: THREE.Group): void {
+    console.log('🔍 开始创建3D门按钮...');
+
     // 创建左门按钮
     this.createDoorButton('left', car);
-    
+
     // 创建右门按钮
     this.createDoorButton('right', car);
-    
-    console.log('✅ 3D门按钮创建完成');
+
+    console.log('✅ 3D门按钮创建完成，总共可点击对象:', this.clickableObjects.length);
   }
 
   /**
    * 创建单个门按钮
    */
   private createDoorButton(side: 'left' | 'right', car: THREE.Group): void {
-    // 按钮几何体
-    const geometry = new THREE.SphereGeometry(0.15, 16, 16);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x4CAF50,
-      emissive: 0x004400,
-      metalness: 0.3,
-      roughness: 0.4
-    });
-    
-    const button = new THREE.Mesh(geometry, material);
-    
-    // 设置按钮位置
-    const x = side === 'left' ? -2 : 2;
-    button.position.set(x, 1.5, 1);
-    
+    // 查找对应的车门对象
+    const doorName = side === 'left' ? 'Object_347' : 'Object_401';
+    const doorObject = this.findDoorByName(car, doorName);
+
+    if (!doorObject) {
+      console.warn(`⚠️ 未找到${side}门对象: ${doorName}`);
+      return;
+    }
+
+    // 创建按钮几何体
+    const buttonGroup = this.createButtonGeometry();
+
+    // 调整按钮位置到门把手附近
+    if (side === 'left') {
+      // 左门按钮位置 - 门把手附近
+      buttonGroup.position.set(-0.2, -1.1, 0.2); // 相对于门的位置
+      buttonGroup.rotation.y = Math.PI / 2; // 面向外侧
+    } else {
+      // 右门按钮位置 - 门把手附近
+      buttonGroup.position.set(0.2, -1.1, -0.1); // 相对于门的位置
+      buttonGroup.rotation.y = -Math.PI / 2; // 面向外侧
+    }
+
     // 添加按钮标识
-    button.userData = {
+    buttonGroup.userData = {
       type: 'doorButton',
       door: side,
-      originalColor: 0x4CAF50,
-      hoverColor: 0x66BB6A,
-      clickColor: 0x388E3C
+      originalOpacity: { outer: 0.8, inner: 0.3 },
+      hoverOpacity: { outer: 1.0, inner: 0.5 },
+      clickOpacity: { outer: 0.6, inner: 0.2 }
     };
-    
-    // 添加到场景
-    this.scene.add(button);
-    
+
+    // 将按钮附加到车门对象上
+    doorObject.add(buttonGroup);
+
     // 保存按钮引用
-    this.doorButtons[`${side}Door` as keyof DoorButtons] = button;
-    this.clickableObjects.push(button);
-    
+    this.doorButtons[`${side}Door` as keyof DoorButtons] = buttonGroup;
+    this.clickableObjects.push(buttonGroup);
+
     // 创建按钮文字标签
-    this.createButtonLabel(button, side === 'left' ? '左门' : '右门');
+    this.createButtonLabel(buttonGroup, side === 'left' ? '左门' : '右门');
+
+    console.log(`✓ ${side}门按钮已创建并附加到: ${doorName}`);
+    console.log(`按钮位置:`, buttonGroup.position);
+    console.log(`按钮缩放:`, buttonGroup.scale);
+    console.log(`门对象位置:`, doorObject.position);
+    console.log(`门对象子对象数量:`, doorObject.children.length);
+  }
+
+  /**
+   * 创建按钮几何体
+   */
+  private createButtonGeometry(): THREE.Group {
+    // 创建科技感的白色半透明圆环按钮
+    const outerGeometry = new THREE.RingGeometry(0.12, 0.18, 32);
+    const innerGeometry = new THREE.CircleGeometry(0.10, 32);
+
+    // 外圆环材质 - 白色半透明，双面可见
+    const outerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.8,
+      emissive: 0x222222,
+      metalness: 0.1,
+      roughness: 0.8,
+      side: THREE.DoubleSide // 双面渲染
+    });
+
+    // 内圆材质 - 更透明的白色，双面可见
+    const innerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.5,
+      emissive: 0x111111,
+      metalness: 0.1,
+      roughness: 0.8,
+      side: THREE.DoubleSide // 双面渲染
+    });
+
+    const outerRing = new THREE.Mesh(outerGeometry, outerMaterial);
+    const innerCircle = new THREE.Mesh(innerGeometry, innerMaterial);
+
+    // 创建按钮组
+    const buttonGroup = new THREE.Group();
+    buttonGroup.add(outerRing);
+    buttonGroup.add(innerCircle);
+
+    return buttonGroup;
+  }
+
+
+
+  /**
+   * 根据名称查找车门对象
+   */
+  private findDoorByName(car: THREE.Group, doorName: string): THREE.Object3D | null {
+    let foundDoor: THREE.Object3D | null = null;
+
+    console.log(`🔍 查找车门对象: ${doorName}`);
+
+    car.traverse((child) => {
+      if (child.name === doorName) {
+        foundDoor = child;
+        console.log(`✓ 找到车门对象: ${doorName}`, child);
+      }
+    });
+
+    if (!foundDoor) {
+      console.log(`❌ 未找到车门对象: ${doorName}`);
+      // 列出所有可用的对象名称
+      const allNames: string[] = [];
+      car.traverse((child) => {
+        if (child.name) {
+          allNames.push(child.name);
+        }
+      });
+      console.log('可用的对象名称:', allNames.slice(0, 20)); // 只显示前20个
+    }
+
+    return foundDoor;
+  }
+
+  /**
+   * 从点击的对象找到对应的按钮组
+   */
+  private findButtonGroup(clickedObject: THREE.Object3D): THREE.Object3D | null {
+    let current = clickedObject;
+
+    // 向上遍历父对象，找到带有doorButton标识的对象
+    while (current) {
+      if (current.userData && current.userData.type === 'doorButton') {
+        return current;
+      }
+      current = current.parent as THREE.Object3D;
+    }
+
+    return null;
   }
 
   /**
    * 创建按钮文字标签
    */
   private createButtonLabel(button: THREE.Object3D, text: string): void {
-    // 创建文字纹理
+    // 创建科技感文字纹理
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
-    canvas.width = 128;
+    canvas.width = 256;
     canvas.height = 64;
-    
-    context.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    
-    context.fillStyle = '#333333';
-    context.font = '20px Arial';
+
+    // 透明背景
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 科技感字体样式
+    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    context.font = 'bold 16px "Microsoft YaHei", Arial, sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
+    context.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    context.shadowBlur = 4;
     context.fillText(text, canvas.width / 2, canvas.height / 2);
-    
+
+    // 添加发光边框效果
+    context.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    context.lineWidth = 1;
+    context.strokeText(text, canvas.width / 2, canvas.height / 2);
+
     // 创建文字精灵
     const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      alphaTest: 0.1
+    });
     const sprite = new THREE.Sprite(spriteMaterial);
-    
-    sprite.scale.set(1, 0.5, 1);
-    sprite.position.set(0, 0.5, 0);
-    
+
+    // 调整标签位置和大小
+    sprite.scale.set(1.2, 0.3, 1);
+    sprite.position.set(0, 0.4, 0);
+
     button.add(sprite);
   }
 
@@ -124,15 +243,30 @@ export class InteractionHandler implements IInteractionHandler {
    * 鼠标点击事件处理
    */
   private onClick(event: MouseEvent): void {
+    console.log('🖱️ 鼠标点击事件触发');
     this.updateMousePosition(event);
-    
-    // 射线检测
+
+    // 射线检测 - 递归检测子对象
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.clickableObjects);
-    
+    const intersects = this.raycaster.intersectObjects(this.clickableObjects, true);
+
+    console.log(`🎯 射线检测结果: ${intersects.length} 个交点`);
+    console.log('可点击对象数量:', this.clickableObjects.length);
+
     if (intersects.length > 0) {
       const clickedObject = intersects[0].object;
-      this.handleObjectClick(clickedObject);
+      console.log('点击的对象:', clickedObject);
+
+      // 找到按钮组对象
+      const buttonGroup = this.findButtonGroup(clickedObject);
+      if (buttonGroup) {
+        console.log('找到按钮组:', buttonGroup.userData);
+        this.handleObjectClick(buttonGroup);
+      } else {
+        console.log('未找到按钮组');
+      }
+    } else {
+      console.log('没有点击到任何对象');
     }
   }
 
@@ -142,16 +276,20 @@ export class InteractionHandler implements IInteractionHandler {
   private onMouseMove(event: MouseEvent): void {
     this.updateMousePosition(event);
     
-    // 射线检测
+    // 射线检测 - 递归检测子对象
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.clickableObjects);
-    
-    // 重置所有按钮颜色
-    this.resetButtonColors();
-    
+    const intersects = this.raycaster.intersectObjects(this.clickableObjects, true);
+
+    // 重置所有按钮透明度
+    this.resetButtonOpacities();
+
     if (intersects.length > 0) {
       const hoveredObject = intersects[0].object;
-      this.handleObjectHover(hoveredObject);
+      // 找到按钮组对象
+      const buttonGroup = this.findButtonGroup(hoveredObject);
+      if (buttonGroup) {
+        this.handleObjectHover(buttonGroup);
+      }
     }
     
     // 更新鼠标样式
@@ -184,9 +322,9 @@ export class InteractionHandler implements IInteractionHandler {
    */
   private handleObjectHover(object: THREE.Object3D): void {
     const userData = object.userData;
-    
+
     if (userData.type === 'doorButton') {
-      this.setButtonColor(object, userData.hoverColor);
+      this.setButtonOpacity(object, userData.hoverOpacity);
     }
   }
 
@@ -209,36 +347,46 @@ export class InteractionHandler implements IInteractionHandler {
   private animateButtonClick(button: THREE.Object3D): void {
     const userData = button.userData;
     const originalScale = button.scale.clone();
-    
-    // 点击效果：颜色变化和缩放
-    this.setButtonColor(button, userData.clickColor);
+
+    // 点击效果：透明度变化和缩放
+    this.setButtonOpacity(button, userData.clickOpacity);
     button.scale.multiplyScalar(0.9);
-    
+
     setTimeout(() => {
-      this.setButtonColor(button, userData.originalColor);
+      this.setButtonOpacity(button, userData.originalOpacity);
       button.scale.copy(originalScale);
     }, 150);
   }
 
   /**
-   * 设置按钮颜色
+   * 设置按钮透明度
    */
-  private setButtonColor(button: THREE.Object3D, color: number): void {
-    if (button.type === 'Mesh') {
-      const mesh = button as THREE.Mesh;
-      const material = mesh.material as THREE.MeshStandardMaterial;
-      material.color.setHex(color);
+  private setButtonOpacity(button: THREE.Object3D, opacities: { outer: number, inner: number }): void {
+    if (button.type === 'Group') {
+      const group = button as THREE.Group;
+      const outerRing = group.children[0] as THREE.Mesh;
+      const innerCircle = group.children[1] as THREE.Mesh;
+
+      if (outerRing && outerRing.material) {
+        const outerMaterial = outerRing.material as THREE.MeshStandardMaterial;
+        outerMaterial.opacity = opacities.outer;
+      }
+
+      if (innerCircle && innerCircle.material) {
+        const innerMaterial = innerCircle.material as THREE.MeshStandardMaterial;
+        innerMaterial.opacity = opacities.inner;
+      }
     }
   }
 
   /**
-   * 重置所有按钮颜色
+   * 重置所有按钮透明度
    */
-  private resetButtonColors(): void {
+  private resetButtonOpacities(): void {
     this.clickableObjects.forEach(obj => {
       const userData = obj.userData;
       if (userData.type === 'doorButton') {
-        this.setButtonColor(obj, userData.originalColor);
+        this.setButtonOpacity(obj, userData.originalOpacity);
       }
     });
   }

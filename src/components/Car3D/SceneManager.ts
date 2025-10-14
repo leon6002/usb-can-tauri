@@ -65,37 +65,155 @@ export class SceneManager implements ISceneManager {
    * 创建场景灯光
    */
   public createLights(): void {
-    // 环境光 - 提供基础照明
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    // 大幅增强环境光 - 提供强烈的基础照明
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     this.scene.add(ambientLight);
 
-    // 主方向光 - 模拟太阳光
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    directionalLight.position.set(10, 10, 5);
+    // 主光源 - 从右上方照射，产生阴影
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    directionalLight.position.set(-8, 15, 12);
+    directionalLight.target.position.set(6, -3, -8);
     directionalLight.castShadow = true;
-    
-    // 设置阴影参数
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 50;
-    directionalLight.shadow.camera.left = -10;
-    directionalLight.shadow.camera.right = 10;
-    directionalLight.shadow.camera.top = 10;
-    directionalLight.shadow.camera.bottom = -10;
-    
+    directionalLight.shadow.camera.near = 5;
+    directionalLight.shadow.camera.far = 40;
+    directionalLight.shadow.camera.left = 15;
+    directionalLight.shadow.camera.right = -15;
+    directionalLight.shadow.camera.top = 15;
+    directionalLight.shadow.camera.bottom = -15;
     this.scene.add(directionalLight);
+    this.scene.add(directionalLight.target);
 
-    // 补充光源 - 从另一个角度照亮车辆
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    fillLight.position.set(-5, 5, -5);
-    this.scene.add(fillLight);
+    // 创建道路
+    this.createRoad();
 
-    // 点光源 - 增加车辆周围的亮度
-    const pointLight = new THREE.PointLight(0xffffff, 0.8, 20);
-    pointLight.position.set(0, 5, 0);
-    pointLight.castShadow = true;
-    this.scene.add(pointLight);
+    // 背光补充光源 - 从左后方照射，照亮背光面
+    const backFillLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    backFillLight.position.set(-12, 8, -10);
+    backFillLight.castShadow = false;
+    this.scene.add(backFillLight);
+
+    // 侧面补充光源 - 从右侧照射
+    const sideFillLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    sideFillLight.position.set(20, 6, 0);
+    sideFillLight.castShadow = false;
+    this.scene.add(sideFillLight);
+
+    // 左侧补充光源 - 从左侧照射，平衡光照
+    const leftFillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    leftFillLight.position.set(-20, 6, 0);
+    leftFillLight.castShadow = false;
+    this.scene.add(leftFillLight);
+
+    // 前方补充光源 - 从前方照射车头
+    const frontFillLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    frontFillLight.position.set(0, 8, 15);
+    frontFillLight.castShadow = false;
+    this.scene.add(frontFillLight);
+
+    // 底部补充光源 - 从下方照射，减少过暗的阴影
+    const bottomFillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    bottomFillLight.position.set(0, -3, 0);
+    bottomFillLight.castShadow = false;
+    this.scene.add(bottomFillLight);
+
+    // 添加点光源 - 在车辆周围提供额外照明
+    const pointLight1 = new THREE.PointLight(0xffffff, 1.0, 30);
+    pointLight1.position.set(5, 5, 5);
+    this.scene.add(pointLight1);
+
+    const pointLight2 = new THREE.PointLight(0xffffff, 1.0, 30);
+    pointLight2.position.set(-5, 5, -5);
+    this.scene.add(pointLight2);
+
+    // 顶部聚光灯 - 模拟摄影棚效果
+    const spotLight = new THREE.SpotLight(0xffffff, 1.5, 50, Math.PI / 6, 0.1);
+    spotLight.position.set(0, 20, 0);
+    spotLight.target.position.set(0, 0, 0);
+    spotLight.castShadow = false;
+    this.scene.add(spotLight);
+    this.scene.add(spotLight.target);
+
+    console.log('✓ 场景灯光创建完成');
+  }
+
+  /**
+   * 创建地面
+   */
+  private createGround(): void {
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.5;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+
+    console.log('✓ 地面创建完成');
+  }
+
+  /**
+   * 创建道路
+   */
+  private createRoad(): void {
+    // 先创建地面
+    this.createGround();
+
+    // 创建道路纹理
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+
+    // 绘制道路背景
+    ctx.fillStyle = '#2c2c2c';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 绘制道路标线
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([20, 20]);
+
+    // 中央虚线
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 0);
+    ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.stroke();
+
+    // 边线
+    ctx.setLineDash([]);
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(50, 0);
+    ctx.lineTo(50, canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(canvas.width - 50, 0);
+    ctx.lineTo(canvas.width - 50, canvas.height);
+    ctx.stroke();
+
+    // 创建纹理
+    const roadTexture = new THREE.CanvasTexture(canvas);
+    roadTexture.wrapS = THREE.RepeatWrapping;
+    roadTexture.wrapT = THREE.RepeatWrapping;
+    roadTexture.repeat.set(1, 5); // 重复5次，创建长道路效果
+
+    // 创建道路几何体
+    const roadGeometry = new THREE.PlaneGeometry(10, 150);
+    const roadMaterial = new THREE.MeshLambertMaterial({
+      map: roadTexture,
+      transparent: false
+    });
+
+    const road = new THREE.Mesh(roadGeometry, roadMaterial);
+    road.rotation.x = -Math.PI / 2;
+    road.position.y = -0.49; // 稍微高于地面，避免z-fighting
+    road.receiveShadow = true;
+
+    this.scene.add(road);
+    console.log('✓ 道路创建完成');
   }
 
   /**
@@ -123,8 +241,8 @@ export class SceneManager implements ISceneManager {
    */
   public static getDefaultSceneConfig(): SceneConfig {
     return {
-      backgroundColor: 0x87CEEB, // 天蓝色背景
-      fogColor: 0x87CEEB,
+      backgroundColor: 0xffffff, // 白色背景
+      fogColor: 0xffffff,
       fogNear: 10,
       fogFar: 50
     };

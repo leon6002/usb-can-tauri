@@ -106,9 +106,6 @@ export class Car3DRenderer {
       // 创建3D按钮
       this.interactionHandler.create3DDoorButtons(this.car);
       
-      // 创建道路对象
-      this.animationController.createRoadObjects(this.sceneManager.scene);
-      
       // 设置事件监听
       this.setupEventListeners();
       

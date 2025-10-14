@@ -25,6 +25,29 @@ export class AnimationController implements IAnimationController {
   constructor(wheels: WheelObjects, lights: LightObjects) {
     this.wheels = wheels;
     this.lights = lights;
+
+    // 监听门按钮点击事件
+    this.setupDoorButtonListener();
+  }
+
+  /**
+   * 设置门按钮事件监听器
+   */
+  private setupDoorButtonListener(): void {
+    document.addEventListener('doorButtonClick', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { door } = customEvent.detail;
+      console.log(`🚗 接收到门按钮点击事件: ${door}`);
+
+      // 根据门的位置播放对应的动画
+      if (door === 'left') {
+        this.playDoorAnimation('DoorFLOpen');
+      } else if (door === 'right') {
+        this.playDoorAnimation('DoorFROpen');
+      }
+    });
+
+    console.log('✅ 门按钮事件监听器设置完成');
   }
 
   /**
@@ -222,28 +245,6 @@ export class AnimationController implements IAnimationController {
     console.log(`播放门动画: ${animationName}, 反向: ${reverse}, 持续时间: ${action.getClip().duration}s`);
   }
 
-  /**
-   * 创建道路对象
-   */
-  public createRoadObjects(scene: THREE.Scene): void {
-    // 创建道路标线
-    const roadMarkings: THREE.Object3D[] = [];
-    
-    for (let i = 0; i < 10; i++) {
-      const geometry = new THREE.PlaneGeometry(0.2, 1);
-      const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const marking = new THREE.Mesh(geometry, material);
-      
-      marking.rotation.x = -Math.PI / 2;
-      marking.position.set(0, 0.01, -10 + i * 2);
-      
-      scene.add(marking);
-      roadMarkings.push(marking);
-    }
-    
-    this.roadMovement.objects = roadMarkings;
-    console.log('✅ 道路对象创建完成');
-  }
 
   /**
    * 清理资源

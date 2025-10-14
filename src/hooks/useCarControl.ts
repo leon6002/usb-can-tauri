@@ -74,6 +74,20 @@ export const useCarControl = () => {
       data: "03",
       description: "灯带模式4",
     },
+    {
+      id: "start_driving",
+      name: "开始行驶",
+      canId: "126",
+      data: "01",
+      description: "开始车辆行驶动画",
+    },
+    {
+      id: "stop_driving",
+      name: "停止行驶",
+      canId: "126",
+      data: "00",
+      description: "停止车辆行驶动画",
+    },
   ]);
 
   // Car control states
@@ -120,6 +134,12 @@ export const useCarControl = () => {
           break;
         case "light_mode_4":
           newState.lightMode = 4;
+          break;
+        case "start_driving":
+          newState.isDriving = true;
+          break;
+        case "stop_driving":
+          newState.isDriving = false;
           break;
       }
 
