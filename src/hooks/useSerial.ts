@@ -6,14 +6,14 @@ export const useSerial = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [config, setConfig] = useState<SerialConfig>({
-    port: "COM22",
+    port: "COM23",
     baudRate: 2000000,
-    canBaudRate: 2000000,
+    canBaudRate: 500000,
     frameType: "extended",
     canMode: "normal",
     isLoopbackTest: false,
-    loopbackPort1: "COM22",
-    loopbackPort2: "COM23",
+    loopbackPort1: "COM23",
+    loopbackPort2: "COM25",
   });
 
   // 获取可用串口

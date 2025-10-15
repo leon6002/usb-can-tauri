@@ -2,13 +2,19 @@ import React from "react";
 import { Car3DViewer } from "./Car3DViewer";
 import { CarStatusPanel } from "./CarStatusPanel";
 import { CarControlPanel } from "./CarControlPanel";
+import { DebugPanel } from "./DebugPanel";
 import { CarStates, Scene3DStatus } from "../../types";
+import { DebugLog } from "../../hooks/useDebugLogs";
 
 interface CarControlTabProps {
   isConnected: boolean;
   carStates: CarStates;
   scene3DStatus: Scene3DStatus;
   onSendCommand: (commandId: string) => void;
+  debugLogs: DebugLog[];
+  isDebugVisible: boolean;
+  onToggleDebug: () => void;
+  onClearDebugLogs: () => void;
 }
 
 export const CarControlTab: React.FC<CarControlTabProps> = ({
@@ -16,6 +22,10 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
   carStates,
   scene3DStatus,
   onSendCommand,
+  debugLogs,
+  isDebugVisible,
+  onToggleDebug,
+  onClearDebugLogs,
 }) => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -38,22 +48,7 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
           {/* 3D Model Display */}
           <Car3DViewer scene3DStatus={scene3DStatus} />
 
-          {/* Video Display - Bottom */}
-          <div className="h-48 bg-gray-50 border-t border-gray-200 p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">演示视频</h3>
-            <div className="h-32 bg-gray-100 rounded flex items-center justify-center">
-              <video
-                controls
-                muted
-                loop
-                className="w-full h-full rounded"
-                poster="/car-assets/images/car-preview.jpg"
-              >
-                <source src="/car-assets/videos/car_demo.mp4" type="video/mp4" />
-                您的浏览器不支持视频播放
-              </video>
-            </div>
-          </div>
+
         </div>
 
         {/* Right Panel - Controls */}
@@ -69,6 +64,14 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
           />
         </div>
       </div>
+
+      {/* Debug Panel */}
+      <DebugPanel
+        isVisible={isDebugVisible}
+        onToggle={onToggleDebug}
+        logs={debugLogs}
+        onClearLogs={onClearDebugLogs}
+      />
     </div>
   );
 };

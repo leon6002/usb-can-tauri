@@ -1,8 +1,8 @@
 import React from "react";
 import {
   Settings,
-  Wifi,
-  WifiOff,
+  // Wifi,
+  // WifiOff,
   Car,
   Wrench,
   Gamepad2,

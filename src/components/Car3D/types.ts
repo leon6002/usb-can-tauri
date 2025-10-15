@@ -39,7 +39,7 @@ export interface RoadMovementState {
 }
 
 // 运镜动画类型
-export type CameraAnimationMode = 'orbit' | 'showcase' | 'cinematic' | 'follow';
+export type CameraAnimationMode = 'orbit' | 'showcase' | 'cinematic' | 'follow' | 'driving' | 'side';
 
 // 运镜动画状态类型
 export interface CameraAnimationState {
@@ -146,11 +146,11 @@ export interface IAnimationController {
 }
 
 export interface ICameraController {
-  controls: THREE.Object3D | null;
+  controls: any | null;
   animationState: CameraAnimationState;
   
   setupControls(camera: THREE.PerspectiveCamera, domElement: HTMLElement): void;
-  startAnimation(mode: CameraAnimationMode, duration: number): void;
+  startAnimation(mode: CameraAnimationMode, duration: number, keepFinalPosition?: boolean): void;
   stopAnimation(): void;
   update(delta: number): void;
   dispose(): void;

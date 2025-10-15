@@ -1,5 +1,5 @@
 import React from "react";
-import { Play } from "lucide-react";
+import { Play, Square, ChevronUp, ChevronDown } from "lucide-react";
 import { CarStates } from "../../types";
 
 interface CarControlPanelProps {
@@ -18,56 +18,48 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       {/* Main Controls */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">主要控制</h4>
-        <div className="space-y-2">
-          <button
-            onClick={() => onSendCommand("start_driving")}
-            disabled={!isConnected}
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
-          >
-            <Play className="w-4 h-4 inline mr-2" />
-            开始行驶
-          </button>
-          <button
-            onClick={() => onSendCommand("stop_driving")}
-            disabled={!isConnected}
-            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
-          >
-            停止行驶
-          </button>
-          <button
-            onClick={() => onSendCommand("update_data")}
-            disabled={!isConnected}
-            className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors cursor-pointer"
-          >
-            数据更新
-          </button>
-        </div>
+        <button
+          onClick={() => onSendCommand(carStates.isDriving ? "stop_driving" : "start_driving")}
+          disabled={!isConnected}
+          className={`w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg ${
+            carStates.isDriving
+              ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-200 disabled:from-gray-300 disabled:to-gray-400"
+              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-200 disabled:from-gray-300 disabled:to-gray-400"
+          }`}
+        >
+          {carStates.isDriving ? (
+            <>
+              <Square className="w-5 h-5 inline mr-2" />
+              停止行驶
+            </>
+          ) : (
+            <>
+              <Play className="w-5 h-5 inline mr-2" />
+              开始行驶
+            </>
+          )}
+        </button>
       </div>
 
-      {/* Door Controls */}
+      {/* Suspension Controls */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">车门控制</h4>
-        <div className="space-y-2">
+        <h4 className="text-sm font-semibold text-gray-700 mb-3">悬架控制</h4>
+        <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => onSendCommand("left_door_open")}
+            onClick={() => onSendCommand("suspension_up")}
             disabled={!isConnected}
-            className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-md transition-colors cursor-pointer"
+            className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
           >
-            开门
+            <ChevronUp className="w-4 h-4 inline mr-1" />
+            升高
           </button>
           <button
-            onClick={() => onSendCommand("left_door_close")}
+            onClick={() => onSendCommand("suspension_down")}
             disabled={!isConnected}
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md transition-colors cursor-pointer"
+            className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
           >
-            关门
-          </button>
-          <button
-            onClick={() => onSendCommand("left_door_stop")}
-            disabled={!isConnected}
-            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-md transition-colors cursor-pointer"
-          >
-            停止
+            <ChevronDown className="w-4 h-4 inline mr-1" />
+            降低
           </button>
         </div>
       </div>
@@ -75,19 +67,19 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       {/* Fan Controls */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">风扇控制</h4>
-        <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
           {[0, 1, 2].map((level) => (
             <button
               key={level}
               onClick={() => onSendCommand(`fan_level_${level}`)}
               disabled={!isConnected}
-              className={`w-full px-4 py-2 rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
                 carStates.fanLevel === level
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-              } disabled:bg-gray-400 disabled:text-gray-600`}
+                  ? "bg-white border-2 border-blue-500 text-blue-600 shadow-lg transform scale-105"
+                  : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
+              } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
             >
-              档位 {level}
+              {level}档
             </button>
           ))}
         </div>
@@ -96,19 +88,19 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       {/* Light Controls */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">灯带控制</h4>
-        <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
           {[1, 2, 3, 4].map((mode) => (
             <button
               key={mode}
               onClick={() => onSendCommand(`light_mode_${mode}`)}
               disabled={!isConnected}
-              className={`w-full px-4 py-2 rounded-md transition-colors cursor-pointer ${
+              className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
                 carStates.lightMode === mode
-                  ? "bg-yellow-500 text-white"
-                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-              } disabled:bg-gray-400 disabled:text-gray-600`}
+                  ? "bg-white border-2 border-amber-500 text-amber-600 shadow-lg transform scale-105"
+                  : "bg-white border border-gray-300 text-gray-700 hover:bg-amber-50 hover:border-amber-300"
+              } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
             >
-              模式 {mode}
+              模式{mode}
             </button>
           ))}
         </div>

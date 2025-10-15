@@ -26,6 +26,27 @@ export const useCarControl = () => {
       description: "停止左车门",
     },
     {
+      id: "right_door_open",
+      name: "右门开启",
+      canId: "124",
+      data: "02",
+      description: "打开右车门",
+    },
+    {
+      id: "right_door_close",
+      name: "右门关闭",
+      canId: "124",
+      data: "01",
+      description: "关闭右车门",
+    },
+    {
+      id: "right_door_stop",
+      name: "右门停止",
+      canId: "124",
+      data: "00",
+      description: "停止右车门",
+    },
+    {
       id: "fan_level_0",
       name: "风扇档位0",
       canId: "124",
@@ -88,6 +109,20 @@ export const useCarControl = () => {
       data: "00",
       description: "停止车辆行驶动画",
     },
+    {
+      id: "suspension_up",
+      name: "悬架升高",
+      canId: "127",
+      data: "01",
+      description: "升高车辆悬架",
+    },
+    {
+      id: "suspension_down",
+      name: "悬架降低",
+      canId: "127",
+      data: "02",
+      description: "降低车辆悬架",
+    },
   ]);
 
   // Car control states
@@ -97,6 +132,7 @@ export const useCarControl = () => {
     rightDoorStatus: "停止",
     fanLevel: 0,
     lightMode: 1,
+    suspensionStatus: "正常",
   });
 
   // 更新车辆状态
@@ -113,6 +149,15 @@ export const useCarControl = () => {
           break;
         case "left_door_stop":
           newState.leftDoorStatus = "停止";
+          break;
+        case "right_door_open":
+          newState.rightDoorStatus = "开启";
+          break;
+        case "right_door_close":
+          newState.rightDoorStatus = "关闭";
+          break;
+        case "right_door_stop":
+          newState.rightDoorStatus = "停止";
           break;
         case "fan_level_0":
           newState.fanLevel = 0;
@@ -140,6 +185,12 @@ export const useCarControl = () => {
           break;
         case "stop_driving":
           newState.isDriving = false;
+          break;
+        case "suspension_up":
+          newState.suspensionStatus = "升高";
+          break;
+        case "suspension_down":
+          newState.suspensionStatus = "降低";
           break;
       }
 

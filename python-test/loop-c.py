@@ -137,7 +137,7 @@ def main():
     try:
         # 初始化串口
         ser = serial.Serial(
-            port="COM22",
+            port="COM23",
             baudrate=2000000,
             timeout=0.1,
             write_timeout=1

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Car3DRenderer } from "../components/Car3DRenderer";
 import { Scene3DStatus, ActiveTab } from "../types";
 
-export const use3DScene = (activeTab: ActiveTab) => {
+export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: string) => void) => {
   const [scene3DStatus, setScene3DStatus] = useState<Scene3DStatus>("loading");
   const car3DRendererRef = useRef<Car3DRenderer | null>(null);
 
@@ -68,7 +68,7 @@ export const use3DScene = (activeTab: ActiveTab) => {
         setScene3DStatus("loading");
 
         // 创建3D渲染器实例
-        const renderer = new Car3DRenderer('car-3d-container');
+        const renderer = new Car3DRenderer('car-3d-container', onSendCommand);
         car3DRendererRef.current = renderer;
 
         // 将渲染器实例保存到全局，供按钮控制使用

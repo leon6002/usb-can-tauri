@@ -18,6 +18,15 @@ export class AnimationController implements IAnimationController {
     objects: []
   };
 
+  // 渐进停止状态
+  private gradualStop = {
+    isActive: false,
+    initialSpeed: 0,
+    targetSpeed: 0,
+    duration: 5000, // 3秒渐进停止
+    startTime: 0
+  };
+
   private wheels: WheelObjects;
   private lights: LightObjects;
   private lightAnimation: NodeJS.Timeout | null = null;
@@ -38,14 +47,14 @@ export class AnimationController implements IAnimationController {
   private setupDoorButtonListener(): void {
     document.addEventListener('doorButtonClick', (event: Event) => {
       const customEvent = event as CustomEvent;
-      const { door } = customEvent.detail;
-      console.log(`🚗 接收到门按钮点击事件: ${door}`);
+      const { door, isOpening } = customEvent.detail;
+      console.log(`🚗 接收到门按钮点击事件: ${door}, 是否开门: ${isOpening}`);
 
       // 根据门的位置播放对应的动画
       if (door === 'left') {
-        this.playDoorAnimation('DoorFLOpen');
+        this.playDoorAnimation('DoorFLOpen', !isOpening); // 如果是开门则正向播放，关门则反向播放
       } else if (door === 'right') {
-        this.playDoorAnimation('DoorFROpen');
+        this.playDoorAnimation('DoorFROpen', !isOpening); // 如果是开门则正向播放，关门则反向播放
       }
     });
 
@@ -84,6 +93,9 @@ export class AnimationController implements IAnimationController {
       this.mixer.update(delta);
     }
 
+    // 更新渐进停止
+    this.updateGradualStop();
+
     // 更新轮子旋转
     this.updateWheelRotation(delta);
 
@@ -110,12 +122,36 @@ export class AnimationController implements IAnimationController {
   }
 
   /**
-   * 停止轮子旋转动画
+   * 停止轮子旋转动画（渐进停止）
    */
   public stopWheelRotation(): void {
-    console.log('停止轮子旋转');
+    console.log('开始渐进停止轮子旋转');
+
+    // 只有在轮子正在旋转时才启动渐进停止
+    if (!this.wheelRotation.isRotating || this.wheelRotation.speed <= 0) {
+      console.log('轮子未在旋转，直接停止');
+      this.wheelRotation.isRotating = false;
+      this.wheelRotation.speed = 0;
+      return;
+    }
+
+    // 启动渐进停止，但保持isRotating为true直到完全停止
+    this.gradualStop.isActive = true;
+    this.gradualStop.initialSpeed = this.wheelRotation.speed;
+    this.gradualStop.targetSpeed = 0;
+    this.gradualStop.startTime = Date.now();
+
+    console.log(`从速度 ${this.gradualStop.initialSpeed} 渐进停止到 0，持续时间: ${this.gradualStop.duration}ms`);
+  }
+
+  /**
+   * 立即停止轮子旋转动画
+   */
+  public stopWheelRotationImmediately(): void {
+    console.log('立即停止轮子旋转');
     this.wheelRotation.isRotating = false;
     this.wheelRotation.speed = 0;
+    this.gradualStop.isActive = false;
   }
 
   /**
@@ -128,10 +164,35 @@ export class AnimationController implements IAnimationController {
   }
 
   /**
-   * 停止道路移动动画
+   * 停止道路移动动画（渐进停止）
    */
   public stopRoadMovement(): void {
-    console.log('停止道路移动');
+    console.log('开始渐进停止道路移动');
+
+    // 只有在道路正在移动时才需要处理
+    if (!this.roadMovement.isMoving || this.roadMovement.speed <= 0) {
+      console.log('道路未在移动，直接停止');
+      this.roadMovement.isMoving = false;
+      this.roadMovement.speed = 0;
+      return;
+    }
+
+    // 道路移动和轮子旋转应该同步停止
+    // 如果渐进停止还没有激活，则激活它
+    if (!this.gradualStop.isActive) {
+      this.gradualStop.isActive = true;
+      this.gradualStop.initialSpeed = Math.max(this.wheelRotation.speed, this.roadMovement.speed);
+      this.gradualStop.targetSpeed = 0;
+      this.gradualStop.startTime = Date.now();
+      console.log(`道路移动渐进停止，初始速度: ${this.gradualStop.initialSpeed}`);
+    }
+  }
+
+  /**
+   * 立即停止道路移动动画
+   */
+  public stopRoadMovementImmediately(): void {
+    console.log('立即停止道路移动');
     this.roadMovement.isMoving = false;
     this.roadMovement.speed = 0;
   }
@@ -185,6 +246,44 @@ export class AnimationController implements IAnimationController {
       });
       
       console.log('停止车灯动画');
+    }
+  }
+
+  /**
+   * 更新渐进停止
+   */
+  private updateGradualStop(): void {
+    if (!this.gradualStop.isActive) return;
+
+    const elapsed = Date.now() - this.gradualStop.startTime;
+    const progress = Math.min(elapsed / this.gradualStop.duration, 1);
+
+    // 使用缓动函数实现平滑减速
+    const easeOut = 1 - Math.pow(1 - progress, 3);
+    const currentSpeed = this.gradualStop.initialSpeed * (1 - easeOut);
+
+    // 更新轮子和道路速度
+    if (this.wheelRotation.isRotating) {
+      this.wheelRotation.speed = currentSpeed;
+    }
+    if (this.roadMovement.isMoving) {
+      // 道路移动速度应该与轮子速度成比例
+      this.roadMovement.speed = currentSpeed * 0.05; // 道路移动速度相对较慢
+    }
+
+    // 添加调试日志
+    if (elapsed % 500 < 50) { // 每500ms输出一次日志
+      console.log(`渐进停止进度: ${(progress * 100).toFixed(1)}%, 当前速度: ${currentSpeed.toFixed(2)}`);
+    }
+
+    // 检查是否完成渐进停止
+    if (progress >= 1) {
+      console.log('🛑 渐进停止完成');
+      this.wheelRotation.isRotating = false;
+      this.wheelRotation.speed = 0;
+      this.roadMovement.isMoving = false;
+      this.roadMovement.speed = 0;
+      this.gradualStop.isActive = false;
     }
   }
 

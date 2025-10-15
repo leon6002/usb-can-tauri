@@ -41,7 +41,7 @@ export class CameraController implements ICameraController {
   /**
    * 开始运镜动画
    */
-  public startAnimation(mode: CameraAnimationMode, duration: number = 10000): void {
+  public startAnimation(mode: CameraAnimationMode, duration: number = 10000, keepFinalPosition: boolean = false): void {
     if (this.animationState.isActive) {
       this.stopAnimation();
     }
@@ -53,6 +53,9 @@ export class CameraController implements ICameraController {
     this.animationState.originalPosition = this.camera.position.clone();
     this.animationState.originalTarget = this.controls ? this.controls.target.clone() : new THREE.Vector3();
 
+    // 添加是否保持最终位置的标记
+    (this.animationState as any).keepFinalPosition = keepFinalPosition;
+
     // 根据模式设置关键帧
     this.setupKeyframes(mode);
 
@@ -61,7 +64,7 @@ export class CameraController implements ICameraController {
       this.controls.enabled = false;
     }
 
-    console.log(`开始${mode}运镜，持续时间: ${duration}ms`);
+    console.log(`开始${mode}运镜，持续时间: ${duration}ms，保持最终位置: ${keepFinalPosition}`);
   }
 
   /**
@@ -70,29 +73,35 @@ export class CameraController implements ICameraController {
   public stopAnimation(): void {
     if (!this.animationState.isActive) return;
 
+    const keepFinalPosition = (this.animationState as any).keepFinalPosition || false;
     this.animationState.isActive = false;
-    
+
     // 恢复手动控制
     if (this.controls) {
       this.controls.enabled = true;
     }
 
-    // 恢复原始相机位置（可选）
-    if (this.animationState.originalPosition && this.animationState.originalTarget) {
+    // 只有在不保持最终位置时才恢复原始位置
+    if (!keepFinalPosition && this.animationState.originalPosition && this.animationState.originalTarget) {
       this.camera.position.copy(this.animationState.originalPosition);
       if (this.controls) {
         this.controls.target.copy(this.animationState.originalTarget);
         this.controls.update();
       }
+      console.log('停止运镜动画，恢复原始位置');
+    } else {
+      console.log('停止运镜动画，保持最终位置');
+      // 更新OrbitControls的target以匹配当前相机朝向
+      if (this.controls) {
+        this.controls.update();
+      }
     }
-
-    console.log('停止运镜动画');
   }
 
   /**
    * 更新运镜动画
    */
-  public update(delta: number): void {
+  public update(_delta: number): void {
     if (this.controls) {
       this.controls.update();
     }
@@ -121,6 +130,12 @@ export class CameraController implements ICameraController {
         break;
       case 'follow':
         this.setupFollowKeyframes();
+        break;
+      case 'driving':
+        this.setupDrivingKeyframes();
+        break;
+      case 'side':
+        this.setupSideKeyframes();
         break;
     }
   }
@@ -207,6 +222,46 @@ export class CameraController implements ICameraController {
         position: new THREE.Vector3(...offset.pos),
         target: new THREE.Vector3(...offset.target),
         time: index / (offsets.length - 1)
+      });
+    });
+  }
+
+  /**
+   * 设置行驶运镜关键帧 - 移动到车辆后方
+   */
+  private setupDrivingKeyframes(): void {
+    const keyframes = [
+      // 从当前位置开始
+      { pos: this.camera.position.toArray(), target: [0, 0, 0] },
+      // 最终稳定在后方
+      { pos: [0, 2, 6], target: [0, 0, 0] }
+    ];
+
+    keyframes.forEach((keyframe, index) => {
+      this.animationState.keyframes.push({
+        position: new THREE.Vector3(...keyframe.pos),
+        target: new THREE.Vector3(...keyframe.target),
+        time: index / (keyframes.length - 1)
+      });
+    });
+  }
+
+  /**
+   * 设置侧面运镜关键帧 - 移动到车辆侧面
+   */
+  private setupSideKeyframes(): void {
+    const keyframes = [
+      // 从当前位置开始
+      { pos: this.camera.position.toArray(), target: [0, 0, 0] },
+      // 最终稳定在侧面
+      { pos: [7, 2.5, 1], target: [0, 0, 0] }
+    ];
+
+    keyframes.forEach((keyframe, index) => {
+      this.animationState.keyframes.push({
+        position: new THREE.Vector3(...keyframe.pos),
+        target: new THREE.Vector3(...keyframe.target),
+        time: index / (keyframes.length - 1)
       });
     });
   }

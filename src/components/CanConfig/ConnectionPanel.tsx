@@ -13,7 +13,7 @@ interface ConnectionPanelProps {
 export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
   isConnected,
   config,
-  availablePorts,
+  // availablePorts,
   onConfigChange,
   onConnect,
 }) => {
@@ -33,7 +33,7 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
               onConfigChange({ ...config, port: e.target.value })
             }
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="COM22"
+            placeholder="COM23"
             disabled={isConnected}
           />
         </div>
@@ -66,7 +66,7 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
               onChange={(e) =>
                 onConfigChange({
                   ...config,
-                  canBaudRate: parseInt(e.target.value) || 2000000,
+                  canBaudRate: parseInt(e.target.value) || 500000,
                 })
               }
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"

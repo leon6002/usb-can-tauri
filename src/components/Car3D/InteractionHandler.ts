@@ -13,17 +13,23 @@ export class InteractionHandler implements IInteractionHandler {
     rightDoor: null
   };
 
+  // 门状态跟踪 (false = 关闭, true = 开启)
+  private doorStates = {
+    left: false,
+    right: false
+  };
+
   private container: HTMLElement;
   private camera: THREE.PerspectiveCamera;
-  private scene: THREE.Scene;
   private onClickBound: (event: MouseEvent) => void;
   private onMouseMoveBound: (event: MouseEvent) => void;
+  private onSendCommand?: (commandId: string) => void;
 
-  constructor(container: HTMLElement, camera: THREE.PerspectiveCamera, scene: THREE.Scene) {
+  constructor(container: HTMLElement, camera: THREE.PerspectiveCamera, _scene: THREE.Scene, onSendCommand?: (commandId: string) => void) {
     this.container = container;
     this.camera = camera;
-    this.scene = scene;
-    
+    this.onSendCommand = onSendCommand;
+
     this.onClickBound = this.onClick.bind(this);
     this.onMouseMoveBound = this.onMouseMove.bind(this);
   }
@@ -333,12 +339,59 @@ export class InteractionHandler implements IInteractionHandler {
    */
   private handleDoorButtonClick(door: 'left' | 'right'): void {
     console.log(`点击了${door === 'left' ? '左' : '右'}门按钮`);
-    
-    // 触发自定义事件
+
+    // 获取当前门状态
+    const currentState = this.doorStates[door];
+    const newState = !currentState;
+
+    // 根据当前状态决定发送开门还是关门命令
+    if (this.onSendCommand) {
+      let commandId: string;
+      if (currentState) {
+        // 当前是开启状态，点击后关闭
+        commandId = door === 'left' ? 'left_door_close' : 'right_door_close';
+      } else {
+        // 当前是关闭状态，点击后开启
+        commandId = door === 'left' ? 'left_door_open' : 'right_door_open';
+      }
+
+      console.log(`🚗 门当前状态: ${currentState ? '开启' : '关闭'}, 发送CAN命令: ${commandId}`);
+      this.onSendCommand(commandId);
+
+      // 更新门状态
+      this.doorStates[door] = newState;
+      console.log(`🚗 门状态更新为: ${newState ? '开启' : '关闭'}`);
+    }
+
+    // 同时触发自定义事件用于3D动画
     const event = new CustomEvent('doorButtonClick', {
-      detail: { door }
+      detail: { door, isOpening: !currentState }
     });
     document.dispatchEvent(event);
+  }
+
+  /**
+   * 重置门状态（用于外部同步）
+   */
+  public resetDoorStates(): void {
+    this.doorStates.left = false;
+    this.doorStates.right = false;
+    console.log('🚗 门状态已重置为关闭状态');
+  }
+
+  /**
+   * 获取门状态
+   */
+  public getDoorState(door: 'left' | 'right'): boolean {
+    return this.doorStates[door];
+  }
+
+  /**
+   * 设置门状态
+   */
+  public setDoorState(door: 'left' | 'right', isOpen: boolean): void {
+    this.doorStates[door] = isOpen;
+    console.log(`🚗 ${door}门状态设置为: ${isOpen ? '开启' : '关闭'}`);
   }
 
   /**

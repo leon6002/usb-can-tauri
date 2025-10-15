@@ -15,26 +15,28 @@ export class Car3DRenderer {
   private container: HTMLElement;
   private clock: THREE.Clock;
   private animationId: number | null = null;
-  
+  private onSendCommand?: (commandId: string) => void; // CAN命令发送回调
+
   // 模块实例
   private sceneManager: SceneManager;
   private modelLoader: ModelLoader;
   private carComponents: CarComponents;
   private animationController: AnimationController;
-  private cameraController: CameraController;
-  private interactionHandler: InteractionHandler;
-  
+  private cameraController!: CameraController;
+  private interactionHandler!: InteractionHandler;
+
   // 车辆模型
   private car: THREE.Group | null = null;
 
-  constructor(containerId: string) {
+  constructor(containerId: string, onSendCommand?: (commandId: string) => void) {
     const container = document.getElementById(containerId);
     if (!container) {
       throw new Error(`Container with id "${containerId}" not found`);
     }
-    
+
     this.container = container;
     this.clock = new THREE.Clock();
+    this.onSendCommand = onSendCommand;
     
     // 初始化模块
     this.sceneManager = new SceneManager(container);
@@ -70,7 +72,8 @@ export class Car3DRenderer {
       this.interactionHandler = new InteractionHandler(
         this.container,
         this.sceneManager.camera,
-        this.sceneManager.scene
+        this.sceneManager.scene,
+        this.onSendCommand
       );
       this.interactionHandler.setupClickHandlers(this.container);
       
@@ -197,8 +200,8 @@ export class Car3DRenderer {
   /**
    * 开始运镜动画
    */
-  public startCameraAnimation(mode: CameraAnimationMode, duration: number = 10000): void {
-    this.cameraController.startAnimation(mode, duration);
+  public startCameraAnimation(mode: CameraAnimationMode, duration: number = 10000, keepFinalPosition: boolean = false): void {
+    this.cameraController.startAnimation(mode, duration, keepFinalPosition);
   }
 
   /**

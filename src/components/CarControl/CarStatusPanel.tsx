@@ -61,6 +61,12 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
             模式 {carStates.lightMode}
           </div>
         </div>
+        <div className="bg-gray-50 p-3 rounded">
+          <div className="text-xs text-gray-600">悬架状态</div>
+          <div className="text-sm font-semibold text-gray-900">
+            {carStates.suspensionStatus}
+          </div>
+        </div>
       </div>
     </div>
   );

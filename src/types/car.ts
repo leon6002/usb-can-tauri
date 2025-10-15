@@ -4,6 +4,7 @@ export interface CarStates {
   rightDoorStatus: string;
   fanLevel: number;
   lightMode: number;
+  suspensionStatus: string;
 }
 
 export type Scene3DStatus = "loading" | "ready" | "error";

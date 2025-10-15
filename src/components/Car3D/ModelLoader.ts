@@ -48,7 +48,7 @@ export class ModelLoader implements IModelLoader {
         },
         (error) => {
           console.error('模型加载失败:', error);
-          reject(new Error(`模型加载失败: ${error.message}`));
+          reject(new Error(`模型加载失败: ${error instanceof Error ? error.message : String(error)}`));
         }
       );
     });
