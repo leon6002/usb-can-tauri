@@ -113,14 +113,14 @@ export const useCarControl = () => {
       id: "suspension_up",
       name: "悬架升高",
       canId: "127",
-      data: "01",
+      data: "01 02 e3",
       description: "升高车辆悬架",
     },
     {
       id: "suspension_down",
       name: "悬架降低",
       canId: "127",
-      data: "02",
+      data: "02 02 e3",
       description: "降低车辆悬架",
     },
   ]);
