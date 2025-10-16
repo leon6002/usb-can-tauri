@@ -12,6 +12,10 @@ export const useSerial = () => {
     frameType: "standard",
     protocolLength: "fixed",
     canMode: "normal",
+    sendIntervalMs: 20,
+    canIdColumnIndex: 1,
+    canDataColumnIndex: 2,
+    csvStartRowIndex: 1,
   });
 
   // 获取可用串口

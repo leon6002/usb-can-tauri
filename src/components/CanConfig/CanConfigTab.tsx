@@ -42,10 +42,16 @@ export const CanConfigTab: React.FC<CanConfigTabProps> = ({
           <h2 className="text-xl font-semibold text-gray-900">CAN配置</h2>
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-600">
-              端口: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{config.port}</span>
+              端口:{" "}
+              <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                {config.port}
+              </span>
             </div>
             <div className="text-sm text-gray-600">
-              波特率: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{config.canBaudRate}</span>
+              波特率:{" "}
+              <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                {config.canBaudRate}
+              </span>
             </div>
           </div>
         </div>
@@ -54,7 +60,7 @@ export const CanConfigTab: React.FC<CanConfigTabProps> = ({
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Configuration */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-96 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
           <ConnectionPanel
             isConnected={isConnected}
             config={config}
@@ -62,21 +68,26 @@ export const CanConfigTab: React.FC<CanConfigTabProps> = ({
             onConfigChange={onConfigChange}
             onConnect={onConnect}
           />
-
-          {/* Send Panel */}
-          <MessagePanel
-            isConnected={isConnected}
-            sendId={sendId}
-            sendData={sendData}
-            onSendIdChange={onSendIdChange}
-            onSendDataChange={onSendDataChange}
-            onSendMessage={onSendMessage}
-            onClearMessages={onClearMessages}
-          />
         </div>
 
-        {/* Right Panel - Messages Display */}
-        <MessageList messages={messages} />
+        {/* Right Panel - Send Message & Messages Display */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Send Panel */}
+          <div className="bg-white border-b border-gray-200 p-4">
+            <MessagePanel
+              isConnected={isConnected}
+              sendId={sendId}
+              sendData={sendData}
+              onSendIdChange={onSendIdChange}
+              onSendDataChange={onSendDataChange}
+              onSendMessage={onSendMessage}
+              onClearMessages={onClearMessages}
+            />
+          </div>
+
+          {/* Messages Display */}
+          <MessageList messages={messages} />
+        </div>
       </div>
     </div>
   );

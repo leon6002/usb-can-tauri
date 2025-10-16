@@ -1,11 +1,11 @@
 /**
  * Car3D模块的TypeScript类型定义
  */
-import * as THREE from 'three';
+import * as THREE from "three";
 
 // 门状态类型
 export interface DoorStates {
-  leftDoor: number;  // 0: 关闭, 1: 开启
+  leftDoor: number; // 0: 关闭, 1: 开启
   rightDoor: number;
 }
 
@@ -39,7 +39,13 @@ export interface RoadMovementState {
 }
 
 // 运镜动画类型
-export type CameraAnimationMode = 'orbit' | 'showcase' | 'cinematic' | 'follow' | 'driving' | 'side';
+export type CameraAnimationMode =
+  | "orbit"
+  | "showcase"
+  | "cinematic"
+  | "follow"
+  | "driving"
+  | "side";
 
 // 运镜动画状态类型
 export interface CameraAnimationState {
@@ -96,7 +102,7 @@ export interface ModelConfig {
 // 事件类型
 export interface Car3DEvents {
   modelLoaded: CustomEvent;
-  doorToggled: CustomEvent<{ door: 'left' | 'right'; state: number }>;
+  doorToggled: CustomEvent<{ door: "left" | "right"; state: number }>;
   animationStarted: CustomEvent<{ type: string }>;
   animationStopped: CustomEvent<{ type: string }>;
 }
@@ -107,7 +113,7 @@ export interface ISceneManager {
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
   container: HTMLElement;
-  
+
   createScene(config: SceneConfig): void;
   createCamera(config: CameraConfig): void;
   createRenderer(config: RendererConfig): void;
@@ -127,7 +133,7 @@ export interface ICarComponents {
   doorStates: DoorStates;
 
   initializeComponents(car: THREE.Group): void;
-  toggleDoor(door: 'left' | 'right'): void;
+  toggleDoor(door: "left" | "right"): void;
   dispose(): void;
 }
 
@@ -136,7 +142,7 @@ export interface IAnimationController {
   doorAnimations: { [key: string]: any };
   wheelRotation: WheelRotationState;
   roadMovement: RoadMovementState;
-  
+
   update(delta: number): void;
   startWheelRotation(speed: number, direction: number): void;
   stopWheelRotation(): void;
@@ -148,9 +154,13 @@ export interface IAnimationController {
 export interface ICameraController {
   controls: any | null;
   animationState: CameraAnimationState;
-  
+
   setupControls(camera: THREE.PerspectiveCamera, domElement: HTMLElement): void;
-  startAnimation(mode: CameraAnimationMode, duration: number, keepFinalPosition?: boolean): void;
+  startAnimation(
+    mode: CameraAnimationMode,
+    duration: number,
+    keepFinalPosition?: boolean
+  ): void;
   stopAnimation(): void;
   update(delta: number): void;
   dispose(): void;
@@ -161,8 +171,9 @@ export interface IInteractionHandler {
   mouse: THREE.Vector2;
   clickableObjects: THREE.Object3D[];
   doorButtons: DoorButtons;
-  
+
   setupClickHandlers(container: HTMLElement): void;
   create3DDoorButtons(car: THREE.Group): void;
+  setDoorButtonsVisible(visible: boolean): void;
   dispose(): void;
 }

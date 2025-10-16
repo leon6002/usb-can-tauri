@@ -2,14 +2,14 @@
  * 车辆3D渲染器 - 重构版本
  * 作为各个模块的协调器和公共接口
  */
-import * as THREE from 'three';
-import { SceneManager } from './SceneManager';
-import { ModelLoader } from './ModelLoader';
-import { CarComponents } from './CarComponents';
-import { AnimationController } from './AnimationController';
-import { CameraController } from './CameraController';
-import { InteractionHandler } from './InteractionHandler';
-import { CameraAnimationMode } from './types';
+import * as THREE from "three";
+import { SceneManager } from "./SceneManager";
+import { ModelLoader } from "./ModelLoader";
+import { CarComponents } from "./CarComponents";
+import { AnimationController } from "./AnimationController";
+import { CameraController } from "./CameraController";
+import { InteractionHandler } from "./InteractionHandler";
+import { CameraAnimationMode } from "./types";
 
 export class Car3DRenderer {
   private container: HTMLElement;
@@ -28,7 +28,10 @@ export class Car3DRenderer {
   // 车辆模型
   private car: THREE.Group | null = null;
 
-  constructor(containerId: string, onSendCommand?: (commandId: string) => void) {
+  constructor(
+    containerId: string,
+    onSendCommand?: (commandId: string) => void
+  ) {
     const container = document.getElementById(containerId);
     if (!container) {
       throw new Error(`Container with id "${containerId}" not found`);
@@ -37,19 +40,19 @@ export class Car3DRenderer {
     this.container = container;
     this.clock = new THREE.Clock();
     this.onSendCommand = onSendCommand;
-    
+
     // 初始化模块
     this.sceneManager = new SceneManager(container);
     this.modelLoader = new ModelLoader();
     this.carComponents = new CarComponents();
-    
+
     // 这些模块需要在场景创建后初始化
     this.animationController = new AnimationController(
       this.carComponents.wheels,
       this.carComponents.lights,
       this.sceneManager
     );
-    
+
     this.init();
   }
 
@@ -63,11 +66,14 @@ export class Car3DRenderer {
       this.sceneManager.createCamera(SceneManager.getDefaultCameraConfig());
       this.sceneManager.createRenderer(SceneManager.getDefaultRendererConfig());
       this.sceneManager.createLights();
-      
+
       // 初始化相机控制器
       this.cameraController = new CameraController(this.sceneManager.camera);
-      this.cameraController.setupControls(this.sceneManager.camera, this.sceneManager.renderer.domElement);
-      
+      this.cameraController.setupControls(
+        this.sceneManager.camera,
+        this.sceneManager.renderer.domElement
+      );
+
       // 初始化交互处理器
       this.interactionHandler = new InteractionHandler(
         this.container,
@@ -76,17 +82,16 @@ export class Car3DRenderer {
         this.onSendCommand
       );
       this.interactionHandler.setupClickHandlers(this.container);
-      
+
       // 加载车辆模型
       await this.loadCarModel();
-      
+
       // 开始渲染循环
       this.animate();
-      
-      console.log('✅ Car3DRenderer初始化完成');
-      
+
+      console.log("✅ Car3DRenderer初始化完成");
     } catch (error) {
-      console.error('Car3DRenderer初始化失败:', error);
+      console.error("Car3DRenderer初始化失败:", error);
       this.showLoadError(error as Error);
     }
   }
@@ -96,25 +101,26 @@ export class Car3DRenderer {
    */
   private async loadCarModel(): Promise<void> {
     try {
-      this.car = await this.modelLoader.loadModel(ModelLoader.getDefaultModelConfig());
-      
+      this.car = await this.modelLoader.loadModel(
+        ModelLoader.getDefaultModelConfig()
+      );
+
       // 添加到场景
       this.sceneManager.scene.add(this.car);
-      
+
       // 初始化车辆组件
       this.carComponents.initializeComponents(this.car);
-      
+
       // 初始化动画系统
       this.animationController.initializeAnimations(this.car);
-      
+
       // 创建3D按钮
       this.interactionHandler.create3DDoorButtons(this.car);
-      
+
       // 设置事件监听
       this.setupEventListeners();
-      
+
       this.onModelLoaded();
-      
     } catch (error) {
       throw new Error(`模型加载失败: ${error}`);
     }
@@ -125,14 +131,14 @@ export class Car3DRenderer {
    */
   private setupEventListeners(): void {
     // 监听门按钮点击事件
-    document.addEventListener('doorButtonClick', (event: Event) => {
+    document.addEventListener("doorButtonClick", (event: Event) => {
       const customEvent = event as CustomEvent;
       const { door } = customEvent.detail;
       this.toggleDoor(door);
     });
 
     // 监听门动画播放事件
-    document.addEventListener('playDoorAnimation', (event: Event) => {
+    document.addEventListener("playDoorAnimation", (event: Event) => {
       const customEvent = event as CustomEvent;
       const { animationName, reverse } = customEvent.detail;
       this.animationController.playDoorAnimation(animationName, reverse);
@@ -160,15 +166,15 @@ export class Car3DRenderer {
    */
   private onModelLoaded(): void {
     // 隐藏加载提示
-    const loadingElement = this.container.querySelector('.loading-3d');
+    const loadingElement = this.container.querySelector(".loading-3d");
     if (loadingElement) {
-      (loadingElement as HTMLElement).style.display = 'none';
+      (loadingElement as HTMLElement).style.display = "none";
     }
 
-    console.log('3D车辆模型加载完成');
+    console.log("3D车辆模型加载完成");
 
     // 触发自定义事件
-    const event = new CustomEvent('car3dLoaded');
+    const event = new CustomEvent("car3dLoaded");
     document.dispatchEvent(event);
   }
 
@@ -176,8 +182,8 @@ export class Car3DRenderer {
    * 显示加载错误
    */
   private showLoadError(error: Error): void {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-3d';
+    const errorDiv = document.createElement("div");
+    errorDiv.className = "error-3d";
     errorDiv.innerHTML = `
       <div class="error-content">
         <h3>模型加载失败</h3>
@@ -193,14 +199,18 @@ export class Car3DRenderer {
   /**
    * 切换门状态
    */
-  public toggleDoor(door: 'left' | 'right'): void {
+  public toggleDoor(door: "left" | "right"): void {
     this.carComponents.toggleDoor(door);
   }
 
   /**
    * 开始运镜动画
    */
-  public startCameraAnimation(mode: CameraAnimationMode, duration: number = 10000, keepFinalPosition: boolean = false): void {
+  public startCameraAnimation(
+    mode: CameraAnimationMode,
+    duration: number = 10000,
+    keepFinalPosition: boolean = false
+  ): void {
     this.cameraController.startAnimation(mode, duration, keepFinalPosition);
   }
 
@@ -242,7 +252,10 @@ export class Car3DRenderer {
   /**
    * 开始车灯动画
    */
-  public startLightAnimation(type: 'headlights' | 'taillights' | 'turnSignals', interval: number = 500): void {
+  public startLightAnimation(
+    type: "headlights" | "taillights" | "turnSignals",
+    interval: number = 500
+  ): void {
     this.animationController.startLightAnimation(type, interval);
   }
 
@@ -253,13 +266,25 @@ export class Car3DRenderer {
     this.animationController.stopLightAnimation();
   }
 
+  /**
+   * 设置门按钮可见性
+   */
+  public setDoorButtonsVisible(visible: boolean): void {
+    this.interactionHandler.setDoorButtonsVisible(visible);
+  }
+
   // ==================== 生命周期方法 ====================
 
   /**
    * 检查渲染器是否仍在运行
    */
   public isActive(): boolean {
-    return !!(this.animationId && this.sceneManager.renderer && this.container && this.container.parentNode);
+    return !!(
+      this.animationId &&
+      this.sceneManager.renderer &&
+      this.container &&
+      this.container.parentNode
+    );
   }
 
   /**
@@ -269,7 +294,7 @@ export class Car3DRenderer {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
-      console.log('3D animation paused');
+      console.log("3D animation paused");
     }
   }
 
@@ -279,7 +304,7 @@ export class Car3DRenderer {
   public resumeAnimation(): void {
     if (!this.animationId && this.sceneManager.renderer) {
       this.animate();
-      console.log('3D animation resumed');
+      console.log("3D animation resumed");
     }
   }
 
@@ -301,6 +326,6 @@ export class Car3DRenderer {
     this.cameraController?.dispose();
     this.interactionHandler?.dispose();
 
-    console.log('Car3DRenderer资源已清理');
+    console.log("Car3DRenderer资源已清理");
   }
 }

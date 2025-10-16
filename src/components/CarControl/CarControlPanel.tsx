@@ -2,8 +2,6 @@ import React from "react";
 import {
   Play,
   Square,
-  ChevronUp,
-  ChevronDown,
   CircleStop,
   CircleArrowUp,
   CircleArrowDown,

@@ -1,10 +1,14 @@
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
 
 use serialport::{SerialPort, available_ports};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use anyhow::{Result, anyhow};
 use log::{info, error, warn};
+use csv::ReaderBuilder;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerialConfig {
@@ -29,6 +33,7 @@ pub struct CanMessage {
 pub struct AppState {
     serial_port: Arc<Mutex<Option<Box<dyn SerialPort>>>>,
     is_connected: Arc<Mutex<bool>>,
+    csv_loop_running: Arc<AtomicBool>,
 }
 
 impl Default for AppState {
@@ -36,6 +41,7 @@ impl Default for AppState {
         Self {
             serial_port: Arc::new(Mutex::new(None)),
             is_connected: Arc::new(Mutex::new(false)),
+            csv_loop_running: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -222,8 +228,19 @@ fn create_can_send_packet_fixed(id: &str, data: &str) -> Result<Vec<u8>> {
     }
 
     // Parse CAN ID
-    let can_id = u32::from_str_radix(id, 16)
-        .map_err(|_| anyhow!("Invalid CAN ID format"))?;
+    let id_hex_part = id.strip_prefix("0x")
+                         .or_else(|| id.strip_prefix("0X"))
+                         .unwrap_or(id); // 如果没有前缀，则使用原始字符串
+    // 2. 判断剩余部分是否为空，如果为空，则默认设置为十六进制的 0x200 (即十进制的 512)
+    let can_id = if id_hex_part.is_empty() {
+        // 如果输入字符串是 "0x" 或 "0X"，则 id_hex_part 为空。
+        // 十六进制的 200 (u32)
+        0x200 
+    } else {
+        // 3. 否则，进行正常的十六进制解析
+        u32::from_str_radix(id_hex_part, 16)
+            .map_err(|_| anyhow!("Invalid CAN ID format: \"{}\"", id))?
+    };
 
     let mut packet = vec![0xAA, 0x55, 0x01, 0x01, 0x01]; // Header
 
@@ -480,6 +497,172 @@ async fn send_can_message(
     // }
 }
 
+#[tauri::command]
+async fn start_csv_loop(
+    csv_content: String,
+    interval_ms: u64,
+    can_id_column_index: usize,
+    can_data_column_index: usize,
+    csv_start_row_index: usize,
+    config: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    println!("🚀 [Rust] start_csv_loop called - Interval: {}ms, CSV length: {}, Start row: {}", interval_ms, csv_content.len(), csv_start_row_index);
+    info!("Starting CSV loop - Interval: {}ms, Start row: {}", interval_ms, csv_start_row_index);
+
+    // Check if already running
+    if state.csv_loop_running.load(Ordering::SeqCst) {
+        println!("❌ [Rust] CSV loop already running");
+        return Err("CSV loop already running".to_string());
+    }
+
+    // Check connection
+    {
+        let is_connected = state.is_connected.lock().unwrap();
+        if !*is_connected {
+            println!("❌ [Rust] Not connected");
+            return Err("Not connected".to_string());
+        }
+    }
+    println!("✅ [Rust] Connection check passed");
+
+    // Set running flag
+    state.csv_loop_running.store(true, Ordering::SeqCst);
+
+    // Clone state for the loop thread
+    let state_clone = Arc::new(AppState {
+        serial_port: state.serial_port.clone(),
+        is_connected: state.is_connected.clone(),
+        csv_loop_running: state.csv_loop_running.clone(),
+    });
+    let csv_content_clone = csv_content.clone();
+    let config_clone = config.clone();
+
+    // Spawn thread for CSV loop
+    std::thread::spawn(move || {
+        if let Err(e) = run_csv_loop(
+            csv_content_clone,
+            interval_ms,
+            can_id_column_index,
+            can_data_column_index,
+            csv_start_row_index,
+            config_clone,
+            state_clone,
+        ) {
+            error!("CSV loop error: {}", e);
+        }
+    });
+
+    Ok("CSV loop started".to_string())
+}
+
+fn run_csv_loop(
+    csv_content: String,
+    interval_ms: u64,
+    can_id_column_index: usize,
+    can_data_column_index: usize,
+    csv_start_row_index: usize,
+    _config: serde_json::Value,
+    state: Arc<AppState>,
+) -> Result<()> {
+    println!("🔄 [Rust] run_csv_loop started - Start row: {}", csv_start_row_index);
+
+    // Parse CSV content from string
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(csv_content.as_bytes());
+
+    let mut records = Vec::new();
+    for result in reader.records() {
+        let record = result.map_err(|e| anyhow!("CSV read error: {}", e))?;
+        records.push(record);
+    }
+
+    println!("✅ [Rust] Loaded {} records from CSV", records.len());
+    info!("Loaded {} records from CSV", records.len());
+
+    if records.is_empty() {
+        println!("❌ [Rust] CSV file is empty");
+        return Err(anyhow!("CSV file is empty"));
+    }
+
+    // Check if start row index is valid
+    if csv_start_row_index >= records.len() {
+        println!("❌ [Rust] Start row index {} out of range (max: {})", csv_start_row_index, records.len() - 1);
+        return Err(anyhow!("Start row index out of range"));
+    }
+
+    // Filter records starting from csv_start_row_index
+    let filtered_records: Vec<_> = records.iter().skip(csv_start_row_index).collect();
+
+    if filtered_records.is_empty() {
+        println!("❌ [Rust] No records after start row index");
+        return Err(anyhow!("No records after start row index"));
+    }
+
+    println!("✅ [Rust] Using {} records starting from row {}", filtered_records.len(), csv_start_row_index);
+
+    // Loop through records once
+    for (index, record) in filtered_records.iter().enumerate() {
+        // Check if loop should stop
+        if !state.csv_loop_running.load(Ordering::SeqCst) {
+            println!("🛑 [Rust] CSV loop stopped by user");
+            break;
+        }
+
+        // Get CAN ID and Data from specified columns
+        let can_id = record
+            .get(can_id_column_index)
+            .ok_or_else(|| anyhow!("CAN ID column index out of range"))?
+            .to_string();
+
+        let can_data = record
+            .get(can_data_column_index)
+            .ok_or_else(|| anyhow!("CAN Data column index out of range"))?
+            .to_string();
+
+        // Create and send packet
+        let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
+
+        // Send packet
+        {
+            let mut serial_port = state.serial_port.lock().unwrap();
+            if let Some(ref mut port) = *serial_port {
+                if let Err(e) = port.write_all(&packet) {
+                    error!("Failed to send packet: {}", e);
+                } else {
+                    let _ = port.flush();
+                    info!("Sent CAN message - ID: {}, Data: {}", can_id, can_data);
+                }
+            }
+        }
+
+        // Sleep for interval (except after the last record)
+        if index < filtered_records.len() - 1 {
+            thread::sleep(Duration::from_millis(interval_ms));
+        }
+    }
+
+    println!("✅ [Rust] CSV loop completed - All records sent");
+    info!("CSV loop completed - All records sent");
+
+    // Stop the loop flag
+    state.csv_loop_running.store(false, Ordering::SeqCst);
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop_csv_loop(state: State<'_, AppState>) -> Result<String, String> {
+    info!("Stopping CSV loop");
+    state.csv_loop_running.store(false, Ordering::SeqCst);
+
+    // Give thread time to stop
+    thread::sleep(Duration::from_millis(100));
+
+    Ok("CSV loop stopped".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logger with debug level
@@ -493,7 +676,9 @@ pub fn run() {
             get_available_ports,
             connect_serial,
             disconnect_serial,
-            send_can_message
+            send_can_message,
+            start_csv_loop,
+            stop_csv_loop
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

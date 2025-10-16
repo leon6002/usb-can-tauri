@@ -1,50 +1,31 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { CarStates, CanCommand } from "../types";
+import { invoke } from "@tauri-apps/api/core";
 
 export const useCarControl = () => {
+  const loopIntervalRef = useRef<NodeJS.Timeout | null>(null);
   // Car control commands configuration
   const [canCommands, setCanCommands] = useState<CanCommand[]>([
     {
-      id: "left_door_open",
-      name: "左门开启",
+      id: "door_open",
+      name: "车门开启",
       canId: "201",
       data: "FF 02 FF FF 00 00 00 00",
-      description: "打开左车门",
+      description: "打开左右车门",
     },
     {
-      id: "left_door_close",
-      name: "左门关闭",
+      id: "door_close",
+      name: "车门关闭",
       canId: "201",
       data: "FF 01 FF FF 00 00 00 00",
-      description: "关闭左车门",
+      description: "关闭左右车门",
     },
     {
-      id: "left_door_stop",
-      name: "左门停止",
+      id: "door_stop",
+      name: "车门停止",
       canId: "201",
       data: "FF 03 FF FF 00 00 00 00",
-      description: "停止左车门",
-    },
-    {
-      id: "right_door_open",
-      name: "右门开启",
-      canId: "201",
-      data: "FF 02 FF FF 00 00 00 00",
-      description: "打开右车门",
-    },
-    {
-      id: "right_door_close",
-      name: "右门关闭",
-      canId: "201",
-      data: "FF 01 FF FF 00 00 00 00",
-      description: "关闭右车门",
-    },
-    {
-      id: "right_door_stop",
-      name: "右门停止",
-      canId: "201",
-      data: "FF 03 FF FF 00 00 00 00",
-      description: "停止右车门",
+      description: "停止左右车门",
     },
     {
       id: "fan_level_0",
@@ -155,22 +136,16 @@ export const useCarControl = () => {
       const newState = { ...prev };
 
       switch (commandId) {
-        case "left_door_open":
+        case "door_open":
           newState.leftDoorStatus = "开启";
-          break;
-        case "left_door_close":
-          newState.leftDoorStatus = "关闭";
-          break;
-        case "left_door_stop":
-          newState.leftDoorStatus = "停止";
-          break;
-        case "right_door_open":
           newState.rightDoorStatus = "开启";
           break;
-        case "right_door_close":
+        case "door_close":
+          newState.leftDoorStatus = "关闭";
           newState.rightDoorStatus = "关闭";
           break;
-        case "right_door_stop":
+        case "door_stop":
+          newState.leftDoorStatus = "停止";
           newState.rightDoorStatus = "停止";
           break;
         case "fan_level_0":
@@ -225,10 +200,85 @@ export const useCarControl = () => {
     );
   };
 
+  // 开始循环发送CSV数据
+  const startCsvLoop = async (
+    csvContent: string,
+    intervalMs: number,
+    canIdColumnIndex: number,
+    canDataColumnIndex: number,
+    csvStartRowIndex: number,
+    config: any,
+    onComplete?: () => void
+  ) => {
+    try {
+      console.log("🚀 startCsvLoop called with:", {
+        csvContentLength: csvContent.length,
+        intervalMs,
+        canIdColumnIndex,
+        canDataColumnIndex,
+        csvStartRowIndex,
+      });
+
+      // 调用Rust后端的循环发送命令
+      const result = await invoke("start_csv_loop", {
+        csvContent,
+        intervalMs,
+        canIdColumnIndex,
+        canDataColumnIndex,
+        csvStartRowIndex,
+        config: {
+          port: config.port,
+          baud_rate: config.baudRate,
+          can_baud_rate: config.canBaudRate,
+          frame_type: config.frameType,
+          can_mode: config.canMode,
+          protocol_length: config.protocolLength,
+        },
+      });
+
+      console.log("✅ startCsvLoop result:", result);
+
+      // 计算预期的完成时间
+      const lines = csvContent.trim().split("\n");
+      const recordCount = lines.length - csvStartRowIndex;
+      const estimatedDuration = recordCount * intervalMs + 1000; // 加1秒缓冲
+
+      console.log(
+        `📊 CSV loop will complete in approximately ${estimatedDuration}ms (${recordCount} records × ${intervalMs}ms)`
+      );
+
+      // 设置定时器，在预期时间后检查并触发完成回调
+      if (onComplete) {
+        setTimeout(() => {
+          console.log(
+            "✅ CSV loop should be completed, triggering onComplete callback"
+          );
+          onComplete();
+        }, estimatedDuration);
+      }
+    } catch (error) {
+      console.error("❌ Failed to start CSV loop:", error);
+      throw error;
+    }
+  };
+
+  // 停止循环发送
+  const stopCsvLoop = async () => {
+    try {
+      await invoke("stop_csv_loop");
+    } catch (error) {
+      console.error("Failed to stop CSV loop:", error);
+      throw error;
+    }
+  };
+
   return {
     canCommands,
     carStates,
     updateCarState,
     updateCanCommand,
+    startCsvLoop,
+    stopCsvLoop,
+    loopIntervalRef,
   };
 };

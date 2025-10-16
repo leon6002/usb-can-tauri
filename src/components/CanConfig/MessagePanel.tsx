@@ -21,53 +21,58 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
   onClearMessages,
 }) => {
   return (
-    <div className="p-4 border-b border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-800 mb-3">发送消息</h3>
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            CAN ID (十六进制)
-          </label>
-          <input
-            type="text"
-            value={sendId}
-            onChange={(e) => onSendIdChange(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="123"
-            disabled={!isConnected}
-          />
+    <div>
+      <h3 className="text-sm font-semibold text-gray-800 mb-2">测试发送消息</h3>
+      <div className="space-y-1">
+        {/* CAN ID and Data in one row */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              CAN ID
+            </label>
+            <input
+              type="text"
+              value={sendId}
+              onChange={(e) => onSendIdChange(e.target.value)}
+              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="123"
+              disabled={!isConnected}
+            />
+          </div>
+
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              CAN DATA
+            </label>
+            <input
+              type="text"
+              value={sendData}
+              onChange={(e) => onSendDataChange(e.target.value)}
+              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="01 02 03 04"
+              disabled={!isConnected}
+            />
+          </div>
+          {/* Send and Clear buttons in one row */}
+          <div className="flex gap-2">
+            <button
+              onClick={onSendMessage}
+              disabled={!isConnected}
+              className="flex-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded text-xs font-medium transition-colors cursor-pointer"
+            >
+              <Send className="w-3 h-3 inline mr-1" />
+              发送
+            </button>
+
+            <button
+              onClick={onClearMessages}
+              className="flex-1 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors"
+            >
+              <Trash2 className="w-3 h-3 inline mr-1" />
+              清空
+            </button>
+          </div>
         </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            数据 (十六进制，空格分隔)
-          </label>
-          <input
-            type="text"
-            value={sendData}
-            onChange={(e) => onSendDataChange(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="01 02 03 04"
-            disabled={!isConnected}
-          />
-        </div>
-
-        <button
-          onClick={onSendMessage}
-          disabled={!isConnected}
-          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md text-sm font-medium transition-colors cursor-pointer"
-        >
-          <Send className="w-4 h-4 inline mr-2" />
-          发送消息
-        </button>
-
-        <button
-          onClick={onClearMessages}
-          className="w-full px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-sm font-medium transition-colors"
-        >
-          <Trash2 className="w-4 h-4 inline mr-2" />
-          清空消息
-        </button>
       </div>
     </div>
   );

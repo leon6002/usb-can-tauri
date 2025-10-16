@@ -1,8 +1,8 @@
 /**
  * 交互处理器 - 处理鼠标交互、3D按钮点击等用户交互
  */
-import * as THREE from 'three';
-import { IInteractionHandler, DoorButtons } from './types';
+import * as THREE from "three";
+import { IInteractionHandler, DoorButtons } from "./types";
 
 export class InteractionHandler implements IInteractionHandler {
   public raycaster = new THREE.Raycaster();
@@ -10,13 +10,13 @@ export class InteractionHandler implements IInteractionHandler {
   public clickableObjects: THREE.Object3D[] = [];
   public doorButtons: DoorButtons = {
     leftDoor: null,
-    rightDoor: null
+    rightDoor: null,
   };
 
   // 门状态跟踪 (false = 关闭, true = 开启)
   private doorStates = {
     left: false,
-    right: false
+    right: false,
   };
 
   private container: HTMLElement;
@@ -25,7 +25,12 @@ export class InteractionHandler implements IInteractionHandler {
   private onMouseMoveBound: (event: MouseEvent) => void;
   private onSendCommand?: (commandId: string) => void;
 
-  constructor(container: HTMLElement, camera: THREE.PerspectiveCamera, _scene: THREE.Scene, onSendCommand?: (commandId: string) => void) {
+  constructor(
+    container: HTMLElement,
+    camera: THREE.PerspectiveCamera,
+    _scene: THREE.Scene,
+    onSendCommand?: (commandId: string) => void
+  ) {
     this.container = container;
     this.camera = camera;
     this.onSendCommand = onSendCommand;
@@ -38,33 +43,36 @@ export class InteractionHandler implements IInteractionHandler {
    * 设置点击事件处理器
    */
   public setupClickHandlers(container: HTMLElement): void {
-    container.addEventListener('click', this.onClickBound);
-    container.addEventListener('mousemove', this.onMouseMoveBound);
-    
-    console.log('✅ 交互事件处理器初始化完成');
+    container.addEventListener("click", this.onClickBound);
+    container.addEventListener("mousemove", this.onMouseMoveBound);
+
+    console.log("✅ 交互事件处理器初始化完成");
   }
 
   /**
    * 创建3D门按钮
    */
   public create3DDoorButtons(car: THREE.Group): void {
-    console.log('🔍 开始创建3D门按钮...');
+    console.log("🔍 开始创建3D门按钮...");
 
     // 创建左门按钮
-    this.createDoorButton('left', car);
+    this.createDoorButton("left", car);
 
     // 创建右门按钮
-    this.createDoorButton('right', car);
+    this.createDoorButton("right", car);
 
-    console.log('✅ 3D门按钮创建完成，总共可点击对象:', this.clickableObjects.length);
+    console.log(
+      "✅ 3D门按钮创建完成，总共可点击对象:",
+      this.clickableObjects.length
+    );
   }
 
   /**
    * 创建单个门按钮
    */
-  private createDoorButton(side: 'left' | 'right', car: THREE.Group): void {
+  private createDoorButton(side: "left" | "right", car: THREE.Group): void {
     // 查找对应的车门对象
-    const doorName = side === 'left' ? 'Object_347' : 'Object_401';
+    const doorName = side === "left" ? "Object_347" : "Object_401";
     const doorObject = this.findDoorByName(car, doorName);
 
     if (!doorObject) {
@@ -76,7 +84,7 @@ export class InteractionHandler implements IInteractionHandler {
     const buttonGroup = this.createButtonGeometry();
 
     // 调整按钮位置到门把手附近
-    if (side === 'left') {
+    if (side === "left") {
       // 左门按钮位置 - 门把手附近
       buttonGroup.position.set(-0.2, -1.1, 0.2); // 相对于门的位置
       buttonGroup.rotation.y = Math.PI / 2; // 面向外侧
@@ -88,11 +96,11 @@ export class InteractionHandler implements IInteractionHandler {
 
     // 添加按钮标识
     buttonGroup.userData = {
-      type: 'doorButton',
+      type: "doorButton",
       door: side,
       originalOpacity: { outer: 0.8, inner: 0.3 },
       hoverOpacity: { outer: 1.0, inner: 0.5 },
-      clickOpacity: { outer: 0.6, inner: 0.2 }
+      clickOpacity: { outer: 0.6, inner: 0.2 },
     };
 
     // 将按钮附加到车门对象上
@@ -103,7 +111,7 @@ export class InteractionHandler implements IInteractionHandler {
     this.clickableObjects.push(buttonGroup);
 
     // 创建按钮文字标签
-    this.createButtonLabel(buttonGroup, side === 'left' ? '左门' : '右门');
+    // this.createButtonLabel(buttonGroup, side === "left" ? "左门" : "右门");
 
     console.log(`✓ ${side}门按钮已创建并附加到: ${doorName}`);
     console.log(`按钮位置:`, buttonGroup.position);
@@ -117,8 +125,8 @@ export class InteractionHandler implements IInteractionHandler {
    */
   private createButtonGeometry(): THREE.Group {
     // 创建科技感的白色半透明圆环按钮
-    const outerGeometry = new THREE.RingGeometry(0.12, 0.18, 32);
-    const innerGeometry = new THREE.CircleGeometry(0.10, 32);
+    const outerGeometry = new THREE.RingGeometry(0.08, 0.1, 32);
+    const innerGeometry = new THREE.CircleGeometry(0.06, 32);
 
     // 外圆环材质 - 白色半透明，双面可见
     const outerMaterial = new THREE.MeshStandardMaterial({
@@ -128,7 +136,7 @@ export class InteractionHandler implements IInteractionHandler {
       emissive: 0x222222,
       metalness: 0.1,
       roughness: 0.8,
-      side: THREE.DoubleSide // 双面渲染
+      side: THREE.DoubleSide, // 双面渲染
     });
 
     // 内圆材质 - 更透明的白色，双面可见
@@ -139,7 +147,7 @@ export class InteractionHandler implements IInteractionHandler {
       emissive: 0x111111,
       metalness: 0.1,
       roughness: 0.8,
-      side: THREE.DoubleSide // 双面渲染
+      side: THREE.DoubleSide, // 双面渲染
     });
 
     const outerRing = new THREE.Mesh(outerGeometry, outerMaterial);
@@ -153,12 +161,13 @@ export class InteractionHandler implements IInteractionHandler {
     return buttonGroup;
   }
 
-
-
   /**
    * 根据名称查找车门对象
    */
-  private findDoorByName(car: THREE.Group, doorName: string): THREE.Object3D | null {
+  private findDoorByName(
+    car: THREE.Group,
+    doorName: string
+  ): THREE.Object3D | null {
     let foundDoor: THREE.Object3D | null = null;
 
     console.log(`🔍 查找车门对象: ${doorName}`);
@@ -179,7 +188,7 @@ export class InteractionHandler implements IInteractionHandler {
           allNames.push(child.name);
         }
       });
-      console.log('可用的对象名称:', allNames.slice(0, 20)); // 只显示前20个
+      console.log("可用的对象名称:", allNames.slice(0, 20)); // 只显示前20个
     }
 
     return foundDoor;
@@ -188,12 +197,14 @@ export class InteractionHandler implements IInteractionHandler {
   /**
    * 从点击的对象找到对应的按钮组
    */
-  private findButtonGroup(clickedObject: THREE.Object3D): THREE.Object3D | null {
+  private findButtonGroup(
+    clickedObject: THREE.Object3D
+  ): THREE.Object3D | null {
     let current = clickedObject;
 
     // 向上遍历父对象，找到带有doorButton标识的对象
     while (current) {
-      if (current.userData && current.userData.type === 'doorButton') {
+      if (current.userData && current.userData.type === "doorButton") {
         return current;
       }
       current = current.parent as THREE.Object3D;
@@ -203,76 +214,36 @@ export class InteractionHandler implements IInteractionHandler {
   }
 
   /**
-   * 创建按钮文字标签
-   */
-  private createButtonLabel(button: THREE.Object3D, text: string): void {
-    // 创建科技感文字纹理
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d')!;
-    canvas.width = 256;
-    canvas.height = 64;
-
-    // 透明背景
-    context.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 科技感字体样式
-    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    context.font = 'bold 16px "Microsoft YaHei", Arial, sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.shadowColor = 'rgba(255, 255, 255, 0.5)';
-    context.shadowBlur = 4;
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-
-    // 添加发光边框效果
-    context.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    context.lineWidth = 1;
-    context.strokeText(text, canvas.width / 2, canvas.height / 2);
-
-    // 创建文字精灵
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      alphaTest: 0.1
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-
-    // 调整标签位置和大小
-    sprite.scale.set(1.2, 0.3, 1);
-    sprite.position.set(0, 0.4, 0);
-
-    button.add(sprite);
-  }
-
-  /**
    * 鼠标点击事件处理
    */
   private onClick(event: MouseEvent): void {
-    console.log('🖱️ 鼠标点击事件触发');
+    console.log("🖱️ 鼠标点击事件触发");
     this.updateMousePosition(event);
 
     // 射线检测 - 递归检测子对象
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.clickableObjects, true);
+    const intersects = this.raycaster.intersectObjects(
+      this.clickableObjects,
+      true
+    );
 
     console.log(`🎯 射线检测结果: ${intersects.length} 个交点`);
-    console.log('可点击对象数量:', this.clickableObjects.length);
+    console.log("可点击对象数量:", this.clickableObjects.length);
 
     if (intersects.length > 0) {
       const clickedObject = intersects[0].object;
-      console.log('点击的对象:', clickedObject);
+      console.log("点击的对象:", clickedObject);
 
       // 找到按钮组对象
       const buttonGroup = this.findButtonGroup(clickedObject);
       if (buttonGroup) {
-        console.log('找到按钮组:', buttonGroup.userData);
+        console.log("找到按钮组:", buttonGroup.userData);
         this.handleObjectClick(buttonGroup);
       } else {
-        console.log('未找到按钮组');
+        console.log("未找到按钮组");
       }
     } else {
-      console.log('没有点击到任何对象');
+      console.log("没有点击到任何对象");
     }
   }
 
@@ -281,10 +252,13 @@ export class InteractionHandler implements IInteractionHandler {
    */
   private onMouseMove(event: MouseEvent): void {
     this.updateMousePosition(event);
-    
+
     // 射线检测 - 递归检测子对象
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.clickableObjects, true);
+    const intersects = this.raycaster.intersectObjects(
+      this.clickableObjects,
+      true
+    );
 
     // 重置所有按钮透明度
     this.resetButtonOpacities();
@@ -297,9 +271,9 @@ export class InteractionHandler implements IInteractionHandler {
         this.handleObjectHover(buttonGroup);
       }
     }
-    
+
     // 更新鼠标样式
-    this.container.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
+    this.container.style.cursor = intersects.length > 0 ? "pointer" : "default";
   }
 
   /**
@@ -316,8 +290,8 @@ export class InteractionHandler implements IInteractionHandler {
    */
   private handleObjectClick(object: THREE.Object3D): void {
     const userData = object.userData;
-    
-    if (userData.type === 'doorButton') {
+
+    if (userData.type === "doorButton") {
       this.handleDoorButtonClick(userData.door);
       this.animateButtonClick(object);
     }
@@ -329,7 +303,7 @@ export class InteractionHandler implements IInteractionHandler {
   private handleObjectHover(object: THREE.Object3D): void {
     const userData = object.userData;
 
-    if (userData.type === 'doorButton') {
+    if (userData.type === "doorButton") {
       this.setButtonOpacity(object, userData.hoverOpacity);
     }
   }
@@ -337,10 +311,10 @@ export class InteractionHandler implements IInteractionHandler {
   /**
    * 处理门按钮点击
    */
-  private handleDoorButtonClick(door: 'left' | 'right'): void {
-    console.log(`点击了${door === 'left' ? '左' : '右'}门按钮`);
+  private handleDoorButtonClick(door: "left" | "right"): void {
+    console.log(`点击了${door === "left" ? "左" : "右"}门按钮`);
 
-    // 获取当前门状态
+    // 获取当前门状态（两个门状态相同）
     const currentState = this.doorStates[door];
     const newState = !currentState;
 
@@ -348,26 +322,35 @@ export class InteractionHandler implements IInteractionHandler {
     if (this.onSendCommand) {
       let commandId: string;
       if (currentState) {
-        // 当前是开启状态，点击后关闭
-        commandId = door === 'left' ? 'left_door_close' : 'right_door_close';
+        // 当前是开启状态，点击后关闭 - 两个门一起关闭
+        commandId = "door_close";
       } else {
-        // 当前是关闭状态，点击后开启
-        commandId = door === 'left' ? 'left_door_open' : 'right_door_open';
+        // 当前是关闭状态，点击后开启 - 两个门一起开启
+        commandId = "door_open";
       }
 
-      console.log(`🚗 门当前状态: ${currentState ? '开启' : '关闭'}, 发送CAN命令: ${commandId}`);
+      console.log(
+        `🚗 门当前状态: ${
+          currentState ? "开启" : "关闭"
+        }, 发送CAN命令: ${commandId}`
+      );
       this.onSendCommand(commandId);
 
-      // 更新门状态
-      this.doorStates[door] = newState;
-      console.log(`🚗 门状态更新为: ${newState ? '开启' : '关闭'}`);
+      // 更新两个门的状态
+      this.doorStates.left = newState;
+      this.doorStates.right = newState;
+      console.log(`🚗 两个门状态更新为: ${newState ? "开启" : "关闭"}`);
     }
 
-    // 同时触发自定义事件用于3D动画
-    const event = new CustomEvent('doorButtonClick', {
-      detail: { door, isOpening: !currentState }
+    // 同时触发自定义事件用于3D动画 - 两个门都要动画
+    const eventLeft = new CustomEvent("doorButtonClick", {
+      detail: { door: "left", isOpening: !currentState },
     });
-    document.dispatchEvent(event);
+    const eventRight = new CustomEvent("doorButtonClick", {
+      detail: { door: "right", isOpening: !currentState },
+    });
+    document.dispatchEvent(eventLeft);
+    document.dispatchEvent(eventRight);
   }
 
   /**
@@ -376,22 +359,35 @@ export class InteractionHandler implements IInteractionHandler {
   public resetDoorStates(): void {
     this.doorStates.left = false;
     this.doorStates.right = false;
-    console.log('🚗 门状态已重置为关闭状态');
+    console.log("🚗 门状态已重置为关闭状态");
   }
 
   /**
    * 获取门状态
    */
-  public getDoorState(door: 'left' | 'right'): boolean {
+  public getDoorState(door: "left" | "right"): boolean {
     return this.doorStates[door];
   }
 
   /**
    * 设置门状态
    */
-  public setDoorState(door: 'left' | 'right', isOpen: boolean): void {
+  public setDoorState(door: "left" | "right", isOpen: boolean): void {
     this.doorStates[door] = isOpen;
-    console.log(`🚗 ${door}门状态设置为: ${isOpen ? '开启' : '关闭'}`);
+    console.log(`🚗 ${door}门状态设置为: ${isOpen ? "开启" : "关闭"}`);
+  }
+
+  /**
+   * 设置门按钮可见性
+   */
+  public setDoorButtonsVisible(visible: boolean): void {
+    if (this.doorButtons.leftDoor) {
+      this.doorButtons.leftDoor.visible = visible;
+    }
+    if (this.doorButtons.rightDoor) {
+      this.doorButtons.rightDoor.visible = visible;
+    }
+    console.log(`🚪 门按钮可见性设置为: ${visible ? "可见" : "隐藏"}`);
   }
 
   /**
@@ -414,8 +410,11 @@ export class InteractionHandler implements IInteractionHandler {
   /**
    * 设置按钮透明度
    */
-  private setButtonOpacity(button: THREE.Object3D, opacities: { outer: number, inner: number }): void {
-    if (button.type === 'Group') {
+  private setButtonOpacity(
+    button: THREE.Object3D,
+    opacities: { outer: number; inner: number }
+  ): void {
+    if (button.type === "Group") {
       const group = button as THREE.Group;
       const outerRing = group.children[0] as THREE.Mesh;
       const innerCircle = group.children[1] as THREE.Mesh;
@@ -426,7 +425,8 @@ export class InteractionHandler implements IInteractionHandler {
       }
 
       if (innerCircle && innerCircle.material) {
-        const innerMaterial = innerCircle.material as THREE.MeshStandardMaterial;
+        const innerMaterial =
+          innerCircle.material as THREE.MeshStandardMaterial;
         innerMaterial.opacity = opacities.inner;
       }
     }
@@ -436,9 +436,9 @@ export class InteractionHandler implements IInteractionHandler {
    * 重置所有按钮透明度
    */
   private resetButtonOpacities(): void {
-    this.clickableObjects.forEach(obj => {
+    this.clickableObjects.forEach((obj) => {
       const userData = obj.userData;
-      if (userData.type === 'doorButton') {
+      if (userData.type === "doorButton") {
         this.setButtonOpacity(obj, userData.originalOpacity);
       }
     });
@@ -466,25 +466,25 @@ export class InteractionHandler implements IInteractionHandler {
    */
   public dispose(): void {
     // 移除事件监听器
-    this.container.removeEventListener('click', this.onClickBound);
-    this.container.removeEventListener('mousemove', this.onMouseMoveBound);
-    
+    this.container.removeEventListener("click", this.onClickBound);
+    this.container.removeEventListener("mousemove", this.onMouseMoveBound);
+
     // 清理3D按钮
-    Object.values(this.doorButtons).forEach(button => {
+    Object.values(this.doorButtons).forEach((button) => {
       if (button && button.parent) {
         button.parent.remove(button);
       }
     });
-    
+
     this.doorButtons = {
       leftDoor: null,
-      rightDoor: null
+      rightDoor: null,
     };
     this.clickableObjects = [];
-    
+
     // 重置鼠标样式
-    this.container.style.cursor = 'default';
-    
-    console.log('InteractionHandler资源已清理');
+    this.container.style.cursor = "default";
+
+    console.log("InteractionHandler资源已清理");
   }
 }
