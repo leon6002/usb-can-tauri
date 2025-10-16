@@ -90,7 +90,7 @@ export class InteractionHandler implements IInteractionHandler {
       buttonGroup.rotation.y = Math.PI / 2; // 面向外侧
     } else {
       // 右门按钮位置 - 门把手附近
-      buttonGroup.position.set(0.2, -1.1, -0.1); // 相对于门的位置
+      buttonGroup.position.set(0.2, -1.2, 0); // 相对于门的位置
       buttonGroup.rotation.y = -Math.PI / 2; // 面向外侧
     }
 
