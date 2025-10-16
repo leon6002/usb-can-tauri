@@ -1,5 +1,13 @@
 import React from "react";
-import { Play, Square, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  Play,
+  Square,
+  ChevronUp,
+  ChevronDown,
+  CircleStop,
+  CircleArrowUp,
+  CircleArrowDown,
+} from "lucide-react";
 import { CarStates } from "../../types";
 
 interface CarControlPanelProps {
@@ -19,7 +27,11 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">主要控制</h4>
         <button
-          onClick={() => onSendCommand(carStates.isDriving ? "stop_driving" : "start_driving")}
+          onClick={() =>
+            onSendCommand(
+              carStates.isDriving ? "stop_driving" : "start_driving"
+            )
+          }
           disabled={!isConnected}
           className={`w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg ${
             carStates.isDriving
@@ -44,13 +56,13 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       {/* Suspension Controls */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">悬架控制</h4>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => onSendCommand("suspension_up")}
             disabled={!isConnected}
             className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
           >
-            <ChevronUp className="w-4 h-4 inline mr-1" />
+            <CircleArrowUp className="w-4 h-4 inline mr-1" />
             升高
           </button>
           <button
@@ -58,8 +70,16 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
             disabled={!isConnected}
             className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
           >
-            <ChevronDown className="w-4 h-4 inline mr-1" />
+            <CircleArrowDown className="w-4 h-4 inline mr-1" />
             降低
+          </button>
+          <button
+            onClick={() => onSendCommand("suspension_stop")}
+            disabled={!isConnected}
+            className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
+          >
+            <CircleStop className="w-4 h-4 inline mr-1" />
+            停止
           </button>
         </div>
       </div>
@@ -67,8 +87,8 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       {/* Fan Controls */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">风扇控制</h4>
-        <div className="grid grid-cols-3 gap-2">
-          {[0, 1, 2].map((level) => (
+        <div className="grid grid-cols-4 gap-2">
+          {[0, 1, 2, 3].map((level) => (
             <button
               key={level}
               onClick={() => onSendCommand(`fan_level_${level}`)}

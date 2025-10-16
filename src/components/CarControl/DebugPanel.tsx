@@ -43,12 +43,14 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
 
       {/* 调试面板 */}
       {isVisible && (
-        <div className="fixed bottom-20 right-10 z-40 w-[400px] bg-white border border-gray-300 rounded-lg shadow-xl">
+        <div className="fixed bottom-4 right-80 z-40 w-[400px] bg-white border border-gray-300 rounded-lg shadow-xl">
           {/* 面板头部 */}
           <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
             <div className="flex items-center gap-2">
               <Bug className="w-4 h-4 text-blue-500" />
-              <h3 className="text-sm font-semibold text-gray-800">CAN调试日志</h3>
+              <h3 className="text-sm font-semibold text-gray-800">
+                CAN调试日志
+              </h3>
               <span className="text-xs text-gray-500">({logs.length})</span>
             </div>
             <div className="flex items-center gap-1">
@@ -95,16 +97,19 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-gray-700">
                         <div>
-                          <span className="font-medium">命令ID:</span> {log.commandId}
+                          <span className="font-medium">命令ID:</span>{" "}
+                          {log.commandId}
                         </div>
                         <div>
-                          <span className="font-medium">CAN ID:</span> {log.canId}
+                          <span className="font-medium">CAN ID:</span>{" "}
+                          {log.canId}
                         </div>
                         <div>
                           <span className="font-medium">数据:</span> {log.data}
                         </div>
                         <div className="col-span-2">
-                          <span className="font-medium">描述:</span> {log.description}
+                          <span className="font-medium">描述:</span>{" "}
+                          {log.description}
                         </div>
                       </div>
                     </div>

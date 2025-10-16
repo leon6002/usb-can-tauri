@@ -14,6 +14,7 @@ export const useCanMessages = () => {
         id: sendId,
         data: sendData,
         frameType: config.frameType,
+        protocolLength: config.protocolLength,
       };
       console.log("发送CAN消息参数:", params);
       await invoke("send_can_message", params);
@@ -34,12 +35,17 @@ export const useCanMessages = () => {
   };
 
   // 发送CAN命令
-  const sendCanCommand = async (canId: string, data: string, config: SerialConfig) => {
+  const sendCanCommand = async (
+    canId: string,
+    data: string,
+    config: SerialConfig
+  ) => {
     try {
       const params = {
         id: canId,
         data: data,
         frameType: config.frameType,
+        protocolLength: config.protocolLength,
       };
       console.log("发送车辆命令参数:", params);
       await invoke("send_can_message", params);

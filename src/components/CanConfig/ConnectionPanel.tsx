@@ -75,7 +75,23 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              协议长度
+            </label>
+            <select
+              value={config.protocolLength}
+              onChange={(e) =>
+                onConfigChange({ ...config, protocolLength: e.target.value })
+              }
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isConnected}
+            >
+              <option value="fixed">FIXED（固定20字节）</option>
+              <option value="variable">VARIABLE（可变）</option>
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               帧类型

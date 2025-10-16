@@ -10,10 +10,8 @@ export const useSerial = () => {
     baudRate: 2000000,
     canBaudRate: 500000,
     frameType: "standard",
+    protocolLength: "fixed",
     canMode: "normal",
-    isLoopbackTest: false,
-    loopbackPort1: "COM23",
-    loopbackPort2: "COM25",
   });
 
   // 获取可用串口
@@ -43,9 +41,7 @@ export const useSerial = () => {
           can_baud_rate: config.canBaudRate,
           frame_type: config.frameType,
           can_mode: config.canMode,
-          is_loopback_test: config.isLoopbackTest,
-          loopback_port1: config.loopbackPort1,
-          loopback_port2: config.loopbackPort2,
+          protocol_length: config.protocolLength,
         };
         await invoke("connect_serial", { config: rustConfig });
         setIsConnected(true);

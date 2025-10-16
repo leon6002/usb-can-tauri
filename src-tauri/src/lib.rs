@@ -12,6 +12,7 @@ pub struct SerialConfig {
     baud_rate: u32,
     can_baud_rate: u32,
     frame_type: String,
+    protocol_length: String,
     can_mode: String,
 }
 
@@ -40,11 +41,13 @@ impl Default for AppState {
 }
 
 // USB-CAN protocol functions
+// refer: https://www.waveshare.net/wiki/%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91%E2%80%94%E4%B8%B2%E8%A1%8C%E8%BD%AC%E6%8D%A2CAN%E5%8D%8F%E8%AE%AE%E7%9A%84%E5%AE%9A%E4%B9%89#CAN.E9.85.8D.E7.BD.AE.E5.91.BD.E4.BB.A4
 fn create_can_config_packet(config: &SerialConfig) -> Vec<u8> {
     info!("Creating CAN config packet");
 
     let mut packet = vec![0xAA, 0x55]; // Header
-    packet.push(0x12); // Config command
+    let protocol_length_config = if config.protocol_length == "fixed" { 0x02 } else { 0x12 };
+    packet.push(protocol_length_config); // Config command
 
     // CAN baud rate config
     let baud_config = match config.can_baud_rate {
@@ -60,13 +63,12 @@ fn create_can_config_packet(config: &SerialConfig) -> Vec<u8> {
         500000 => 0x03,   // 500kbps
         800000 => 0x02,   // 800kbps
         1000000 => 0x01,  // 1Mbps
-        2000000 => 0x03,  // 2Mbps
         _ => 0x03,        // Default 500K
     };
     packet.push(baud_config);
 
     // Frame type: standard=0x01, extended=0x02
-    let frame_type_config = if config.frame_type == "extended" { 0x02 } else { 0x01 };
+    let frame_type_config = if config.protocol_length == "variable" && config.frame_type == "extended" { 0x02 } else { 0x01 };
     packet.push(frame_type_config);
 
     // Filter ID (4 bytes) + Mask ID (4 bytes)
@@ -88,7 +90,7 @@ fn create_can_config_packet(config: &SerialConfig) -> Vec<u8> {
     packet.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
 
     // Calculate checksum
-    let checksum: u8 = packet[2..].iter().sum::<u8>() & 0xFF;
+    let checksum: u8 = packet[2..].iter().map(|&b| b as u32).sum::<u32>() as u8 & 0xFF;
     packet.push(checksum);
 
     info!("Config packet: {:02X?} (length: {} bytes)", packet, packet.len());
@@ -173,6 +175,83 @@ fn create_can_send_packet(id: &str, data: &str, frame_type: &str) -> Result<Vec<
     info!("Python comparison - Expected length: 15 bytes, Actual length: {} bytes", packet.len());
     Ok(packet)
 }
+
+fn create_can_send_packet_fixed(id: &str, data: &str) -> Result<Vec<u8>> {
+    info!("Creating CAN send packet (fixed) - ID: {}, Data: {}", id, data);
+
+    // Parse data - handle both single hex values and space-separated hex values
+    let mut data_bytes: Vec<u8> = if data.contains(' ') {
+        // Space-separated hex values like "11 22 33 44"
+        data.split_whitespace()
+            .map(|s| u8::from_str_radix(s, 16))
+            .collect::<Result<Vec<u8>, _>>()
+            .map_err(|_| anyhow!("Invalid space-separated hex data"))?
+    } else {
+        // 逻辑 B: 连续的十六进制字符串，如 "11223344"
+        let len = data.len();
+        if len % 2 != 0 {
+            // 如果长度不是偶数，则格式不正确，不能成对解析
+            return Err(anyhow!("Data string is not space-separated and has an odd length, expected two hex digits per byte."));
+        }
+
+        // 将连续的字符串每两个字符分块，然后解析为 u8
+        data.as_bytes()
+            .chunks(2)
+            .map(|chunk| {
+                // 将 [u8] 切片转换为 &str，然后解析
+                let hex_str = std::str::from_utf8(chunk)
+                    .map_err(|_| anyhow!("Failed to convert byte chunk to string"))?;
+
+                u8::from_str_radix(hex_str, 16)
+                    .map_err(|_| anyhow!("Invalid continuous hex data: {}", hex_str))
+            })
+            .collect::<Result<Vec<u8>, _>>() // 收集结果
+            .map_err(|e| anyhow!("{}", e))?
+    };
+
+    // Don't pad data - send exactly what was requested
+    info!("Using original data bytes: {:02X?} (length: {})", data_bytes, data_bytes.len());
+
+    if data_bytes.len() > 8 {
+        return Err(anyhow!("CAN data length cannot exceed 8 bytes"));
+    }
+
+    // Fill in the 8 digits with 00 at the end
+    while data_bytes.len() < 8 {
+        data_bytes.push(0x00);
+    }
+
+    // Parse CAN ID
+    let can_id = u32::from_str_radix(id, 16)
+        .map_err(|_| anyhow!("Invalid CAN ID format"))?;
+
+    let mut packet = vec![0xAA, 0x55, 0x01, 0x01, 0x01]; // Header
+
+    // Extended frame: 4-byte ID, little-endian
+    let id_bytes = can_id.to_le_bytes();
+    packet.extend_from_slice(&id_bytes);
+    info!("Extended frame ID bytes (little-endian): {:02X?}", id_bytes);
+    
+
+    // Data length，fixed 8 bytes
+    packet.push(0x08);
+    
+    // Data content
+    packet.extend_from_slice(&data_bytes);
+    info!("Added data bytes: {:02X?}", data_bytes);
+    
+    // reserved byte
+    packet.push(0x00);
+    let checksum: u8 = packet[2..].iter().map(|&b| b as u32).sum::<u32>() as u8 & 0xFF;
+    //checksum byte
+    packet.push(checksum);
+
+    info!("Send packet: {:02X?} (length: {} bytes)", packet, packet.len());
+    info!("Python comparison - Expected length: 15 bytes, Actual length: {} bytes", packet.len());
+    Ok(packet)
+}
+
+
 
 // Tauri command functions
 #[tauri::command]
@@ -281,9 +360,10 @@ async fn send_can_message(
     id: String,
     data: String,
     frame_type: String,
+    protocol_length: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!("Sending CAN message - ID: {}, Data: {}, Type: {}", id, data, frame_type);
+    info!("Sending CAN message - ID: {}, Data: {}, Type: {}, Protocol: {}", id, data, frame_type, protocol_length);
 
     // Check connection state
     {
@@ -297,37 +377,58 @@ async fn send_can_message(
 
     // Create send packet
     info!("Creating CAN packet...");
-    let packet = match create_can_send_packet(&id, &data, &frame_type) {
-        Ok(p) => {
-            info!("CAN packet created successfully");
-            p
-        },
-        Err(e) => {
-            error!("CAN packet creation failed: {}", e);
-            return Err(format!("Failed to create packet: {}", e));
+    let packet: Vec<u8> = {
+        if protocol_length == "fixed" {
+            match create_can_send_packet_fixed(&id, &data) {
+                Ok(p) => {
+                    info!("CAN packet created successfully (Fixed)");
+                    p
+                },
+                Err(e) => {
+                    error!("CAN packet creation failed: {}", e);
+                    return Err(format!("Failed to create packet: {}", e));
+                }
+            }
+        } else {
+            match create_can_send_packet(&id, &data, &frame_type) {
+                Ok(p) => {
+                    info!("CAN packet created successfully");
+                    p
+                },
+                Err(e) => {
+                    error!("CAN packet creation failed: {}", e);
+                    return Err(format!("Failed to create packet: {}", e));
+                }
+            }
         }
     };
 
+
     // Send data
     info!("Preparing to send packet to serial port...");
-    {
-        let mut serial_port = state.serial_port.lock().unwrap();
-        if let Some(ref mut port) = *serial_port {
-            info!("Serial port available, sending {} bytes", packet.len());
-            info!("Packet content: {:02X?}", packet);
 
-            match port.write_all(&packet) {
+    // 1. 获取串口锁并尝试解引用
+    let mut serial_port_guard = match state.serial_port.lock() {
+        Ok(guard) => guard,
+        Err(e) => {
+            error!("Failed to lock serial port mutex: {}", e);
+            return Err("Internal error: Failed to access serial port state.".to_string());
+        }
+    };
+
+    // 2. 检查串口是否可用，并尝试发送
+    if let Some(ref mut port) = *serial_port_guard {
+        info!("Serial port available, sending {} bytes", packet.len());
+        info!("Packet content: {:02X?}", packet);
+
+        // Write data
+        match port.write_all(&packet) {
                 Ok(_) => {
                     info!("Packet written to serial port successfully");
 
                     // Try to flush buffer
-                    match port.flush() {
-                        Ok(_) => {
-                            info!("Serial port buffer flushed successfully");
-                        }
-                        Err(e) => {
-                            warn!("Serial port buffer flush failed: {}", e);
-                        }
+                    if let Err(e) = port.flush() {
+                        warn!("Serial port buffer flush failed: {}", e);
                     }
 
                     info!("CAN message send completed!");
@@ -338,11 +439,45 @@ async fn send_can_message(
                     Err(format!("Failed to send message: {}", e))
                 }
             }
-        } else {
-            error!("Serial port not available");
-            Err("Serial port not available".to_string())
-        }
+    } else {
+        error!("Serial port not available");
+        Err("Serial port not available".to_string())
     }
+
+
+    // {
+    //     let mut serial_port = state.serial_port.lock().unwrap();
+    //     if let Some(ref mut port) = *serial_port {
+    //         info!("Serial port available, sending {} bytes", packet.len());
+    //         info!("Packet content: {:02X?}", packet);
+
+    //         match port.write_all(&packet) {
+    //             Ok(_) => {
+    //                 info!("Packet written to serial port successfully");
+
+    //                 // Try to flush buffer
+    //                 match port.flush() {
+    //                     Ok(_) => {
+    //                         info!("Serial port buffer flushed successfully");
+    //                     }
+    //                     Err(e) => {
+    //                         warn!("Serial port buffer flush failed: {}", e);
+    //                     }
+    //                 }
+
+    //                 info!("CAN message send completed!");
+    //                 Ok("Message sent successfully".to_string())
+    //             }
+    //             Err(e) => {
+    //                 error!("Serial port write failed: {}", e);
+    //                 Err(format!("Failed to send message: {}", e))
+    //             }
+    //         }
+    //     } else {
+    //         error!("Serial port not available");
+    //         Err("Serial port not available".to_string())
+    //     }
+    // }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

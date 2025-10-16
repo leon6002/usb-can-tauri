@@ -3,7 +3,8 @@ import time
 
 print("The converter is equipped with two built - in conversion protocols, \none is a fixed 20 byte protocol and the other is a variable length protocol. \nPlease ensure that the variable length protocol is selected in the supporting software \nand click the Set and Start button to issue a configuration command to the converter")
 
-t = serial.Serial("COM23", 2000000)
+# t = serial.Serial("COM23", 2000000)
+t = serial.Serial("/dev/tty.usbserial-2110", 2000000)
 
 print(t.portstr)
 

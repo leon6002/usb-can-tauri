@@ -3,9 +3,6 @@ export interface SerialConfig {
   baudRate: number;
   canBaudRate: number;
   frameType: string;
+  protocolLength: string;
   canMode: string;
-  // 回环测试配置
-  isLoopbackTest: boolean;
-  loopbackPort1: string;
-  loopbackPort2: string;
 }
