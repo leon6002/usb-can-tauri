@@ -59,8 +59,10 @@ export class Car3DRenderer {
       this.carComponents.wheels,
       this.carComponents.lights,
       this.sceneManager,
-      this.carComponents.suspensions
+      this.carComponents.suspensions,
+      null // 车身将在模型加载后设置
     );
+    // 注意：车身会在 loadCarModel 中通过 setCarBody() 设置
 
     this.init();
   }
@@ -120,6 +122,9 @@ export class Car3DRenderer {
 
       // 初始化车辆组件
       this.carComponents.initializeComponents(this.car);
+
+      // 设置车身引用到动画控制器
+      this.animationController.setCarBody(this.car);
 
       // 初始化动画系统
       this.animationController.initializeAnimations(this.car);

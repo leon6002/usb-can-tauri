@@ -28,6 +28,26 @@
 
 ## 修改内容
 
+### AnimationController.ts - 悬挂动画方向修正
+
+**升高悬挂**：
+```typescript
+// 升高（悬挂向下压缩，车身向上升）
+this.suspensionAnimation.direction = -1;
+```
+
+**降低悬挂**：
+```typescript
+// 降低（悬挂向上伸展，车身向下降）
+this.suspensionAnimation.direction = 1;
+```
+
+**原理**：
+- 悬挂 Group 包含轮子
+- 当悬挂向下移动（Y -= 0.3）时，轮子也向下移动
+- 但轮子应该保持在地面上，所以相对地，车身就向上升了
+- 反之亦然
+
 ### CarComponents.ts
 
 #### 前左轮修改

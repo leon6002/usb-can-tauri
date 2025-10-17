@@ -37,16 +37,17 @@ export class AnimationController implements IAnimationController {
   private suspensionAnimation = {
     isAnimating: false,
     direction: 0, // 1: 升高, -1: 降低, 0: 停止
-    duration: 1000, // 动画持续时间（毫秒）
+    duration: 600, // 动画持续时间（毫秒）
     startTime: 0,
     startPositions: new Map<THREE.Object3D, THREE.Vector3>(),
-    maxHeight: 0.3, // 最大升高距离（米）
+    maxHeight: 0.03, // 最大升高距离（米）
   };
 
   private wheels: WheelObjects;
   private lights: LightObjects;
   private lightAnimation: NodeJS.Timeout | null = null;
   private sceneManager: any; // SceneManager引用
+  private carBody: THREE.Object3D | null = null; // 车身引用
   private suspensions: {
     frontLeft: THREE.Object3D | null;
     frontRight: THREE.Object3D | null;
@@ -68,11 +69,13 @@ export class AnimationController implements IAnimationController {
       frontRight: THREE.Object3D | null;
       rearLeft: THREE.Object3D | null;
       rearRight: THREE.Object3D | null;
-    }
+    },
+    carBody?: THREE.Object3D | null
   ) {
     this.wheels = wheels;
     this.lights = lights;
     this.sceneManager = sceneManager;
+    this.carBody = carBody || null;
     if (suspensions) {
       this.suspensions = suspensions;
     }
@@ -99,6 +102,14 @@ export class AnimationController implements IAnimationController {
     });
 
     console.log("✅ 门按钮事件监听器设置完成");
+  }
+
+  /**
+   * 设置车身引用
+   */
+  public setCarBody(carBody: THREE.Object3D): void {
+    this.carBody = carBody;
+    console.log("✓ 车身引用已设置");
   }
 
   /**
@@ -435,22 +446,26 @@ export class AnimationController implements IAnimationController {
 
     console.log("🔧 开始悬挂升高动画");
     this.suspensionAnimation.isAnimating = true;
-    this.suspensionAnimation.direction = 1; // 升高
+    this.suspensionAnimation.direction = -1; // 升高（悬挂向下压缩）
     this.suspensionAnimation.startTime = Date.now();
     this.suspensionAnimation.startPositions.clear();
 
-    // 保存所有悬挂的初始位置
-    let suspensionCount = 0;
+    // 保存车身和悬挂的初始位置
+    if (this.carBody) {
+      this.suspensionAnimation.startPositions.set(
+        this.carBody,
+        this.carBody.position.clone()
+      );
+    }
     Object.values(this.suspensions).forEach((suspension) => {
       if (suspension) {
         this.suspensionAnimation.startPositions.set(
           suspension,
           suspension.position.clone()
         );
-        suspensionCount++;
       }
     });
-    console.log(`  找到 ${suspensionCount} 个悬挂对象`);
+    console.log(`  悬挂将向下压缩 0.3m，车身将向上升`);
   }
 
   /**
@@ -463,22 +478,26 @@ export class AnimationController implements IAnimationController {
 
     console.log("🔧 开始悬挂降低动画");
     this.suspensionAnimation.isAnimating = true;
-    this.suspensionAnimation.direction = -1; // 降低
+    this.suspensionAnimation.direction = 1; // 降低（悬挂向上伸展）
     this.suspensionAnimation.startTime = Date.now();
     this.suspensionAnimation.startPositions.clear();
 
-    // 保存所有悬挂的初始位置
-    let suspensionCount = 0;
+    // 保存车身和悬挂的初始位置
+    if (this.carBody) {
+      this.suspensionAnimation.startPositions.set(
+        this.carBody,
+        this.carBody.position.clone()
+      );
+    }
     Object.values(this.suspensions).forEach((suspension) => {
       if (suspension) {
         this.suspensionAnimation.startPositions.set(
           suspension,
           suspension.position.clone()
         );
-        suspensionCount++;
       }
     });
-    console.log(`  找到 ${suspensionCount} 个悬挂对象`);
+    console.log(`  悬挂将向上伸展 0.3m，车身将向下降`);
   }
 
   /**
@@ -495,7 +514,7 @@ export class AnimationController implements IAnimationController {
    * 更新悬挂动画
    */
   private updateSuspensionAnimation(): void {
-    if (!this.suspensionAnimation.isAnimating) {
+    if (!this.suspensionAnimation.isAnimating || !this.carBody) {
       return;
     }
 
@@ -505,21 +524,38 @@ export class AnimationController implements IAnimationController {
     // 使用缓动函数使动画更平滑
     const easeProgress = this.easeInOutQuad(progress);
 
-    // 更新所有悬挂的位置
-    this.suspensionAnimation.startPositions.forEach((startPos, suspension) => {
-      const displacement =
-        this.suspensionAnimation.direction *
-        this.suspensionAnimation.maxHeight *
-        easeProgress;
+    // 计算位移
+    const displacement =
+      this.suspensionAnimation.direction *
+      this.suspensionAnimation.maxHeight *
+      easeProgress;
 
-      suspension.position.copy(startPos);
-      suspension.position.y += displacement;
+    // 同时改变车身和悬挂的位置
+    // 车身反向移动，悬挂正向移动，这样轮子保持在地面上
+    const carBodyStartPos = this.suspensionAnimation.startPositions.get(
+      this.carBody
+    );
+    if (carBodyStartPos) {
+      this.carBody.position.copy(carBodyStartPos);
+      // 反向位移：当悬挂向下时（displacement < 0），车身向上（+displacement）
+      this.carBody.position.y -= displacement;
+    }
+
+    // 改变所有悬挂的位置
+    this.suspensionAnimation.startPositions.forEach((startPos, obj) => {
+      if (obj !== this.carBody) {
+        // 这是悬挂对象
+        obj.position.copy(startPos);
+        // 正向位移：悬挂向下压缩或向上伸展
+        obj.position.y -= displacement;
+      }
     });
 
     // 动画完成
     if (progress >= 1.0) {
       this.suspensionAnimation.isAnimating = false;
       this.suspensionAnimation.direction = 0;
+      this.suspensionAnimation.startPositions.clear();
       console.log("✅ 悬挂动画完成");
     }
   }
