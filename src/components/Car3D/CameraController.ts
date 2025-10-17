@@ -28,6 +28,15 @@ export class CameraController implements ICameraController {
   private cameraHeight: number = 2; // 相机高度
   private isDriving: boolean = false; // 是否正在行驶
 
+  // 停止行驶时的平滑过渡状态
+  private stoppingTransition = {
+    isTransitioning: false,
+    startTime: 0,
+    duration: 300, // 300ms 的过渡时间
+    startPosition: new THREE.Vector3(),
+    targetPosition: new THREE.Vector3(),
+  };
+
   constructor(camera: THREE.PerspectiveCamera) {
     this.camera = camera;
   }
@@ -101,14 +110,16 @@ export class CameraController implements ICameraController {
       this.camera.position.copy(this.animationState.originalPosition);
       if (this.controls) {
         this.controls.target.copy(this.animationState.originalTarget);
-        this.controls.update();
+        // 不立即调用 update()，让下一帧的 update() 来处理
+        // 这样可以避免相机突然跳动
       }
       console.log("停止运镜动画，恢复原始位置");
     } else {
       console.log("停止运镜动画，保持最终位置");
       // 更新OrbitControls的target以匹配当前相机朝向
       if (this.controls) {
-        this.controls.update();
+        // 不立即调用 update()，让下一帧的 update() 来处理
+        // 这样可以避免相机突然跳动
       }
     }
   }
@@ -126,8 +137,20 @@ export class CameraController implements ICameraController {
   public setIsDriving(isDriving: boolean): void {
     this.isDriving = isDriving;
     if (this.controls) {
-      // 行驶时禁用 OrbitControls，停止时启用
-      this.controls.enabled = !isDriving;
+      if (isDriving) {
+        // 开始行驶：禁用 OrbitControls
+        this.controls.enabled = false;
+        this.stoppingTransition.isTransitioning = false;
+      } else {
+        // 停止行驶：启动平滑过渡
+        this.stoppingTransition.isTransitioning = true;
+        this.stoppingTransition.startTime = Date.now();
+        this.stoppingTransition.startPosition.copy(this.camera.position);
+        // 目标位置设置为当前位置（保持不动）
+        this.stoppingTransition.targetPosition.copy(this.camera.position);
+        // 暂时保持 OrbitControls 禁用，等过渡完成后再启用
+        this.controls.enabled = false;
+      }
     }
   }
 
@@ -135,14 +158,55 @@ export class CameraController implements ICameraController {
    * 更新运镜动画
    */
   public update(_delta: number): void {
-    if (this.controls) {
-      this.applyCameraRotationCompensation();
-      this.controls.update();
+    // 处理停止行驶的平滑过渡
+    if (this.stoppingTransition.isTransitioning) {
+      this.updateStoppingTransition();
     }
 
     if (this.animationState.isActive) {
       this.updateCameraAnimation();
+    } else if (this.controls) {
+      // 只在非动画状态下应用相机补偿和更新控制器
+      this.applyCameraRotationCompensation();
+      this.controls.update();
     }
+  }
+
+  /**
+   * 更新停止行驶的平滑过渡
+   */
+  private updateStoppingTransition(): void {
+    const elapsed = Date.now() - this.stoppingTransition.startTime;
+    const progress = Math.min(elapsed / this.stoppingTransition.duration, 1);
+
+    // 使用缓动函数使过渡更平滑
+    const easeProgress = this.easeOutCubic(progress);
+
+    // 在起始位置和目标位置之间插值
+    this.camera.position.lerpVectors(
+      this.stoppingTransition.startPosition,
+      this.stoppingTransition.targetPosition,
+      easeProgress
+    );
+
+    // 过渡完成
+    if (progress >= 1) {
+      this.stoppingTransition.isTransitioning = false;
+      // 过渡完成后启用 OrbitControls
+      if (this.controls) {
+        this.controls.enabled = true;
+        // 更新 OrbitControls 的目标点以匹配当前相机位置
+        this.controls.target.set(0, 0, 0);
+        this.controls.update();
+      }
+    }
+  }
+
+  /**
+   * 缓动函数：EaseOutCubic
+   */
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
   }
 
   /**
@@ -303,7 +367,7 @@ export class CameraController implements ICameraController {
       // 从当前位置开始
       { pos: this.camera.position.toArray(), target: [0, 0, 0] },
       // 最终稳定在后方
-      { pos: [1, 2, 10], target: [0, 0, 0] },
+      { pos: [0, 2, 10], target: [0, 0, 0] },
     ];
 
     keyframes.forEach((keyframe, index) => {
@@ -323,7 +387,7 @@ export class CameraController implements ICameraController {
       // 从当前位置开始
       { pos: this.camera.position.toArray(), target: [0, 0, 0] },
       // 最终稳定在侧面
-      { pos: [7, 2.5, 1], target: [0, 0, 0] },
+      { pos: [-7, 2.5, 1], target: [0, 0, 0] },
     ];
 
     keyframes.forEach((keyframe, index) => {

@@ -40,6 +40,12 @@ export class Car3DRenderer {
   private road: THREE.Mesh | null = null;
   // 道路原始顶点数据（用于计算弯曲）
   private roadOriginalPositions: Float32Array | null = null;
+  // 天空球体
+  private skyMesh: THREE.Mesh | null = null;
+  // 地面纹理
+  private groundTexture: THREE.CanvasTexture | null = null;
+  // 地面纹理偏移
+  private groundTextureOffset = 0;
 
   constructor(
     containerId: string,
@@ -181,6 +187,11 @@ export class Car3DRenderer {
     // 更新车辆动力学（车身偏转角）
     this.updateVehicleDynamics(delta);
 
+    // 更新天空球体位置，使其始终跟随相机
+    if (this.skyMesh) {
+      this.skyMesh.position.copy(this.sceneManager.camera.position);
+    }
+
     // 渲染场景
     this.sceneManager.render();
   }
@@ -217,6 +228,9 @@ export class Car3DRenderer {
 
       // 更新道路弯曲
       this.updateRoadTransform();
+
+      // 更新地面纹理偏移（模拟地面移动）
+      this.updateGroundTextureOffset(speedMs, deltaTime);
     }
   }
 
@@ -300,6 +314,25 @@ export class Car3DRenderer {
   }
 
   /**
+   * 更新地面纹理偏移（模拟地面移动）
+   */
+  private updateGroundTextureOffset(speedMs: number, deltaTime: number): void {
+    if (!this.groundTexture) return;
+
+    // 根据速度更新纹理偏移
+    // 速度越快，纹理移动越快
+    // 使用 V 偏移（沿着纹理的长度方向）
+    const textureScrollSpeed = speedMs * 0.5; // 调整系数以获得合适的速度感
+    this.groundTextureOffset += textureScrollSpeed * deltaTime;
+
+    // 保持偏移在 0-1 之间（纹理会循环）
+    this.groundTextureOffset = this.groundTextureOffset % 1;
+
+    // 应用偏移到纹理
+    this.groundTexture.offset.y = this.groundTextureOffset;
+  }
+
+  /**
    * 模型加载完成回调
    */
   private onModelLoaded(): void {
@@ -308,6 +341,12 @@ export class Car3DRenderer {
     if (loadingElement) {
       (loadingElement as HTMLElement).style.display = "none";
     }
+
+    // 获取天空球体
+    this.skyMesh = this.sceneManager.skyMesh;
+
+    // 获取地面纹理
+    this.groundTexture = this.sceneManager.groundTexture;
 
     console.log("3D车辆模型加载完成");
 
@@ -442,35 +481,6 @@ export class Car3DRenderer {
   public setIsDriving(isDriving: boolean): void {
     this.cameraController.setIsDriving(isDriving);
   }
-
-  /**
-   * 重置车辆动力学状态
-   */
-  // public resetVehicleDynamics(): void {
-  //   this.vehicleDynamics.bodyYaw = 0;
-  //   this.vehicleDynamics.currentSpeed = 0;
-  //   this.vehicleDynamics.steeringAngle = 0;
-
-  //   // 重置车身旋转
-  //   if (this.carComponents.steering.carBody) {
-  //     this.carComponents.steering.carBody.rotation.y = 0;
-  //   }
-
-  //   // 重置前轮转向角
-  //   if (this.carComponents.steeringAxes.frontLeft) {
-  //     this.carComponents.steeringAxes.frontLeft.rotation.z = 179.1;
-  //   }
-  //   if (this.carComponents.steeringAxes.frontRight) {
-  //     this.carComponents.steeringAxes.frontRight.rotation.z = 179.1;
-  //   }
-
-  //   // 重置方向盘
-  //   if (this.carComponents.steering.wheel) {
-  //     this.carComponents.steering.wheel.rotation.z = 0;
-  //   }
-
-  //   console.log("✓ 车辆动力学状态已重置");
-  // }
 
   /**
    * 开始悬挂升高动画

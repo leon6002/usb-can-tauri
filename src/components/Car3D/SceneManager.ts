@@ -16,6 +16,9 @@ export class SceneManager implements ISceneManager {
   public container: HTMLElement;
   public roadTexture: THREE.CanvasTexture | null = null; // 暴露道路纹理
   public road: THREE.Mesh | null = null; // 暴露道路对象
+  public skyMesh: THREE.Mesh | null = null; // 暴露天空球体
+  public ground: THREE.Mesh | null = null; // 暴露地面对象
+  public groundTexture: THREE.CanvasTexture | null = null; // 暴露地面纹理
 
   private onWindowResizeBound: () => void;
 
@@ -29,9 +32,10 @@ export class SceneManager implements ISceneManager {
    */
   public createScene(config: SceneConfig): void {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(config.backgroundColor);
+    // 使用天空蓝色作为背景，与天空球体相匹配
+    this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.Fog(
-      config.fogColor,
+      0xe0f6ff, // 雾色改为浅蓝色，与天空相匹配
       config.fogNear,
       config.fogFar
     );
@@ -79,6 +83,9 @@ export class SceneManager implements ISceneManager {
    * 创建场景灯光
    */
   public createLights(): void {
+    // 创建天空背景
+    this.createSkybox();
+
     // 大幅增强环境光 - 提供强烈的基础照明
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     this.scene.add(ambientLight);
@@ -153,16 +160,151 @@ export class SceneManager implements ISceneManager {
   }
 
   /**
+   * 创建天空背景
+   */
+  private createSkybox(): void {
+    // 创建天空纹理
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d")!;
+
+    // 绘制蓝天渐变背景
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#87CEEB"); // 浅蓝色（天顶）
+    gradient.addColorStop(0.5, "#87CEEB"); // 中间蓝色
+    gradient.addColorStop(1, "#E0F6FF"); // 浅蓝色（地平线）
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 绘制白云
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+
+    // 云朵1 - 左上方
+    this.drawCloud(ctx, 100, 80, 40);
+
+    // 云朵2 - 中上方
+    this.drawCloud(ctx, 400, 100, 60);
+
+    // 云朵3 - 右上方
+    this.drawCloud(ctx, 750, 120, 50);
+
+    // 云朵4 - 左中方
+    this.drawCloud(ctx, 150, 250, 30);
+
+    // 云朵5 - 右中方
+    this.drawCloud(ctx, 850, 280, 40);
+
+    // this.drawCloud(ctx, 400, 300, 70);
+
+    // this.drawCloud(ctx, 0, 0, 70);
+
+    // 创建纹理
+    const skyTexture = new THREE.CanvasTexture(canvas);
+    skyTexture.wrapS = THREE.ClampToEdgeWrapping;
+    skyTexture.wrapT = THREE.ClampToEdgeWrapping;
+    skyTexture.magFilter = THREE.LinearFilter;
+    skyTexture.minFilter = THREE.LinearFilter;
+
+    // 创建天空球体
+    const skyGeometry = new THREE.SphereGeometry(500, 64, 64);
+    const skyMaterial = new THREE.MeshBasicMaterial({
+      map: skyTexture,
+      side: THREE.BackSide, // 从内部渲染
+      toneMapped: false, // 禁用色调映射，保持原始颜色
+    });
+
+    this.skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+    // 确保天空球体始终在相机位置
+    this.skyMesh.position.copy(this.camera.position);
+    this.scene.add(this.skyMesh);
+
+    console.log("✓ 天空背景创建完成");
+  }
+
+  /**
+   * 绘制云朵
+   */
+  private drawCloud(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number
+  ): void {
+    ctx.beginPath();
+    ctx.arc(x - size, y, size * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y - size * 0.3, size * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + size, y, size * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /**
    * 创建地面
    */
   private createGround(): void {
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.5;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
+    // 创建地面纹理（草地）
+    const groundCanvas = document.createElement("canvas");
+    groundCanvas.width = 512;
+    groundCanvas.height = 512;
+    const groundCtx = groundCanvas.getContext("2d")!;
+
+    // 绘制草地纹理
+    // 基础绿色背景
+    groundCtx.fillStyle = "#3d7d3d";
+    groundCtx.fillRect(0, 0, groundCanvas.width, groundCanvas.height);
+
+    // 添加草地细节纹理
+    groundCtx.fillStyle = "rgba(76, 153, 76, 0.6)";
+    for (let i = 0; i < 2000; i++) {
+      const x = Math.random() * groundCanvas.width;
+      const y = Math.random() * groundCanvas.height;
+      const size = Math.random() * 3 + 1;
+      groundCtx.fillRect(x, y, size, size * 2);
+    }
+
+    // 添加更细的草纹
+    groundCtx.fillStyle = "rgba(102, 178, 102, 0.4)";
+    for (let i = 0; i < 3000; i++) {
+      const x = Math.random() * groundCanvas.width;
+      const y = Math.random() * groundCanvas.height;
+      const size = Math.random() * 1.5;
+      groundCtx.fillRect(x, y, size, size * 3);
+    }
+
+    // 添加一些随机的深色斑点（土壤）
+    groundCtx.fillStyle = "rgba(101, 67, 33, 0.3)";
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * groundCanvas.width;
+      const y = Math.random() * groundCanvas.height;
+      const radius = Math.random() * 8 + 2;
+      groundCtx.beginPath();
+      groundCtx.arc(x, y, radius, 0, Math.PI * 2);
+      groundCtx.fill();
+    }
+
+    // 创建纹理
+    this.groundTexture = new THREE.CanvasTexture(groundCanvas);
+    this.groundTexture.wrapS = THREE.RepeatWrapping;
+    this.groundTexture.wrapT = THREE.RepeatWrapping;
+    this.groundTexture.repeat.set(4, 4); // 重复4次，增加细节
+    this.groundTexture.magFilter = THREE.LinearFilter;
+    this.groundTexture.minFilter = THREE.LinearFilter;
+
+    const groundGeometry = new THREE.PlaneGeometry(100, 150);
+    const groundMaterial = new THREE.MeshLambertMaterial({
+      map: this.groundTexture,
+      color: 0xffffff, // 白色作为基础，与纹理混合
+    });
+    this.ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    this.ground.rotation.x = -Math.PI / 2;
+    this.ground.position.y = -0.5;
+    this.ground.position.z = 0.5;
+    this.ground.receiveShadow = true;
+    this.scene.add(this.ground);
 
     console.log("✓ 地面创建完成");
   }
@@ -282,7 +424,7 @@ export class SceneManager implements ISceneManager {
       backgroundColor: 0xffffff, // 白色背景
       fogColor: 0xffffff,
       fogNear: 10,
-      fogFar: 50,
+      fogFar: 1000,
     };
   }
 
