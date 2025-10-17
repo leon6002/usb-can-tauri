@@ -165,6 +165,10 @@ export class AnimationController implements IAnimationController {
    */
   public startWheelRotation(speed: number = 5, direction: number = 1): void {
     console.log("开始轮子旋转，速度:", speed);
+
+    // 重置渐进停止状态，确保新的速度不会被覆盖
+    this.gradualStop.isActive = false;
+
     this.wheelRotation.speed = speed;
     this.wheelRotation.direction = direction;
     this.wheelRotation.isRotating = true;
@@ -218,6 +222,10 @@ export class AnimationController implements IAnimationController {
    */
   public startRoadMovement(speed: number = 2): void {
     console.log("开始道路移动，速度:", speed);
+
+    // 重置渐进停止状态，确保新的速度不会被覆盖
+    this.gradualStop.isActive = false;
+
     this.roadMovement.speed = speed;
     this.roadMovement.isMoving = true;
   }
