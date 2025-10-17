@@ -55,6 +55,19 @@ export class CarComponents implements ICarComponents {
     currentRotation: 0,
   };
 
+  // 悬挂对象（连接转向轴和轮子之间的悬挂部分）
+  public suspensions: {
+    frontLeft: THREE.Object3D | null;
+    frontRight: THREE.Object3D | null;
+    rearLeft: THREE.Object3D | null;
+    rearRight: THREE.Object3D | null;
+  } = {
+    frontLeft: null,
+    frontRight: null,
+    rearLeft: null,
+    rearRight: null,
+  };
+
   /**
    * 初始化车辆组件
    */
@@ -65,12 +78,48 @@ export class CarComponents implements ICarComponents {
     this.steering.carBody = car;
     console.log("✓ 车身引用已保存");
 
+    // 调试：打印所有对象名称
+    console.log("📋 模型中的所有对象：");
+    car.traverse((child) => {
+      if (child.name) {
+        console.log(`  - ${child.name}`);
+      }
+    });
+
     // 定义确切的轮子名称
     const wheelNames = {
       frontLeft: "Front_Left_Wheel_36_66",
       frontRight: "Front_Right_Wheel_44_81",
       rearLeft: "Rear_Left_Wheel_28_51",
       rearRight: "Rear_Right_Wheel_52_96",
+    };
+
+    // 定义悬挂对象名称（可能的名称模式）
+    const suspensionPatterns = {
+      frontLeft: [
+        "suspension_fl",
+        "Suspension_FL",
+        "Front_Left_Suspension",
+        "FL_Suspension",
+      ],
+      frontRight: [
+        "suspension_fr",
+        "Suspension_FR",
+        "Front_Right_Suspension",
+        "FR_Suspension",
+      ],
+      rearLeft: [
+        "suspension_rl",
+        "Suspension_RL",
+        "Rear_Left_Suspension",
+        "RL_Suspension",
+      ],
+      rearRight: [
+        "suspension_rr",
+        "Suspension_RR",
+        "Rear_Right_Suspension",
+        "RR_Suspension",
+      ],
     };
 
     car.traverse((child) => {
@@ -92,11 +141,22 @@ export class CarComponents implements ICarComponents {
           this.wheels.rearRight = child;
           console.log("✓ 找到后右轮:", child.name);
         }
+
+        // 查找悬挂对象
+        for (const [position, patterns] of Object.entries(suspensionPatterns)) {
+          if (patterns.some((pattern) => child.name.includes(pattern))) {
+            this.suspensions[position as keyof typeof this.suspensions] = child;
+            console.log(`✓ 找到${position}悬挂:`, child.name);
+          }
+        }
       }
     });
 
     // 为前轮创建转向轴层次结构（分离转向和滚动旋转）
     this.createSteeringAxisHierarchy();
+
+    // 创建悬挂对象（如果模型中没有，则创建虚拟悬挂）
+    this.createSuspensionObjects();
 
     // 保存前轮引用用于转向控制
     this.steering.frontLeftWheel = this.wheels.frontLeft;
@@ -110,6 +170,12 @@ export class CarComponents implements ICarComponents {
       frontRight: this.wheels.frontRight?.name || "null",
       rearLeft: this.wheels.rearLeft?.name || "null",
       rearRight: this.wheels.rearRight?.name || "null",
+    });
+    console.log("🎯 找到的悬挂:", {
+      frontLeft: this.suspensions.frontLeft?.name || "null",
+      frontRight: this.suspensions.frontRight?.name || "null",
+      rearLeft: this.suspensions.rearLeft?.name || "null",
+      rearRight: this.suspensions.rearRight?.name || "null",
     });
     console.log("灯光数量:", Object.keys(this.lights).length);
     console.log("门动画将使用预制动画: DoorFLOpen, DoorFROpen");
@@ -146,17 +212,24 @@ export class CarComponents implements ICarComponents {
     // 将轮子添加到转向轴
     frontLeftAxis.add(this.wheels.frontLeft);
 
-    // 将转向轴放置到原始位置
-    frontLeftAxis.position.copy(frontLeftPosition);
+    // 创建悬挂 Group（在转向轴外部，用于上下运动）
+    const frontLeftSuspension = new THREE.Group();
+    frontLeftSuspension.name = "FrontLeftSuspension";
+    frontLeftSuspension.position.copy(frontLeftPosition);
+    frontLeftSuspension.add(frontLeftAxis);
+
+    // 重置转向轴的位置（相对于悬挂）
+    frontLeftAxis.position.set(0, 0, 0);
     frontLeftAxis.rotation.copy(frontLeftRotation);
 
-    // 将转向轴添加回原父对象
+    // 将悬挂添加回原父对象
     if (frontLeftParent) {
-      frontLeftParent.add(frontLeftAxis);
+      frontLeftParent.add(frontLeftSuspension);
     }
 
     this.steeringAxes.frontLeft = frontLeftAxis;
-    console.log("✓ 前左轮转向轴已创建");
+    this.suspensions.frontLeft = frontLeftSuspension;
+    console.log("✓ 前左轮转向轴已创建，悬挂已添加");
 
     // 为前右轮创建转向轴
     const frontRightAxis = new THREE.Group();
@@ -173,16 +246,26 @@ export class CarComponents implements ICarComponents {
     this.wheels.frontRight.position.set(0, 0, 0);
     this.wheels.frontRight.rotation.set(0, 0, 0);
 
+    // 将轮子添加到转向轴
     frontRightAxis.add(this.wheels.frontRight);
-    frontRightAxis.position.copy(frontRightPosition);
+
+    // 创建悬挂 Group（在转向轴外部，用于上下运动）
+    const frontRightSuspension = new THREE.Group();
+    frontRightSuspension.name = "FrontRightSuspension";
+    frontRightSuspension.position.copy(frontRightPosition);
+    frontRightSuspension.add(frontRightAxis);
+
+    // 重置转向轴的位置（相对于悬挂）
+    frontRightAxis.position.set(0, 0, 0);
     frontRightAxis.rotation.copy(frontRightRotation);
 
     if (frontRightParent) {
-      frontRightParent.add(frontRightAxis);
+      frontRightParent.add(frontRightSuspension);
     }
 
     this.steeringAxes.frontRight = frontRightAxis;
-    console.log("✓ 前右轮转向轴已创建");
+    this.suspensions.frontRight = frontRightSuspension;
+    console.log("✓ 前右轮转向轴已创建，悬挂已添加");
   }
 
   /**
@@ -209,6 +292,68 @@ export class CarComponents implements ICarComponents {
         newState === 0 ? "关闭" : "开启"
       }, 动画: ${animationName}`
     );
+  }
+
+  /**
+   * 创建悬挂对象
+   * 为后轮创建悬挂对象（前轮悬挂已在 createSteeringAxisHierarchy 中创建）
+   */
+  private createSuspensionObjects(): void {
+    // 前轮悬挂已在 createSteeringAxisHierarchy 中创建
+    const hasFrontSuspensions =
+      this.suspensions.frontLeft !== null ||
+      this.suspensions.frontRight !== null;
+
+    if (hasFrontSuspensions) {
+      console.log("✓ 前轮悬挂已在转向轴中创建");
+    }
+
+    // 为后轮创建悬挂对象
+    if (this.wheels.rearLeft && !this.suspensions.rearLeft) {
+      const rearLeftSuspension = new THREE.Group();
+      rearLeftSuspension.name = "RearLeftSuspension";
+
+      const rearLeftParent = this.wheels.rearLeft.parent;
+      const rearLeftPosition = this.wheels.rearLeft.position.clone();
+
+      if (rearLeftParent) {
+        rearLeftParent.remove(this.wheels.rearLeft);
+      }
+
+      this.wheels.rearLeft.position.set(0, 0, 0);
+      rearLeftSuspension.add(this.wheels.rearLeft);
+      rearLeftSuspension.position.copy(rearLeftPosition);
+
+      if (rearLeftParent) {
+        rearLeftParent.add(rearLeftSuspension);
+      }
+
+      this.suspensions.rearLeft = rearLeftSuspension;
+      console.log("✓ 后左悬挂已创建");
+    }
+
+    if (this.wheels.rearRight && !this.suspensions.rearRight) {
+      const rearRightSuspension = new THREE.Group();
+      rearRightSuspension.name = "RearRightSuspension";
+
+      const rearRightParent = this.wheels.rearRight.parent;
+      const rearRightPosition = this.wheels.rearRight.position.clone();
+
+      if (rearRightParent) {
+        rearRightParent.remove(this.wheels.rearRight);
+      }
+
+      this.wheels.rearRight.position.set(0, 0, 0);
+      rearRightSuspension.add(this.wheels.rearRight);
+      rearRightSuspension.position.copy(rearRightPosition);
+
+      if (rearRightParent) {
+        rearRightParent.add(rearRightSuspension);
+      }
+
+      this.suspensions.rearRight = rearRightSuspension;
+      console.log("✓ 后右悬挂已创建");
+    }
   }
 
   /**

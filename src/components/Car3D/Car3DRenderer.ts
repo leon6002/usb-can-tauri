@@ -58,7 +58,8 @@ export class Car3DRenderer {
     this.animationController = new AnimationController(
       this.carComponents.wheels,
       this.carComponents.lights,
-      this.sceneManager
+      this.sceneManager,
+      this.carComponents.suspensions
     );
 
     this.init();
@@ -347,6 +348,27 @@ export class Car3DRenderer {
     if (this.carComponents.steering.carBody) {
       this.carComponents.steering.carBody.rotation.y = 0;
     }
+  }
+
+  /**
+   * 开始悬挂升高动画
+   */
+  public startSuspensionUp(): void {
+    this.animationController.startSuspensionUp();
+  }
+
+  /**
+   * 开始悬挂降低动画
+   */
+  public startSuspensionDown(): void {
+    this.animationController.startSuspensionDown();
+  }
+
+  /**
+   * 停止悬挂动画
+   */
+  public stopSuspensionAnimation(): void {
+    this.animationController.stopSuspensionAnimation();
   }
 
   // ==================== 生命周期方法 ====================

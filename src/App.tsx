@@ -216,6 +216,57 @@ function App() {
             updateCarState("door_stop");
           }
         }, doorAnimationDuration);
+      } else if (commandId === "suspension_up") {
+        // 悬挂升高命令
+        addDebugLog(
+          "发送悬挂升高命令",
+          commandId,
+          command.canId,
+          command.data,
+          command.description
+        );
+
+        await sendCanCommand(command.canId, command.data, config);
+        updateCarState(commandId);
+
+        // 触发3D悬挂升高动画
+        if (car3DRendererRef.current) {
+          car3DRendererRef.current.startSuspensionUp();
+        }
+      } else if (commandId === "suspension_down") {
+        // 悬挂降低命令
+        addDebugLog(
+          "发送悬挂降低命令",
+          commandId,
+          command.canId,
+          command.data,
+          command.description
+        );
+
+        await sendCanCommand(command.canId, command.data, config);
+        updateCarState(commandId);
+
+        // 触发3D悬挂降低动画
+        if (car3DRendererRef.current) {
+          car3DRendererRef.current.startSuspensionDown();
+        }
+      } else if (commandId === "suspension_stop") {
+        // 悬挂停止命令
+        addDebugLog(
+          "发送悬挂停止命令",
+          commandId,
+          command.canId,
+          command.data,
+          command.description
+        );
+
+        await sendCanCommand(command.canId, command.data, config);
+        updateCarState("suspension_stop");
+
+        // 停止3D悬挂动画
+        if (car3DRendererRef.current) {
+          car3DRendererRef.current.stopSuspensionAnimation();
+        }
       } else {
         // 其他命令 - 发送单个CAN消息
         addDebugLog(
