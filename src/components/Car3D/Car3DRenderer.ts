@@ -315,21 +315,27 @@ export class Car3DRenderer {
 
   /**
    * 更新地面纹理偏移（模拟地面移动）
+   * 根据车身旋转角度调整纹理偏移方向
    */
   private updateGroundTextureOffset(speedMs: number, deltaTime: number): void {
     if (!this.groundTexture) return;
 
     // 根据速度更新纹理偏移
     // 速度越快，纹理移动越快
-    // 使用 V 偏移（沿着纹理的长度方向）
     const textureScrollSpeed = speedMs * 0.5; // 调整系数以获得合适的速度感
     this.groundTextureOffset += textureScrollSpeed * deltaTime;
 
     // 保持偏移在 0-1 之间（纹理会循环）
     this.groundTextureOffset = this.groundTextureOffset % 1;
 
-    // 应用偏移到纹理
-    this.groundTexture.offset.y = this.groundTextureOffset;
+    // 根据车身旋转角度调整纹理偏移
+    // 当车转向时，纹理偏移方向也应该改变
+    const bodyYaw = this.vehicleDynamics.bodyYaw;
+
+    // 计算纹理的 X 和 Y 偏移
+    // 使用正弦和余弦来根据旋转角度分解偏移
+    this.groundTexture.offset.x = Math.sin(bodyYaw) * this.groundTextureOffset;
+    this.groundTexture.offset.y = Math.cos(bodyYaw) * this.groundTextureOffset;
   }
 
   /**
@@ -516,6 +522,7 @@ export class Car3DRenderer {
     // 重置地面纹理偏移
     this.groundTextureOffset = 0;
     if (this.groundTexture) {
+      this.groundTexture.offset.x = 0;
       this.groundTexture.offset.y = 0;
     }
 
