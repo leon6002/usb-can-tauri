@@ -10,6 +10,9 @@ use anyhow::{Result, anyhow};
 use log::{info, error, warn};
 use csv::ReaderBuilder;
 
+mod vehicle_control;
+use vehicle_control::{extract_vehicle_control, VehicleControl};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerialConfig {
     port: String,
@@ -29,7 +32,17 @@ pub struct CanMessage {
     frame_type: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CsvLoopProgress {
+    pub index: usize,
+    pub total: usize,
+    pub can_id: String,
+    pub can_data: String,
+    pub vehicle_control: Option<VehicleControl>,
+}
+
 // Application state
+#[derive(Clone)]
 pub struct AppState {
     serial_port: Arc<Mutex<Option<Box<dyn SerialPort>>>>,
     is_connected: Arc<Mutex<bool>>,
@@ -621,6 +634,16 @@ fn run_csv_loop(
             .ok_or_else(|| anyhow!("CAN Data column index out of range"))?
             .to_string();
 
+        // Try to parse vehicle control data (speed and steering angle)
+        let vehicle_control = extract_vehicle_control(&can_data).ok();
+
+        if let Some(ref vc) = vehicle_control {
+            println!("📊 [Rust] Parsed vehicle control - Speed: {} mm/s, Steering: {:.3} rad",
+                     vc.linear_velocity_mms, vc.steering_angle_rad);
+            info!("Parsed vehicle control - Speed: {} mm/s, Steering: {:.3} rad",
+                  vc.linear_velocity_mms, vc.steering_angle_rad);
+        }
+
         // Create and send packet
         let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
 
@@ -663,6 +686,170 @@ async fn stop_csv_loop(state: State<'_, AppState>) -> Result<String, String> {
     Ok("CSV loop stopped".to_string())
 }
 
+/// 预加载 CSV 数据并解析车辆控制信息
+#[tauri::command]
+async fn preload_csv_data(
+    csv_content: String,
+    can_id_column_index: usize,
+    can_data_column_index: usize,
+    csv_start_row_index: usize,
+) -> Result<Vec<CsvLoopProgress>, String> {
+    println!("📂 [Rust] preload_csv_data called");
+
+    // Parse CSV content from string
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(csv_content.as_bytes());
+
+    let mut records = Vec::new();
+    for result in reader.records() {
+        let record = result.map_err(|e| format!("CSV read error: {}", e))?;
+        records.push(record);
+    }
+
+    println!("✅ [Rust] Loaded {} records from CSV", records.len());
+
+    if records.is_empty() {
+        return Err("CSV file is empty".to_string());
+    }
+
+    // Check if start row index is valid
+    if csv_start_row_index >= records.len() {
+        return Err(format!("Start row index {} out of range (max: {})", csv_start_row_index, records.len() - 1));
+    }
+
+    // Filter records starting from csv_start_row_index
+    let filtered_records: Vec<_> = records.iter().skip(csv_start_row_index).collect();
+    let total = filtered_records.len();
+
+    let mut progress_list = Vec::new();
+
+    // Parse each record
+    for (index, record) in filtered_records.iter().enumerate() {
+        let can_id = record
+            .get(can_id_column_index)
+            .ok_or_else(|| "CAN ID column index out of range".to_string())?
+            .to_string();
+
+        let can_data = record
+            .get(can_data_column_index)
+            .ok_or_else(|| "CAN Data column index out of range".to_string())?
+            .to_string();
+
+        // Try to parse vehicle control data
+        let vehicle_control = extract_vehicle_control(&can_data).ok();
+
+        progress_list.push(CsvLoopProgress {
+            index,
+            total,
+            can_id,
+            can_data,
+            vehicle_control,
+        });
+    }
+
+    println!("✅ [Rust] Preloaded {} records with vehicle control data", progress_list.len());
+    Ok(progress_list)
+}
+
+/// 使用预解析的数据启动 CSV 循环
+#[tauri::command]
+async fn start_csv_loop_with_preloaded_data(
+    preloaded_data: Vec<CsvLoopProgress>,
+    interval_ms: u64,
+    _config: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    println!("🚀 [Rust] start_csv_loop_with_preloaded_data called - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
+    info!("Starting CSV loop with preloaded data - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
+
+    // Check if already running
+    if state.csv_loop_running.load(Ordering::SeqCst) {
+        println!("❌ [Rust] CSV loop already running");
+        return Err("CSV loop already running".to_string());
+    }
+
+    // Set running flag
+    state.csv_loop_running.store(true, Ordering::SeqCst);
+
+    // Create Arc wrapper for the state
+    let state_arc = Arc::new(AppState {
+        serial_port: state.serial_port.clone(),
+        is_connected: state.is_connected.clone(),
+        csv_loop_running: state.csv_loop_running.clone(),
+    });
+
+    // Spawn thread for CSV loop
+    std::thread::spawn(move || {
+        if let Err(e) = run_csv_loop_with_preloaded_data(
+            preloaded_data,
+            interval_ms,
+            state_arc,
+        ) {
+            error!("CSV loop error: {}", e);
+        }
+    });
+
+    Ok("CSV loop started".to_string())
+}
+
+fn run_csv_loop_with_preloaded_data(
+    preloaded_data: Vec<CsvLoopProgress>,
+    interval_ms: u64,
+    state: Arc<AppState>,
+) -> Result<()> {
+    println!("🔄 [Rust] run_csv_loop_with_preloaded_data started - Records: {}", preloaded_data.len());
+
+    // Loop through records once
+    for (index, progress) in preloaded_data.iter().enumerate() {
+        // Check if loop should stop
+        if !state.csv_loop_running.load(Ordering::SeqCst) {
+            println!("🛑 [Rust] CSV loop stopped by user");
+            break;
+        }
+
+        let can_id = &progress.can_id;
+        let can_data = &progress.can_data;
+
+        // Log vehicle control data if available
+        if let Some(ref vc) = progress.vehicle_control {
+            println!("📊 [Rust] Record {}/{} - Speed: {} mm/s, Steering: {:.3} rad",
+                     index + 1, preloaded_data.len(), vc.linear_velocity_mms, vc.steering_angle_rad);
+            info!("Record {}/{} - Speed: {} mm/s, Steering: {:.3} rad",
+                  index + 1, preloaded_data.len(), vc.linear_velocity_mms, vc.steering_angle_rad);
+        }
+
+        // Create and send packet
+        let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
+
+        // Send packet
+        {
+            let mut serial_port = state.serial_port.lock().unwrap();
+            if let Some(ref mut port) = *serial_port {
+                if let Err(e) = port.write_all(&packet) {
+                    error!("Failed to send packet: {}", e);
+                } else {
+                    let _ = port.flush();
+                    info!("Sent CAN message - ID: {}, Data: {}", can_id, can_data);
+                }
+            }
+        }
+
+        // Sleep for interval (except after the last record)
+        if index < preloaded_data.len() - 1 {
+            thread::sleep(Duration::from_millis(interval_ms));
+        }
+    }
+
+    println!("✅ [Rust] CSV loop completed - All records sent");
+    info!("CSV loop completed - All records sent");
+
+    // Stop the loop flag
+    state.csv_loop_running.store(false, Ordering::SeqCst);
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize logger with debug level
@@ -678,7 +865,9 @@ pub fn run() {
             disconnect_serial,
             send_can_message,
             start_csv_loop,
-            stop_csv_loop
+            stop_csv_loop,
+            preload_csv_data,
+            start_csv_loop_with_preloaded_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

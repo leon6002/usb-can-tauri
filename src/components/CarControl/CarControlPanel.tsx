@@ -7,17 +7,20 @@ import {
   CircleArrowDown,
 } from "lucide-react";
 import { CarStates } from "../../types";
+import { SteeringWheelUI } from "./SteeringWheelUI";
 
 interface CarControlPanelProps {
   isConnected: boolean;
   carStates: CarStates;
   onSendCommand: (commandId: string) => void;
+  onSteeringChange?: (angle: number) => void;
 }
 
 export const CarControlPanel: React.FC<CarControlPanelProps> = ({
   isConnected,
   carStates,
   onSendCommand,
+  onSteeringChange,
 }) => {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -49,6 +52,14 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
             </>
           )}
         </button>
+
+        {/* 方向盘UI */}
+        <div className="mt-4 flex justify-center">
+          <SteeringWheelUI
+            onSteeringChange={onSteeringChange}
+            externalSteeringAngle={carStates.currentSteeringAngle}
+          />
+        </div>
       </div>
 
       {/* Suspension Controls */}

@@ -5,20 +5,21 @@ interface Car3DViewerProps {
   scene3DStatus: Scene3DStatus;
 }
 
-export const Car3DViewer: React.FC<Car3DViewerProps> = ({ scene3DStatus: _scene3DStatus }) => {
+export const Car3DViewer: React.FC<Car3DViewerProps> = ({
+  scene3DStatus: _scene3DStatus,
+}) => {
   return (
     <div className="flex-1 relative">
-      <div id="car-3d-container" className="w-full h-full relative bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div
+        id="car-3d-container"
+        className="w-full h-full relative bg-gradient-to-br from-blue-50 to-indigo-100"
+      >
         <div className="loading-3d flex items-center justify-center h-full absolute inset-0 z-10">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">3D模型加载中...</p>
-            <p className="text-gray-500 text-sm mt-2">
-              Three.js 3D车辆模型
-            </p>
-            <p className="text-gray-400 text-xs mt-2">
-              模型文件: Car.glb
-            </p>
+            <p className="text-gray-500 text-sm mt-2">Three.js 3D车辆模型</p>
+            <p className="text-gray-400 text-xs mt-2">模型文件: Car.glb</p>
           </div>
         </div>
 
@@ -29,7 +30,7 @@ export const Car3DViewer: React.FC<Car3DViewerProps> = ({ scene3DStatus: _scene3
             onClick={() => {
               const renderer = (window as any).car3DRenderer;
               if (renderer) {
-                renderer.setCameraAnimationMode('orbit', 10000);
+                renderer.setCameraAnimationMode("orbit", 10000);
               }
             }}
             title="环绕运镜"
@@ -41,7 +42,7 @@ export const Car3DViewer: React.FC<Car3DViewerProps> = ({ scene3DStatus: _scene3
             onClick={() => {
               const renderer = (window as any).car3DRenderer;
               if (renderer) {
-                renderer.setCameraAnimationMode('showcase', 15000);
+                renderer.setCameraAnimationMode("showcase", 15000);
               }
             }}
             title="展示运镜"
@@ -53,7 +54,7 @@ export const Car3DViewer: React.FC<Car3DViewerProps> = ({ scene3DStatus: _scene3
             onClick={() => {
               const renderer = (window as any).car3DRenderer;
               if (renderer) {
-                renderer.setCameraAnimationMode('cinematic', 20000);
+                renderer.setCameraAnimationMode("cinematic", 20000);
               }
             }}
             title="电影运镜"
@@ -103,7 +104,7 @@ export const Car3DViewer: React.FC<Car3DViewerProps> = ({ scene3DStatus: _scene3
         </div>
 
         {/* 操作提示 */}
-        <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white p-3 rounded text-sm max-w-xs z-20">
+        <div className="absolute bottom-20 left-4 bg-black bg-opacity-70 text-white p-3 rounded text-sm max-w-xs z-20">
           <div className="text-xs space-y-1">
             <div>🖱️ 拖拽旋转 | 🔄 滚轮缩放</div>
             <div>🚪 点击蓝色按钮开关车门</div>

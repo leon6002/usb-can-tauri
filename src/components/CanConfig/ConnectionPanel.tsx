@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from "react";
 import { FileUp, RefreshCwOff, RefreshCw } from "lucide-react";
 import { SerialConfig } from "../../types";
+import { extractVehicleControl } from "../../types/vehicleControl";
 
 interface ConnectionPanelProps {
   isConnected: boolean;
@@ -127,6 +128,26 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
       ),
     [config.csvContent, config.canDataColumnIndex, startRowIndex]
   );
+
+  // 解析 CAN DATA 预览数据
+  const parsedVehicleControl = useMemo(() => {
+    try {
+      if (
+        !canDataPreview ||
+        canDataPreview.startsWith("未选择") ||
+        canDataPreview.startsWith("行索引") ||
+        canDataPreview.startsWith("列索引") ||
+        canDataPreview.startsWith("无数据") ||
+        canDataPreview.startsWith("解析失败")
+      ) {
+        return null;
+      }
+      return extractVehicleControl(canDataPreview);
+    } catch (error) {
+      console.error("Failed to parse vehicle control:", error);
+      return null;
+    }
+  }, [canDataPreview]);
 
   return (
     <div className="p-3 overflow-y-auto max-h-[calc(100vh-200px)]">
@@ -389,6 +410,34 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
                     {canDataPreview}
                   </span>
                 </div>
+
+                {/* 解析结果预览 */}
+                {parsedVehicleControl && (
+                  <div className="mt-2 px-2 py-2 text-xs bg-green-50 border border-green-200 rounded text-green-700 space-y-1">
+                    <div className="font-semibold">✓ 解析成功</div>
+                    <div>
+                      速度:{" "}
+                      <span className="font-mono font-bold">
+                        {parsedVehicleControl.linear_velocity_mms}
+                      </span>{" "}
+                      mm/s
+                    </div>
+                    <div>
+                      转向角:{" "}
+                      <span className="font-mono font-bold">
+                        {parsedVehicleControl.steering_angle_rad.toFixed(4)}
+                      </span>{" "}
+                      rad (
+                      <span className="font-mono font-bold">
+                        {(
+                          (parsedVehicleControl.steering_angle_rad * 180) /
+                          Math.PI
+                        ).toFixed(2)}
+                      </span>
+                      °)
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

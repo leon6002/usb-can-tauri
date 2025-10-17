@@ -19,24 +19,39 @@ export class InteractionHandler implements IInteractionHandler {
     right: false,
   };
 
+  // 方向盘控制
+  private steeringControl = {
+    isControlling: false,
+    lastMouseX: 0,
+    lastMouseY: 0,
+    maxRotation: Math.PI * 0.75, // 最大转向角度（约135度）
+  };
+
   private container: HTMLElement;
   private camera: THREE.PerspectiveCamera;
   private onClickBound: (event: MouseEvent) => void;
   private onMouseMoveBound: (event: MouseEvent) => void;
+  private onMouseDownBound: (event: MouseEvent) => void;
+  private onMouseUpBound: (event: MouseEvent) => void;
   private onSendCommand?: (commandId: string) => void;
+  private carComponents?: any; // CarComponents 实例
 
   constructor(
     container: HTMLElement,
     camera: THREE.PerspectiveCamera,
     _scene: THREE.Scene,
-    onSendCommand?: (commandId: string) => void
+    onSendCommand?: (commandId: string) => void,
+    carComponents?: any
   ) {
     this.container = container;
     this.camera = camera;
     this.onSendCommand = onSendCommand;
+    this.carComponents = carComponents;
 
     this.onClickBound = this.onClick.bind(this);
     this.onMouseMoveBound = this.onMouseMove.bind(this);
+    this.onMouseDownBound = this.onMouseDown.bind(this);
+    this.onMouseUpBound = this.onMouseUp.bind(this);
   }
 
   /**
@@ -45,6 +60,8 @@ export class InteractionHandler implements IInteractionHandler {
   public setupClickHandlers(container: HTMLElement): void {
     container.addEventListener("click", this.onClickBound);
     container.addEventListener("mousemove", this.onMouseMoveBound);
+    container.addEventListener("mousedown", this.onMouseDownBound);
+    container.addEventListener("mouseup", this.onMouseUpBound);
 
     console.log("✅ 交互事件处理器初始化完成");
   }
@@ -253,6 +270,15 @@ export class InteractionHandler implements IInteractionHandler {
   private onMouseMove(event: MouseEvent): void {
     this.updateMousePosition(event);
 
+    // 处理方向盘控制
+    if (this.steeringControl.isControlling) {
+      const deltaX = event.clientX - this.steeringControl.lastMouseX;
+      this.updateSteeringWheel(deltaX);
+      this.steeringControl.lastMouseX = event.clientX;
+      this.steeringControl.lastMouseY = event.clientY;
+      return; // 控制方向盘时不处理其他交互
+    }
+
     // 射线检测 - 递归检测子对象
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(
@@ -445,6 +471,79 @@ export class InteractionHandler implements IInteractionHandler {
   }
 
   /**
+   * 鼠标按下事件处理
+   */
+  private onMouseDown(event: MouseEvent): void {
+    // 检查是否点击在方向盘上
+    this.updateMousePosition(event);
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    if (this.carComponents?.steering?.wheel) {
+      const intersects = this.raycaster.intersectObject(
+        this.carComponents.steering.wheel,
+        true
+      );
+      if (intersects.length > 0) {
+        this.steeringControl.isControlling = true;
+        this.steeringControl.lastMouseX = event.clientX;
+        this.steeringControl.lastMouseY = event.clientY;
+        console.log("🎮 开始控制方向盘");
+      }
+    }
+  }
+
+  /**
+   * 鼠标释放事件处理
+   */
+  private onMouseUp(_event: MouseEvent): void {
+    if (this.steeringControl.isControlling) {
+      this.steeringControl.isControlling = false;
+      console.log("🎮 停止控制方向盘");
+    }
+  }
+
+  /**
+   * 更新方向盘转向角度
+   */
+  private updateSteeringWheel(deltaX: number): void {
+    if (!this.carComponents?.steering) return;
+
+    // 根据鼠标移动更新转向角度
+    const sensitivity = 0.001; // 灵敏度
+    this.carComponents.steering.currentRotation += deltaX * sensitivity;
+
+    // 限制转向角度
+    const maxRotation = this.steeringControl.maxRotation;
+    this.carComponents.steering.currentRotation = Math.max(
+      -maxRotation,
+      Math.min(maxRotation, this.carComponents.steering.currentRotation)
+    );
+
+    // 旋转方向盘
+    if (this.carComponents.steering.wheel) {
+      this.carComponents.steering.wheel.rotation.z =
+        this.carComponents.steering.currentRotation;
+    }
+
+    // 旋转前轮
+    if (this.carComponents.steering.frontLeftWheel) {
+      this.carComponents.steering.frontLeftWheel.rotation.y =
+        this.carComponents.steering.currentRotation;
+    }
+    if (this.carComponents.steering.frontRightWheel) {
+      this.carComponents.steering.frontRightWheel.rotation.y =
+        this.carComponents.steering.currentRotation;
+    }
+
+    console.log(
+      `🎮 方向盘角度: ${(
+        (this.carComponents.steering.currentRotation * 180) /
+        Math.PI
+      ).toFixed(1)}°`
+    );
+  }
+
+  /**
    * 添加可点击对象
    */
   public addClickableObject(object: THREE.Object3D): void {
@@ -468,6 +567,8 @@ export class InteractionHandler implements IInteractionHandler {
     // 移除事件监听器
     this.container.removeEventListener("click", this.onClickBound);
     this.container.removeEventListener("mousemove", this.onMouseMoveBound);
+    this.container.removeEventListener("mousedown", this.onMouseDownBound);
+    this.container.removeEventListener("mouseup", this.onMouseUpBound);
 
     // 清理3D按钮
     Object.values(this.doorButtons).forEach((button) => {

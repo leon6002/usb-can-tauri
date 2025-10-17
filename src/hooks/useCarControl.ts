@@ -128,7 +128,18 @@ export const useCarControl = () => {
     fanLevel: 0,
     lightMode: 1,
     suspensionStatus: "正常",
+    currentSpeed: 0,
+    currentSteeringAngle: 0,
   });
+
+  // 更新实时 CAN 数据（速度和转向角）
+  const updateVehicleControl = (speed: number, steeringAngle: number) => {
+    setCarStates((prev) => ({
+      ...prev,
+      currentSpeed: speed,
+      currentSteeringAngle: steeringAngle,
+    }));
+  };
 
   // 更新车辆状态
   const updateCarState = (commandId: string) => {
@@ -200,7 +211,7 @@ export const useCarControl = () => {
     );
   };
 
-  // 开始循环发送CSV数据
+  // 开始循环发送CSV数据（使用预解析的数据）
   const startCsvLoop = async (
     csvContent: string,
     intervalMs: number,
@@ -208,7 +219,8 @@ export const useCarControl = () => {
     canDataColumnIndex: number,
     csvStartRowIndex: number,
     config: any,
-    onComplete?: () => void
+    onComplete?: () => void,
+    onProgressUpdate?: (speed: number, steeringAngle: number) => void
   ) => {
     try {
       console.log("🚀 startCsvLoop called with:", {
@@ -219,13 +231,21 @@ export const useCarControl = () => {
         csvStartRowIndex,
       });
 
-      // 调用Rust后端的循环发送命令
-      const result = await invoke("start_csv_loop", {
-        csvContent,
-        intervalMs,
-        canIdColumnIndex,
-        canDataColumnIndex,
-        csvStartRowIndex,
+      // 第一步：预加载并解析 CSV 数据
+      console.log("📂 Preloading CSV data...");
+      const preloadedData = await invoke<any[]>("preload_csv_data", {
+        csvContent: csvContent,
+        canIdColumnIndex: canIdColumnIndex,
+        canDataColumnIndex: canDataColumnIndex,
+        csvStartRowIndex: csvStartRowIndex,
+      });
+
+      console.log(`✅ Preloaded ${preloadedData.length} records`);
+
+      // 第二步：使用预解析的数据启动循环
+      const result = await invoke("start_csv_loop_with_preloaded_data", {
+        preloadedData: preloadedData,
+        intervalMs: intervalMs,
         config: {
           port: config.port,
           baud_rate: config.baudRate,
@@ -238,13 +258,30 @@ export const useCarControl = () => {
 
       console.log("✅ startCsvLoop result:", result);
 
+      // 第三步：实时更新进度（模拟）
+      if (onProgressUpdate && preloadedData.length > 0) {
+        let currentIndex = 0;
+        const progressInterval = setInterval(() => {
+          if (currentIndex < preloadedData.length) {
+            const data = preloadedData[currentIndex];
+            if (data.vehicle_control) {
+              onProgressUpdate(
+                data.vehicle_control.linear_velocity_mms,
+                data.vehicle_control.steering_angle_rad
+              );
+            }
+            currentIndex++;
+          } else {
+            clearInterval(progressInterval);
+          }
+        }, intervalMs);
+      }
+
       // 计算预期的完成时间
-      const lines = csvContent.trim().split("\n");
-      const recordCount = lines.length - csvStartRowIndex;
-      const estimatedDuration = recordCount * intervalMs + 1000; // 加1秒缓冲
+      const estimatedDuration = preloadedData.length * intervalMs + 1000; // 加1秒缓冲
 
       console.log(
-        `📊 CSV loop will complete in approximately ${estimatedDuration}ms (${recordCount} records × ${intervalMs}ms)`
+        `📊 CSV loop will complete in approximately ${estimatedDuration}ms (${preloadedData.length} records × ${intervalMs}ms)`
       );
 
       // 设置定时器，在预期时间后检查并触发完成回调
@@ -277,6 +314,7 @@ export const useCarControl = () => {
     carStates,
     updateCarState,
     updateCanCommand,
+    updateVehicleControl,
     startCsvLoop,
     stopCsvLoop,
     loopIntervalRef,

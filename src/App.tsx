@@ -4,6 +4,7 @@ import "./test-threejs";
 
 // Types
 import { ActiveTab } from "./types";
+import { calculateWheelSteeringAngle } from "./types/vehicleControl";
 
 // Hooks
 import { useSerial } from "./hooks/useSerial";
@@ -45,6 +46,7 @@ function App() {
     carStates,
     updateCarState,
     updateCanCommand,
+    updateVehicleControl,
     startCsvLoop,
     stopCsvLoop,
   } = useCarControl();
@@ -92,6 +94,22 @@ function App() {
           }`
         );
 
+        // 定义进度更新回调
+        const onProgressUpdate = (speed: number, steeringAngle: number) => {
+          // steeringAngle 是方向盘转向角，需要转换为轮胎转向角
+          const wheelSteeringAngle = calculateWheelSteeringAngle(steeringAngle);
+
+          // 更新状态面板显示方向盘转向角
+          updateVehicleControl(speed, steeringAngle);
+
+          // 同时更新3D场景中的车身旋转（基于自行车模型）
+          // 使用轮胎转向角来计算车身旋转
+          const renderer = car3DRendererRef.current;
+          if (renderer) {
+            renderer.updateSteeringAngle(wheelSteeringAngle, speed);
+          }
+        };
+
         // 定义CSV循环完成后的回调函数
         const onCsvLoopComplete = async () => {
           console.log("🎉 CSV loop completed, auto-stopping driving");
@@ -114,6 +132,7 @@ function App() {
               console.log("🛑 自动停止行驶动画");
               renderer.stopWheelRotation();
               renderer.stopRoadMovement();
+              renderer.resetVehicleDynamics(); // 重置车辆动力学状态
               renderer.startCameraAnimation("side", 2000, true);
             }
           } catch (error) {
@@ -128,7 +147,8 @@ function App() {
           config.canDataColumnIndex || 1,
           config.csvStartRowIndex || 0,
           config,
-          onCsvLoopComplete
+          onCsvLoopComplete,
+          onProgressUpdate
         );
 
         updateCarState(commandId);

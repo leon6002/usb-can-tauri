@@ -67,6 +67,20 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
             {carStates.suspensionStatus}
           </div>
         </div>
+        <div className="bg-blue-50 p-3 rounded border border-blue-200">
+          <div className="text-xs text-blue-600 font-medium">实时速度</div>
+          <div className="text-sm font-semibold text-blue-900">
+            {carStates.currentSpeed} mm/s
+          </div>
+        </div>
+        <div className="bg-purple-50 p-3 rounded border border-purple-200">
+          <div className="text-xs text-purple-600 font-medium">
+            方向盘转向角
+          </div>
+          <div className="text-sm font-semibold text-purple-900">
+            {((carStates.currentSteeringAngle * 180) / Math.PI).toFixed(2)}°
+          </div>
+        </div>
       </div>
     </div>
   );

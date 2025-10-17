@@ -28,6 +28,14 @@ export class Car3DRenderer {
   // 车辆模型
   private car: THREE.Group | null = null;
 
+  // 车辆动力学参数
+  private vehicleDynamics = {
+    wheelbase: 3.0, // 轴距（米）
+    currentSpeed: 0, // 当前速度（mm/s）
+    steeringAngle: 0, // 当前转向角（弧度）
+    bodyYaw: 0, // 车身偏转角（弧度）
+  };
+
   constructor(
     containerId: string,
     onSendCommand?: (commandId: string) => void
@@ -79,7 +87,8 @@ export class Car3DRenderer {
         this.container,
         this.sceneManager.camera,
         this.sceneManager.scene,
-        this.onSendCommand
+        this.onSendCommand,
+        this.carComponents
       );
       this.interactionHandler.setupClickHandlers(this.container);
 
@@ -157,8 +166,37 @@ export class Car3DRenderer {
     this.animationController.update(delta);
     this.cameraController.update(delta);
 
+    // 更新车辆动力学（车身偏转角）
+    this.updateVehicleDynamics(delta);
+
     // 渲染场景
     this.sceneManager.render();
+  }
+
+  /**
+   * 更新车辆动力学（自行车模型）
+   * 根据前轮转向角和车速计算车身偏转角
+   */
+  private updateVehicleDynamics(deltaTime: number): void {
+    if (!this.carComponents.steering.carBody) return;
+
+    const { wheelbase, currentSpeed, steeringAngle } = this.vehicleDynamics;
+
+    // 将速度从 mm/s 转换为 m/s
+    const speedMs = currentSpeed / 1000;
+
+    // 自行车模型：车身偏转角速度 = (v / L) * tan(delta)
+    // 其中 v 是车速，L 是轴距，delta 是前轮转向角
+    // 注意：添加负号以匹配坐标系方向（轮胎向左转时，车身应向左旋转）
+    if (Math.abs(speedMs) > 0.01) {
+      // 只有当车速足够大时才计算偏转
+      const yawRate = -(speedMs / wheelbase) * Math.tan(steeringAngle);
+      this.vehicleDynamics.bodyYaw += yawRate * deltaTime;
+
+      // 应用到车身
+      this.carComponents.steering.carBody.rotation.y =
+        this.vehicleDynamics.bodyYaw;
+    }
   }
 
   /**
@@ -271,6 +309,44 @@ export class Car3DRenderer {
    */
   public setDoorButtonsVisible(visible: boolean): void {
     this.interactionHandler.setDoorButtonsVisible(visible);
+  }
+
+  /**
+   * 更新车辆转向角度和速度
+   * @param angle 前轮转向角（弧度）
+   * @param speed 车速（mm/s），可选
+   */
+  public updateSteeringAngle(angle: number, speed?: number): void {
+    // 使用转向轴来更新前轮转向（分离转向和滚动旋转）
+    if (this.carComponents.steeringAxes.frontLeft) {
+      this.carComponents.steeringAxes.frontLeft.rotation.z =
+        179.1 + angle * 0.5;
+    }
+    if (this.carComponents.steeringAxes.frontRight) {
+      this.carComponents.steeringAxes.frontRight.rotation.z =
+        179.1 + angle * 0.5;
+    }
+
+    // 更新动力学参数
+    this.vehicleDynamics.steeringAngle = angle;
+    if (speed !== undefined) {
+      this.vehicleDynamics.currentSpeed = speed;
+    }
+
+    this.carComponents.steering.currentRotation = angle;
+  }
+
+  /**
+   * 重置车辆动力学状态
+   */
+  public resetVehicleDynamics(): void {
+    this.vehicleDynamics.bodyYaw = 0;
+    this.vehicleDynamics.currentSpeed = 0;
+    this.vehicleDynamics.steeringAngle = 0;
+
+    if (this.carComponents.steering.carBody) {
+      this.carComponents.steering.carBody.rotation.y = 0;
+    }
   }
 
   // ==================== 生命周期方法 ====================
