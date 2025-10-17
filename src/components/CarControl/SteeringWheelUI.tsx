@@ -17,9 +17,13 @@ export const SteeringWheelUI: React.FC<SteeringWheelUIProps> = ({
   const maxRotation = Math.PI * 0.85; // ±135°
 
   // 当外部转向角变化时，更新方向盘显示
+  // 只在用户没有手动控制时更新
   useEffect(() => {
     if (externalSteeringAngle !== undefined && !isControlling) {
-      setRotation(externalSteeringAngle);
+      // 只有当外部角度不为0时才更新（避免CSV停止时重置为0）
+      if (externalSteeringAngle !== 0 || rotation === 0) {
+        setRotation(externalSteeringAngle);
+      }
     }
   }, [externalSteeringAngle, isControlling]);
 
