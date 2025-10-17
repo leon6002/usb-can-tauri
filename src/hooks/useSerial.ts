@@ -13,8 +13,8 @@ export const useSerial = () => {
     protocolLength: "fixed",
     canMode: "normal",
     sendIntervalMs: 20,
-    canIdColumnIndex: 1,
-    canDataColumnIndex: 2,
+    canIdColumnIndex: 4,
+    canDataColumnIndex: 8,
     csvStartRowIndex: 1,
   });
 

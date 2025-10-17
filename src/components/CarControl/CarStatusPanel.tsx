@@ -70,7 +70,7 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
         <div className="bg-blue-50 p-3 rounded border border-blue-200">
           <div className="text-xs text-blue-600 font-medium">实时速度</div>
           <div className="text-sm font-semibold text-blue-900">
-            {carStates.currentSpeed} mm/s
+            {(carStates.currentSpeed / 1000) * 3.6} km/h
           </div>
         </div>
         <div className="bg-purple-50 p-3 rounded border border-purple-200">

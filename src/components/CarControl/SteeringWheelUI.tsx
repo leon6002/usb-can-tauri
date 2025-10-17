@@ -83,11 +83,11 @@ export const SteeringWheelUI: React.FC<SteeringWheelUIProps> = ({
     ctx.restore();
 
     // 绘制角度显示
-    ctx.fillStyle = "#333333";
+    ctx.fillStyle = "#716b6b";
     ctx.font = "14px Arial";
     ctx.textAlign = "center";
     const angleDegrees = (rotation * 180) / Math.PI;
-    ctx.fillText(`${angleDegrees.toFixed(1)}°`, centerX, canvas.height - 10);
+    ctx.fillText(`${angleDegrees.toFixed(1)}°`, centerX, canvas.height - 55);
   }, [rotation]);
 
   // 鼠标按下
@@ -172,13 +172,8 @@ export const SteeringWheelUI: React.FC<SteeringWheelUIProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         className="bg-white rounded-full shadow-lg cursor-grab active:cursor-grabbing border-2 border-gray-300"
-        title="拖动鼠标转动方向盘"
+        title="方向盘"
       />
-
-      {/* 提示文字 */}
-      <div className="text-xs text-gray-600 bg-white px-2 py-1 rounded shadow">
-        拖动转向
-      </div>
     </div>
   );
 };

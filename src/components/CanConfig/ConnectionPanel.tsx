@@ -150,7 +150,7 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
   }, [canDataPreview]);
 
   return (
-    <div className="p-3 overflow-y-auto max-h-[calc(100vh-200px)]">
+    <div className="p-3 overflow-y-auto max-h-[calc(100vh-20px)]">
       <h3 className="text-sm font-semibold text-gray-800 mb-2">连接配置</h3>
 
       <div className="space-y-2">

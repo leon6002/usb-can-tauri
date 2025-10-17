@@ -1,8 +1,13 @@
 /**
  * 场景管理器 - 负责Three.js场景、相机、渲染器的创建和管理
  */
-import * as THREE from 'three';
-import { ISceneManager, SceneConfig, CameraConfig, RendererConfig } from './types';
+import * as THREE from "three";
+import {
+  ISceneManager,
+  SceneConfig,
+  CameraConfig,
+  RendererConfig,
+} from "./types";
 
 export class SceneManager implements ISceneManager {
   public scene!: THREE.Scene;
@@ -10,7 +15,8 @@ export class SceneManager implements ISceneManager {
   public renderer!: THREE.WebGLRenderer;
   public container: HTMLElement;
   public roadTexture: THREE.CanvasTexture | null = null; // 暴露道路纹理
-  
+  public road: THREE.Mesh | null = null; // 暴露道路对象
+
   private onWindowResizeBound: () => void;
 
   constructor(container: HTMLElement) {
@@ -24,7 +30,11 @@ export class SceneManager implements ISceneManager {
   public createScene(config: SceneConfig): void {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(config.backgroundColor);
-    this.scene.fog = new THREE.Fog(config.fogColor, config.fogNear, config.fogFar);
+    this.scene.fog = new THREE.Fog(
+      config.fogColor,
+      config.fogNear,
+      config.fogFar
+    );
   }
 
   /**
@@ -46,7 +56,10 @@ export class SceneManager implements ISceneManager {
    */
   public createRenderer(config: RendererConfig): void {
     this.renderer = new THREE.WebGLRenderer({ antialias: config.antialias });
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer.setSize(
+      this.container.clientWidth,
+      this.container.clientHeight
+    );
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = config.shadowMapEnabled;
     this.renderer.shadowMap.type = config.shadowMapType;
@@ -55,11 +68,11 @@ export class SceneManager implements ISceneManager {
     this.renderer.toneMappingExposure = config.toneMappingExposure;
 
     // 清空容器内容，防止重复渲染
-    this.container.innerHTML = '';
+    this.container.innerHTML = "";
     this.container.appendChild(this.renderer.domElement);
 
     // 监听窗口大小变化
-    window.addEventListener('resize', this.onWindowResizeBound);
+    window.addEventListener("resize", this.onWindowResizeBound);
   }
 
   /**
@@ -136,7 +149,7 @@ export class SceneManager implements ISceneManager {
     this.scene.add(spotLight);
     this.scene.add(spotLight.target);
 
-    console.log('✓ 场景灯光创建完成');
+    console.log("✓ 场景灯光创建完成");
   }
 
   /**
@@ -151,7 +164,7 @@ export class SceneManager implements ISceneManager {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    console.log('✓ 地面创建完成');
+    console.log("✓ 地面创建完成");
   }
 
   /**
@@ -162,17 +175,17 @@ export class SceneManager implements ISceneManager {
     this.createGround();
 
     // 创建道路纹理
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 512;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext("2d")!;
 
     // 绘制道路背景
-    ctx.fillStyle = '#2c2c2c';
+    ctx.fillStyle = "#2c2c2c";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // 绘制道路标线
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 4;
     ctx.setLineDash([20, 20]);
 
@@ -201,20 +214,44 @@ export class SceneManager implements ISceneManager {
     this.roadTexture.wrapT = THREE.RepeatWrapping;
     this.roadTexture.repeat.set(1, 5); // 重复5次，创建长道路效果
 
-    // 创建道路几何体
-    const roadGeometry = new THREE.PlaneGeometry(10, 150);
+    // 创建弯曲道路几何体
+    const roadGeometry = this.createCurvedRoadGeometry();
     const roadMaterial = new THREE.MeshLambertMaterial({
       map: this.roadTexture,
-      transparent: false
+      transparent: false,
+      side: THREE.DoubleSide, // 双面渲染
     });
 
-    const road = new THREE.Mesh(roadGeometry, roadMaterial);
-    road.rotation.x = -Math.PI / 2;
-    road.position.y = -0.49; // 稍微高于地面，避免z-fighting
-    road.receiveShadow = true;
+    this.road = new THREE.Mesh(roadGeometry, roadMaterial);
+    this.road.name = "Road"; // 给道路命名，以便后续查找
+    this.road.position.y = -0.49; // 稍微高于地面，避免z-fighting
+    this.road.receiveShadow = true;
 
-    this.scene.add(road);
-    console.log('✓ 道路创建完成');
+    this.scene.add(this.road);
+    console.log("✓ 弯曲道路创建完成");
+  }
+
+  /**
+   * 创建弯曲道路几何体
+   * 使用分段平面几何体，可以通过顶点变形来弯曲
+   */
+  private createCurvedRoadGeometry(): THREE.BufferGeometry {
+    const width = 10;
+    const length = 150;
+    const widthSegments = 2;
+    const lengthSegments = 100;
+
+    const geometry = new THREE.PlaneGeometry(
+      width,
+      length,
+      widthSegments,
+      lengthSegments
+    );
+
+    // 旋转几何体使其平铺在地面上
+    geometry.rotateX(-Math.PI / 2);
+
+    return geometry;
   }
 
   /**
@@ -223,10 +260,10 @@ export class SceneManager implements ISceneManager {
   public onWindowResize(): void {
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
-    
+
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    
+
     this.renderer.setSize(width, height);
   }
 
@@ -245,7 +282,7 @@ export class SceneManager implements ISceneManager {
       backgroundColor: 0xffffff, // 白色背景
       fogColor: 0xffffff,
       fogNear: 10,
-      fogFar: 50
+      fogFar: 50,
     };
   }
 
@@ -258,7 +295,7 @@ export class SceneManager implements ISceneManager {
       near: 0.2,
       far: 1000,
       position: [5, 3, 5],
-      lookAt: [0, 0, 0]
+      lookAt: [0, 0, 0],
     };
   }
 
@@ -272,7 +309,7 @@ export class SceneManager implements ISceneManager {
       shadowMapType: THREE.PCFSoftShadowMap,
       outputColorSpace: THREE.SRGBColorSpace,
       toneMapping: THREE.ACESFilmicToneMapping,
-      toneMappingExposure: 1
+      toneMappingExposure: 1,
     };
   }
 
@@ -281,7 +318,7 @@ export class SceneManager implements ISceneManager {
    */
   public dispose(): void {
     // 移除事件监听器
-    window.removeEventListener('resize', this.onWindowResizeBound);
+    window.removeEventListener("resize", this.onWindowResizeBound);
 
     // 清理渲染器
     if (this.renderer) {
@@ -291,12 +328,12 @@ export class SceneManager implements ISceneManager {
     // 清理场景中的对象
     if (this.scene) {
       this.scene.traverse((child) => {
-        if (child.type === 'Mesh') {
+        if (child.type === "Mesh") {
           const mesh = child as THREE.Mesh;
           if (mesh.geometry) mesh.geometry.dispose();
           if (mesh.material) {
             if (Array.isArray(mesh.material)) {
-              mesh.material.forEach(material => material.dispose());
+              mesh.material.forEach((material) => material.dispose());
             } else {
               mesh.material.dispose();
             }
@@ -306,6 +343,6 @@ export class SceneManager implements ISceneManager {
       this.scene.clear();
     }
 
-    console.log('SceneManager资源已清理');
+    console.log("SceneManager资源已清理");
   }
 }

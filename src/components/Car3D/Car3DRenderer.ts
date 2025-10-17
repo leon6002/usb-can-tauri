@@ -36,6 +36,11 @@ export class Car3DRenderer {
     bodyYaw: 0, // 车身偏转角（弧度）
   };
 
+  // 道路对象
+  private road: THREE.Mesh | null = null;
+  // 道路原始顶点数据（用于计算弯曲）
+  private roadOriginalPositions: Float32Array | null = null;
+
   constructor(
     containerId: string,
     onSendCommand?: (commandId: string) => void
@@ -171,6 +176,7 @@ export class Car3DRenderer {
     // 更新各个模块
     this.animationController.update(delta);
     this.cameraController.update(delta);
+    // this.interactionHandler.update(); // 更新交互处理（方向盘平滑回弹）
 
     // 更新车辆动力学（车身偏转角）
     this.updateVehicleDynamics(delta);
@@ -181,12 +187,13 @@ export class Car3DRenderer {
 
   /**
    * 更新车辆动力学（自行车模型）
-   * 根据前轮转向角和车速计算车身偏转角
+   * 根据前轮转向角和车速计算车身偏转角和位置
    */
   private updateVehicleDynamics(deltaTime: number): void {
     if (!this.carComponents.steering.carBody) return;
 
     const { wheelbase, currentSpeed, steeringAngle } = this.vehicleDynamics;
+    const carBody = this.carComponents.steering.carBody;
 
     // 将速度从 mm/s 转换为 m/s
     const speedMs = currentSpeed / 1000;
@@ -199,9 +206,96 @@ export class Car3DRenderer {
       const yawRate = -(speedMs / wheelbase) * Math.tan(steeringAngle);
       this.vehicleDynamics.bodyYaw += yawRate * deltaTime;
 
-      // 应用到车身
-      this.carComponents.steering.carBody.rotation.y =
-        this.vehicleDynamics.bodyYaw;
+      // 应用到车身旋转
+      carBody.rotation.y = this.vehicleDynamics.bodyYaw;
+
+      // 车身位置保持不变，只旋转
+      // carBody.position 保持在原点
+
+      // 更新相机位置（始终在车的后面）
+      this.cameraController.setCarBodyYaw(this.vehicleDynamics.bodyYaw);
+
+      // 更新道路弯曲
+      this.updateRoadTransform();
+    }
+  }
+
+  /**
+   * 更新道路的弯曲
+   * 道路在车周围弯曲，车保持在原点
+   */
+  private updateRoadTransform(): void {
+    if (!this.road) {
+      // 第一次调用时从 SceneManager 获取道路对象
+      this.road = this.sceneManager.road;
+
+      // 保存原始顶点数据
+      if (this.road) {
+        const geometry = this.road.geometry as THREE.BufferGeometry;
+        const positionAttribute = geometry.getAttribute("position");
+        if (
+          positionAttribute &&
+          positionAttribute.array instanceof Float32Array
+        ) {
+          // 创建原始数据的副本
+          this.roadOriginalPositions = new Float32Array(
+            positionAttribute.array
+          );
+          console.log("✓ 保存道路原始顶点数据");
+        }
+      }
+    }
+
+    if (this.road && this.roadOriginalPositions) {
+      const { steeringAngle, bodyYaw } = this.vehicleDynamics;
+
+      // 道路旋转以跟随车身方向
+      this.road.rotation.y = bodyYaw;
+
+      // 根据转向角弯曲道路
+      const geometry = this.road.geometry as THREE.BufferGeometry;
+      const positionAttribute = geometry.getAttribute("position");
+
+      if (
+        positionAttribute &&
+        positionAttribute.array instanceof Float32Array
+      ) {
+        const positions = positionAttribute.array as Float32Array;
+
+        // 计算弯曲半径（基于转向角）
+        // 转向角越大，弯曲越明显
+        const isSteeringSignificant = Math.abs(steeringAngle) > 0.01;
+        const curveRadius = isSteeringSignificant
+          ? 50 / Math.tan(steeringAngle)
+          : Infinity;
+
+        // 从原始数据计算弯曲后的顶点位置
+        for (let i = 0; i < this.roadOriginalPositions.length; i += 3) {
+          const origX = this.roadOriginalPositions[i];
+          const origY = this.roadOriginalPositions[i + 1];
+          const origZ = this.roadOriginalPositions[i + 2];
+
+          // 根据 Z 坐标（沿道路长度）计算弯曲
+          if (isSteeringSignificant && Math.abs(curveRadius) > 1) {
+            // 计算弯曲后的 X 坐标
+            // curveRadius 的符号已经包含了方向信息
+            const angle = origZ / curveRadius;
+            const newX = origX + (curveRadius - Math.cos(angle) * curveRadius);
+
+            positions[i] = newX;
+            positions[i + 1] = origY;
+            positions[i + 2] = origZ;
+          } else {
+            // 直线道路 - 直接使用原始坐标
+            positions[i] = origX;
+            positions[i + 1] = origY;
+            positions[i + 2] = origZ;
+          }
+        }
+
+        positionAttribute.needsUpdate = true;
+        geometry.computeVertexNormals();
+      }
     }
   }
 
@@ -343,17 +437,40 @@ export class Car3DRenderer {
   }
 
   /**
+   * 设置行驶状态
+   */
+  public setIsDriving(isDriving: boolean): void {
+    this.cameraController.setIsDriving(isDriving);
+  }
+
+  /**
    * 重置车辆动力学状态
    */
-  public resetVehicleDynamics(): void {
-    this.vehicleDynamics.bodyYaw = 0;
-    this.vehicleDynamics.currentSpeed = 0;
-    this.vehicleDynamics.steeringAngle = 0;
+  // public resetVehicleDynamics(): void {
+  //   this.vehicleDynamics.bodyYaw = 0;
+  //   this.vehicleDynamics.currentSpeed = 0;
+  //   this.vehicleDynamics.steeringAngle = 0;
 
-    if (this.carComponents.steering.carBody) {
-      this.carComponents.steering.carBody.rotation.y = 0;
-    }
-  }
+  //   // 重置车身旋转
+  //   if (this.carComponents.steering.carBody) {
+  //     this.carComponents.steering.carBody.rotation.y = 0;
+  //   }
+
+  //   // 重置前轮转向角
+  //   if (this.carComponents.steeringAxes.frontLeft) {
+  //     this.carComponents.steeringAxes.frontLeft.rotation.z = 179.1;
+  //   }
+  //   if (this.carComponents.steeringAxes.frontRight) {
+  //     this.carComponents.steeringAxes.frontRight.rotation.z = 179.1;
+  //   }
+
+  //   // 重置方向盘
+  //   if (this.carComponents.steering.wheel) {
+  //     this.carComponents.steering.wheel.rotation.z = 0;
+  //   }
+
+  //   console.log("✓ 车辆动力学状态已重置");
+  // }
 
   /**
    * 开始悬挂升高动画

@@ -124,15 +124,16 @@ function App() {
           // 自动触发停止行驶
           try {
             await stopCsvLoop();
+            updateVehicleControl(0, 0);
             updateCarState("stop_driving");
 
             // 触发3D动画
             if (car3DRendererRef.current) {
               const renderer = car3DRendererRef.current;
               console.log("🛑 自动停止行驶动画");
+              renderer.setIsDriving(false); // 解除相机锁定
               renderer.stopWheelRotation();
               renderer.stopRoadMovement();
-              renderer.resetVehicleDynamics(); // 重置车辆动力学状态
               renderer.startCameraAnimation("side", 2000, true);
             }
           } catch (error) {
@@ -157,8 +158,9 @@ function App() {
         if (car3DRendererRef.current) {
           const renderer = car3DRendererRef.current;
           console.log("🚗 开始行驶动画");
-          renderer.startWheelRotation(20, 1);
-          renderer.startRoadMovement(1);
+          renderer.setIsDriving(true); // 设置行驶状态
+          renderer.startWheelRotation(10, 1);
+          renderer.startRoadMovement(0.8);
           renderer.startCameraAnimation("driving", 2000, true);
           // 隐藏门按钮
           renderer.setDoorButtonsVisible(false);
@@ -174,12 +176,15 @@ function App() {
         );
 
         await stopCsvLoop();
+        // 更新状态面板显示方向盘转向角
+        updateVehicleControl(0, 0);
         updateCarState(commandId);
 
         // 触发3D动画
         if (car3DRendererRef.current) {
           const renderer = car3DRendererRef.current;
           console.log("🛑 停止行驶动画");
+          renderer.setIsDriving(false); // 设置停止行驶状态
           renderer.stopWheelRotation();
           renderer.stopRoadMovement();
           renderer.startCameraAnimation("side", 2000, true);

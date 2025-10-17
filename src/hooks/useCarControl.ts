@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 export const useCarControl = () => {
   const loopIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const completeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Car control commands configuration
   const [canCommands, setCanCommands] = useState<CanCommand[]>([
     {
@@ -261,7 +263,12 @@ export const useCarControl = () => {
       // 第三步：实时更新进度（模拟）
       if (onProgressUpdate && preloadedData.length > 0) {
         let currentIndex = 0;
-        const progressInterval = setInterval(() => {
+        // 清除之前的 progressInterval（如果存在）
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+
+        progressIntervalRef.current = setInterval(() => {
           if (currentIndex < preloadedData.length) {
             const data = preloadedData[currentIndex];
             if (data.vehicle_control) {
@@ -272,7 +279,10 @@ export const useCarControl = () => {
             }
             currentIndex++;
           } else {
-            clearInterval(progressInterval);
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
           }
         }, intervalMs);
       }
@@ -286,11 +296,17 @@ export const useCarControl = () => {
 
       // 设置定时器，在预期时间后检查并触发完成回调
       if (onComplete) {
-        setTimeout(() => {
+        // 清除之前的 completeTimeout（如果存在）
+        if (completeTimeoutRef.current) {
+          clearTimeout(completeTimeoutRef.current);
+        }
+
+        completeTimeoutRef.current = setTimeout(() => {
           console.log(
             "✅ CSV loop should be completed, triggering onComplete callback"
           );
           onComplete();
+          completeTimeoutRef.current = null;
         }, estimatedDuration);
       }
     } catch (error) {
@@ -302,7 +318,22 @@ export const useCarControl = () => {
   // 停止循环发送
   const stopCsvLoop = async () => {
     try {
+      // 清除前端的定时器
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+        console.log("✓ progressInterval 已清除");
+      }
+
+      if (completeTimeoutRef.current) {
+        clearTimeout(completeTimeoutRef.current);
+        completeTimeoutRef.current = null;
+        console.log("✓ completeTimeout 已清除");
+      }
+
+      // 调用后端停止 CSV 循环
       await invoke("stop_csv_loop");
+      console.log("✓ 后端 CSV 循环已停止");
     } catch (error) {
       console.error("Failed to stop CSV loop:", error);
       throw error;

@@ -1,24 +1,32 @@
 /**
  * 相机控制器 - 管理运镜系统：轨道、展示、电影等运镜模式
  */
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ICameraController, CameraAnimationState, CameraAnimationMode } from './types';
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import {
+  ICameraController,
+  CameraAnimationState,
+  CameraAnimationMode,
+} from "./types";
 
 export class CameraController implements ICameraController {
   public controls: OrbitControls | null = null;
   public animationState: CameraAnimationState = {
     isActive: false,
-    mode: 'orbit',
+    mode: "orbit",
     startTime: 0,
     duration: 10000, // 10秒
     originalPosition: null,
     originalTarget: null,
     keyframes: [],
-    currentKeyframe: 0
+    currentKeyframe: 0,
   };
 
   private camera: THREE.PerspectiveCamera;
+  private carBodyYaw: number = 0; // 车身偏转角
+  private cameraDistance: number = 10; // 相机距离车身的距离
+  private cameraHeight: number = 2; // 相机高度
+  private isDriving: boolean = false; // 是否正在行驶
 
   constructor(camera: THREE.PerspectiveCamera) {
     this.camera = camera;
@@ -27,21 +35,28 @@ export class CameraController implements ICameraController {
   /**
    * 设置轨道控制器
    */
-  public setupControls(camera: THREE.PerspectiveCamera, domElement: HTMLElement): void {
+  public setupControls(
+    camera: THREE.PerspectiveCamera,
+    domElement: HTMLElement
+  ): void {
     this.controls = new OrbitControls(camera, domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
     this.controls.maxPolarAngle = Math.PI / 2;
     this.controls.minDistance = 2;
     this.controls.maxDistance = 20;
-    
-    console.log('✅ 相机控制器初始化完成');
+
+    console.log("✅ 相机控制器初始化完成");
   }
 
   /**
    * 开始运镜动画
    */
-  public startAnimation(mode: CameraAnimationMode, duration: number = 10000, keepFinalPosition: boolean = false): void {
+  public startAnimation(
+    mode: CameraAnimationMode,
+    duration: number = 10000,
+    keepFinalPosition: boolean = false
+  ): void {
     if (this.animationState.isActive) {
       this.stopAnimation();
     }
@@ -51,20 +66,15 @@ export class CameraController implements ICameraController {
     this.animationState.startTime = Date.now();
     this.animationState.duration = duration;
     this.animationState.originalPosition = this.camera.position.clone();
-    this.animationState.originalTarget = this.controls ? this.controls.target.clone() : new THREE.Vector3();
+    this.animationState.originalTarget = this.controls
+      ? this.controls.target.clone()
+      : new THREE.Vector3();
 
     // 添加是否保持最终位置的标记
     (this.animationState as any).keepFinalPosition = keepFinalPosition;
 
     // 根据模式设置关键帧
     this.setupKeyframes(mode);
-
-    // 禁用手动控制
-    if (this.controls) {
-      this.controls.enabled = false;
-    }
-
-    console.log(`开始${mode}运镜，持续时间: ${duration}ms，保持最终位置: ${keepFinalPosition}`);
   }
 
   /**
@@ -73,7 +83,8 @@ export class CameraController implements ICameraController {
   public stopAnimation(): void {
     if (!this.animationState.isActive) return;
 
-    const keepFinalPosition = (this.animationState as any).keepFinalPosition || false;
+    const keepFinalPosition =
+      (this.animationState as any).keepFinalPosition || false;
     this.animationState.isActive = false;
 
     // 恢复手动控制
@@ -82,15 +93,19 @@ export class CameraController implements ICameraController {
     }
 
     // 只有在不保持最终位置时才恢复原始位置
-    if (!keepFinalPosition && this.animationState.originalPosition && this.animationState.originalTarget) {
+    if (
+      !keepFinalPosition &&
+      this.animationState.originalPosition &&
+      this.animationState.originalTarget
+    ) {
       this.camera.position.copy(this.animationState.originalPosition);
       if (this.controls) {
         this.controls.target.copy(this.animationState.originalTarget);
         this.controls.update();
       }
-      console.log('停止运镜动画，恢复原始位置');
+      console.log("停止运镜动画，恢复原始位置");
     } else {
-      console.log('停止运镜动画，保持最终位置');
+      console.log("停止运镜动画，保持最终位置");
       // 更新OrbitControls的target以匹配当前相机朝向
       if (this.controls) {
         this.controls.update();
@@ -99,16 +114,70 @@ export class CameraController implements ICameraController {
   }
 
   /**
+   * 设置车身偏转角（用于相机位置更新）
+   */
+  public setCarBodyYaw(yaw: number): void {
+    this.carBodyYaw = yaw;
+  }
+
+  /**
+   * 设置行驶状态
+   */
+  public setIsDriving(isDriving: boolean): void {
+    this.isDriving = isDriving;
+    if (this.controls) {
+      // 行驶时禁用 OrbitControls，停止时启用
+      this.controls.enabled = !isDriving;
+    }
+  }
+
+  /**
    * 更新运镜动画
    */
   public update(_delta: number): void {
     if (this.controls) {
+      this.applyCameraRotationCompensation();
       this.controls.update();
     }
 
     if (this.animationState.isActive) {
       this.updateCameraAnimation();
     }
+  }
+
+  /**
+   * 应用相机旋转补偿
+   * 行驶时：相机始终跟在车的后面，看向车的前方
+   * 停止时：相机保持自由控制状态
+   */
+  private applyCameraRotationCompensation(): void {
+    if (!this.controls) return;
+
+    // 只在行驶时应用相机跟随
+    if (!this.isDriving) {
+      return;
+    }
+
+    // 相机相对于车身的位置（车的后方）
+    // 在车身坐标系中：后方 = -Z 方向
+    const relativePos = new THREE.Vector3(
+      0,
+      this.cameraHeight,
+      this.cameraDistance
+    );
+
+    // 创建一个旋转矩阵，根据车身偏转角旋转相机位置
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.carBodyYaw);
+
+    // 应用旋转到相机相对位置
+    relativePos.applyQuaternion(quaternion);
+
+    // 设置相机位置（车身在原点）
+    this.camera.position.copy(relativePos);
+
+    // 相机看向原点（车身位置）
+    this.camera.lookAt(0, 0, 0);
   }
 
   /**
@@ -119,22 +188,22 @@ export class CameraController implements ICameraController {
     this.animationState.currentKeyframe = 0;
 
     switch (mode) {
-      case 'orbit':
+      case "orbit":
         this.setupOrbitKeyframes();
         break;
-      case 'showcase':
+      case "showcase":
         this.setupShowcaseKeyframes();
         break;
-      case 'cinematic':
+      case "cinematic":
         this.setupCinematicKeyframes();
         break;
-      case 'follow':
+      case "follow":
         this.setupFollowKeyframes();
         break;
-      case 'driving':
+      case "driving":
         this.setupDrivingKeyframes();
         break;
-      case 'side':
+      case "side":
         this.setupSideKeyframes();
         break;
     }
@@ -152,11 +221,11 @@ export class CameraController implements ICameraController {
       const angle = (i / steps) * Math.PI * 2;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
-      
+
       this.animationState.keyframes.push({
         position: new THREE.Vector3(x, height, z),
         target: new THREE.Vector3(0, 0, 0),
-        time: i / steps
+        time: i / steps,
       });
     }
   }
@@ -171,14 +240,14 @@ export class CameraController implements ICameraController {
       { pos: [-5, 3, -5], target: [0, 0, 0] },
       { pos: [5, 3, -5], target: [0, 0, 0] },
       { pos: [0, 8, 0], target: [0, 0, 0] },
-      { pos: [5, 3, 5], target: [0, 0, 0] }
+      { pos: [5, 3, 5], target: [0, 0, 0] },
     ];
 
     positions.forEach((keyframe, index) => {
       this.animationState.keyframes.push({
         position: new THREE.Vector3(...keyframe.pos),
         target: new THREE.Vector3(...keyframe.target),
-        time: index / (positions.length - 1)
+        time: index / (positions.length - 1),
       });
     });
   }
@@ -193,14 +262,14 @@ export class CameraController implements ICameraController {
       { pos: [-8, 4, 0], target: [0, 0, 0] },
       { pos: [0, 6, -8], target: [0, 0, 0] },
       { pos: [8, 2, 0], target: [0, 0, 0] },
-      { pos: [5, 3, 5], target: [0, 0, 0] }
+      { pos: [5, 3, 5], target: [0, 0, 0] },
     ];
 
     keyframes.forEach((keyframe, index) => {
       this.animationState.keyframes.push({
         position: new THREE.Vector3(...keyframe.pos),
         target: new THREE.Vector3(...keyframe.target),
-        time: index / (keyframes.length - 1)
+        time: index / (keyframes.length - 1),
       });
     });
   }
@@ -214,14 +283,14 @@ export class CameraController implements ICameraController {
       { pos: [3, 2, 3], target: [0, 0, 0] },
       { pos: [-3, 2, 3], target: [0, 0, 0] },
       { pos: [0, 4, 5], target: [0, 0, 0] },
-      { pos: [0, 1, -5], target: [0, 0, 0] }
+      { pos: [0, 1, -5], target: [0, 0, 0] },
     ];
 
     offsets.forEach((offset, index) => {
       this.animationState.keyframes.push({
         position: new THREE.Vector3(...offset.pos),
         target: new THREE.Vector3(...offset.target),
-        time: index / (offsets.length - 1)
+        time: index / (offsets.length - 1),
       });
     });
   }
@@ -234,14 +303,14 @@ export class CameraController implements ICameraController {
       // 从当前位置开始
       { pos: this.camera.position.toArray(), target: [0, 0, 0] },
       // 最终稳定在后方
-      { pos: [0, 2, 6], target: [0, 0, 0] }
+      { pos: [1, 2, 10], target: [0, 0, 0] },
     ];
 
     keyframes.forEach((keyframe, index) => {
       this.animationState.keyframes.push({
         position: new THREE.Vector3(...keyframe.pos),
         target: new THREE.Vector3(...keyframe.target),
-        time: index / (keyframes.length - 1)
+        time: index / (keyframes.length - 1),
       });
     });
   }
@@ -254,14 +323,14 @@ export class CameraController implements ICameraController {
       // 从当前位置开始
       { pos: this.camera.position.toArray(), target: [0, 0, 0] },
       // 最终稳定在侧面
-      { pos: [7, 2.5, 1], target: [0, 0, 0] }
+      { pos: [7, 2.5, 1], target: [0, 0, 0] },
     ];
 
     keyframes.forEach((keyframe, index) => {
       this.animationState.keyframes.push({
         position: new THREE.Vector3(...keyframe.pos),
         target: new THREE.Vector3(...keyframe.target),
-        time: index / (keyframes.length - 1)
+        time: index / (keyframes.length - 1),
       });
     });
   }
@@ -300,14 +369,17 @@ export class CameraController implements ICameraController {
 
     const current = keyframes[currentIndex];
     const next = keyframes[currentIndex + 1];
-    
+
     if (!current || !next) return;
 
     // 计算区间内的插值进度
-    const segmentProgress = (progress - current.time) / (next.time - current.time);
-    
+    const segmentProgress =
+      (progress - current.time) / (next.time - current.time);
+
     // 位置插值
-    const position = current.position.clone().lerp(next.position, segmentProgress);
+    const position = current.position
+      .clone()
+      .lerp(next.position, segmentProgress);
     this.camera.position.copy(position);
 
     // 目标插值
@@ -320,12 +392,12 @@ export class CameraController implements ICameraController {
    */
   public dispose(): void {
     this.stopAnimation();
-    
+
     if (this.controls) {
       this.controls.dispose();
       this.controls = null;
     }
-    
-    console.log('CameraController资源已清理');
+
+    console.log("CameraController资源已清理");
   }
 }

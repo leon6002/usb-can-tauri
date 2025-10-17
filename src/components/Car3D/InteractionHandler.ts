@@ -25,6 +25,9 @@ export class InteractionHandler implements IInteractionHandler {
     lastMouseX: 0,
     lastMouseY: 0,
     maxRotation: Math.PI * 0.75, // 最大转向角度（约135度）
+    targetRotation: 0, // 目标转向角度
+    currentRotation: 0, // 当前转向角度
+    smoothingFactor: 0.15, // 平滑因子（0-1，越小越平滑）
   };
 
   private container: HTMLElement;
