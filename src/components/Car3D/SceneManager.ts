@@ -329,7 +329,7 @@ export class SceneManager implements ISceneManager {
     // 绘制道路标线
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 4;
-    ctx.setLineDash([20, 20]);
+    ctx.setLineDash([128, 384]);
 
     // 中央虚线
     ctx.beginPath();

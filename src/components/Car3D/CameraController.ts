@@ -96,11 +96,6 @@ export class CameraController implements ICameraController {
       (this.animationState as any).keepFinalPosition || false;
     this.animationState.isActive = false;
 
-    // 恢复手动控制
-    if (this.controls) {
-      this.controls.enabled = true;
-    }
-
     // 只有在不保持最终位置时才恢复原始位置
     if (
       !keepFinalPosition &&
@@ -110,16 +105,19 @@ export class CameraController implements ICameraController {
       this.camera.position.copy(this.animationState.originalPosition);
       if (this.controls) {
         this.controls.target.copy(this.animationState.originalTarget);
+        this.controls.enabled = true;
         // 不立即调用 update()，让下一帧的 update() 来处理
         // 这样可以避免相机突然跳动
       }
       console.log("停止运镜动画，恢复原始位置");
     } else {
       console.log("停止运镜动画，保持最终位置");
-      // 更新OrbitControls的target以匹配当前相机朝向
-      if (this.controls) {
-        // 不立即调用 update()，让下一帧的 update() 来处理
-        // 这样可以避免相机突然跳动
+      // 如果在行驶模式下，立即应用相机补偿以实现无缝衔接
+      if (this.isDriving) {
+        this.applyCameraRotationCompensation();
+      } else if (this.controls) {
+        // 非行驶模式下恢复手动控制
+        this.controls.enabled = true;
       }
     }
   }
@@ -167,8 +165,12 @@ export class CameraController implements ICameraController {
       this.updateCameraAnimation();
     } else if (this.controls) {
       // 只在非动画状态下应用相机补偿和更新控制器
-      this.applyCameraRotationCompensation();
-      this.controls.update();
+      // 在行驶模式下应用相机补偿（跟随车身）
+      if (this.isDriving) {
+        this.applyCameraRotationCompensation();
+      } else {
+        this.controls.update();
+      }
     }
   }
 
@@ -265,6 +267,7 @@ export class CameraController implements ICameraController {
         this.setupFollowKeyframes();
         break;
       case "driving":
+        // 在行驶模式下，暂时禁用相机补偿以获取正确的起点位置
         this.setupDrivingKeyframes();
         break;
       case "side":

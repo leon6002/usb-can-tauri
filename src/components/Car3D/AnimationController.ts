@@ -29,7 +29,7 @@ export class AnimationController implements IAnimationController {
     isActive: false,
     initialSpeed: 0,
     targetSpeed: 0,
-    duration: 5000, // 3秒渐进停止
+    duration: 3000, // 3秒渐进停止
     startTime: 0,
   };
 
