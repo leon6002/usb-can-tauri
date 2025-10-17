@@ -424,6 +424,8 @@ export class Car3DRenderer {
    */
   public stopRoadMovement(): void {
     this.animationController.stopRoadMovement();
+    // 重置地面纹理偏移
+    this.resetVehicleDynamics();
   }
 
   /**
@@ -501,6 +503,28 @@ export class Car3DRenderer {
    */
   public stopSuspensionAnimation(): void {
     this.animationController.stopSuspensionAnimation();
+  }
+
+  /**
+   * 重置车辆动力学参数
+   * 当停止行驶时调用，重置速度、纹理偏移等
+   */
+  private resetVehicleDynamics(): void {
+    // 重置速度
+    this.vehicleDynamics.currentSpeed = 0;
+
+    // 重置地面纹理偏移
+    this.groundTextureOffset = 0;
+    if (this.groundTexture) {
+      this.groundTexture.offset.y = 0;
+    }
+
+    // 重置道路纹理偏移
+    if (this.sceneManager.roadTexture) {
+      this.sceneManager.roadTexture.offset.y = 0;
+    }
+
+    console.log("✓ 车辆动力学参数已重置");
   }
 
   // ==================== 生命周期方法 ====================
