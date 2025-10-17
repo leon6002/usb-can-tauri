@@ -370,12 +370,21 @@ export class AnimationController implements IAnimationController {
       const rotationAngle =
         this.wheelRotation.speed * this.wheelRotation.direction * delta;
 
-      // 旋转所有轮子
-      Object.values(this.wheels).forEach((wheel) => {
-        if (wheel) {
-          wheel.rotation.x -= rotationAngle;
-        }
-      });
+      // 前轮旋转（正向）
+      if (this.wheels.frontLeft) {
+        this.wheels.frontLeft.rotation.x += rotationAngle;
+      }
+      if (this.wheels.frontRight) {
+        this.wheels.frontRight.rotation.x += rotationAngle;
+      }
+
+      // 后轮旋转（反向）- 因为后轮模型的方向与前轮相反
+      if (this.wheels.rearLeft) {
+        this.wheels.rearLeft.rotation.x -= rotationAngle;
+      }
+      if (this.wheels.rearRight) {
+        this.wheels.rearRight.rotation.x -= rotationAngle;
+      }
     }
   }
 
