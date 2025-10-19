@@ -84,36 +84,52 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                 </div>
               ) : (
                 <div className="p-2 space-y-2">
-                  {logs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="bg-gray-50 border border-gray-200 rounded p-2 text-xs"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-blue-600">
-                          {log.action}
-                        </span>
-                        <span className="text-gray-500">{log.timestamp}</span>
+                  {logs.map((log) => {
+                    const isReceived = log.action === "接收CAN消息";
+                    return (
+                      <div
+                        key={log.id}
+                        className={`border rounded p-2 text-xs transition-all ${
+                          isReceived
+                            ? "bg-green-50 border-green-200 hover:bg-green-100"
+                            : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span
+                            className={`font-medium ${
+                              isReceived ? "text-green-600" : "text-blue-600"
+                            }`}
+                          >
+                            {isReceived ? "📥" : "📤"} {log.action}
+                          </span>
+                          <span className="text-gray-500">{log.timestamp}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-gray-700">
+                          <div>
+                            <span className="font-medium">命令ID:</span>{" "}
+                            {log.commandId}
+                          </div>
+                          <div>
+                            <span className="font-medium">CAN ID:</span>{" "}
+                            <span className="bg-gray-200 px-1 rounded font-mono">
+                              {log.canId}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium">数据:</span>{" "}
+                            <span className="bg-gray-200 px-1 rounded font-mono">
+                              {log.data}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium">描述:</span>{" "}
+                            {log.description}
+                          </div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-gray-700">
-                        <div>
-                          <span className="font-medium">命令ID:</span>{" "}
-                          {log.commandId}
-                        </div>
-                        <div>
-                          <span className="font-medium">CAN ID:</span>{" "}
-                          {log.canId}
-                        </div>
-                        <div>
-                          <span className="font-medium">数据:</span> {log.data}
-                        </div>
-                        <div className="col-span-2">
-                          <span className="font-medium">描述:</span>{" "}
-                          {log.description}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

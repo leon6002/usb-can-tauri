@@ -2,8 +2,9 @@ import React from "react";
 import { Car3DViewer } from "./Car3DViewer";
 import { CarStatusPanel } from "./CarStatusPanel";
 import { CarControlPanel } from "./CarControlPanel";
+import { RadarDistancePanel } from "./RadarDistancePanel";
 import { DebugPanel } from "./DebugPanel";
-import { CarStates, Scene3DStatus } from "../../types";
+import { CarStates, Scene3DStatus, RadarDistances } from "../../types";
 import { DebugLog } from "../../hooks/useDebugLogs";
 
 interface CarControlTabProps {
@@ -15,6 +16,7 @@ interface CarControlTabProps {
   isDebugVisible: boolean;
   onToggleDebug: () => void;
   onClearDebugLogs: () => void;
+  radarDistances: RadarDistances;
 }
 
 export const CarControlTab: React.FC<CarControlTabProps> = ({
@@ -26,6 +28,7 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
   isDebugVisible,
   onToggleDebug,
   onClearDebugLogs,
+  radarDistances,
 }) => {
   const handleSteeringChange = (angle: number) => {
     // 通知3D场景更新前轮转向和车身旋转
@@ -58,9 +61,12 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
         </div>
 
         {/* Right Panel - Controls */}
-        <div className="w-80 bg-white flex flex-col">
+        <div className="w-80 bg-white flex flex-col overflow-y-auto">
           {/* Status Panel */}
           <CarStatusPanel carStates={carStates} scene3DStatus={scene3DStatus} />
+
+          {/* Radar Distance Panel */}
+          <RadarDistancePanel radarDistances={radarDistances} />
 
           {/* Control Panels */}
           <CarControlPanel

@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { CanMessage, SerialConfig } from "../types";
 
 export const useCanMessages = () => {
   const [messages, setMessages] = useState<CanMessage[]>([]);
   const [sendId, setSendId] = useState("123");
   const [sendData, setSendData] = useState("01 02 03 04");
+  const unlistenRef = useRef<(() => void) | null>(null);
 
   // 发送CAN消息
   const handleSendMessage = async (config: SerialConfig) => {
@@ -69,6 +71,37 @@ export const useCanMessages = () => {
   const clearMessages = () => {
     setMessages([]);
   };
+
+  // 监听接收到的CAN消息
+  useEffect(() => {
+    const setupListener = async () => {
+      try {
+        const unlisten = await listen<any>("can-message-received", (event) => {
+          const receivedMessage: CanMessage = {
+            id: event.payload.id,
+            data: event.payload.data,
+            rawData: event.payload.rawData,
+            timestamp: event.payload.timestamp,
+            direction: "received",
+            frameType: event.payload.frameType || "standard",
+          };
+          setMessages((prev) => [...prev, receivedMessage]);
+        });
+        unlistenRef.current = unlisten;
+      } catch (error) {
+        console.error("Failed to setup CAN message listener:", error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlistenRef.current) {
+        unlistenRef.current();
+        unlistenRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     messages,
