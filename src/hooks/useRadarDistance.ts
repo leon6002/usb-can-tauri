@@ -81,7 +81,7 @@ export const useRadarDistance = () => {
       });
 
       setIsListening(true);
-      console.log("Started listening for radar messages");
+      // console.log("Started listening for radar messages");
 
       // 返回取消监听函数
       return unlisten;
@@ -97,7 +97,7 @@ export const useRadarDistance = () => {
       unlisten();
     }
     setIsListening(false);
-    console.log("Stopped listening for radar messages");
+    // console.log("Stopped listening for radar messages");
   }, []);
 
   // 清空雷达数据

@@ -7,6 +7,15 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
+  React.useEffect(() => {
+    console.log("📋 [MessageList] Rendering with", messages.length, "messages");
+    messages.forEach((msg, idx) => {
+      console.log(
+        `  [${idx}] ID: ${msg.id}, Data: ${msg.data}, Timestamp: ${msg.timestamp}`
+      );
+    });
+  }, [messages]);
+
   return (
     <div className="flex-1 bg-white flex flex-col">
       {/* Messages Header */}
@@ -36,7 +45,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
               .reverse()
               .map((message, index) => (
                 <div
-                  key={messages.length - 1 - index}
+                  key={`${message.timestamp}-${message.id}-${message.data}-${index}`}
                   className={`p-3 rounded-lg shadow-sm border-l-4 transition-all ${
                     message.direction === "sent"
                       ? "bg-blue-50 border-blue-400 hover:shadow-md"

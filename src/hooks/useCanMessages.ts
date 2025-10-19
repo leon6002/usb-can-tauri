@@ -74,9 +74,19 @@ export const useCanMessages = () => {
 
   // 监听接收到的CAN消息
   useEffect(() => {
+    let isMounted = true;
     const setupListener = async () => {
       try {
+        // 如果已经有listener，先清理
+        if (unlistenRef.current) {
+          unlistenRef.current();
+          unlistenRef.current = null;
+        }
+
         const unlisten = await listen<any>("can-message-received", (event) => {
+          if (!isMounted) return;
+
+          console.log("📨 [Frontend] Received event:", event.payload);
           const receivedMessage: CanMessage = {
             id: event.payload.id,
             data: event.payload.data,
@@ -85,9 +95,23 @@ export const useCanMessages = () => {
             direction: "received",
             frameType: event.payload.frameType || "standard",
           };
-          setMessages((prev) => [...prev, receivedMessage]);
+          console.log("📨 [Frontend] Adding message to list:", receivedMessage);
+          setMessages((prev) => {
+            console.log(
+              "📨 [Frontend] Previous messages count:",
+              prev.length,
+              "New total:",
+              prev.length + 1
+            );
+            return [...prev, receivedMessage];
+          });
         });
-        unlistenRef.current = unlisten;
+
+        if (isMounted) {
+          unlistenRef.current = unlisten;
+        } else {
+          unlisten();
+        }
       } catch (error) {
         console.error("Failed to setup CAN message listener:", error);
       }
@@ -96,6 +120,7 @@ export const useCanMessages = () => {
     setupListener();
 
     return () => {
+      isMounted = false;
       if (unlistenRef.current) {
         unlistenRef.current();
         unlistenRef.current = null;
