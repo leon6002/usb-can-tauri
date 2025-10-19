@@ -410,6 +410,8 @@ fn start_io_thread(
 
     thread::spawn(move || {
         let mut buffer = vec![0u8; 1024];
+        let mut message_buffer = Vec::new();  // 消息缓冲区，用于组装完整的消息
+
         println!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
         info!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
 
@@ -439,59 +441,108 @@ fn start_io_thread(
                             println!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
                             info!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
 
-                            let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+                            // 将接收到的数据添加到消息缓冲区
+                            message_buffer.extend_from_slice(received_data);
+                            println!("📦 [I/O Thread] Message buffer size: {} bytes", message_buffer.len());
 
-                            // 将原始数据转换为十六进制字符串
-                            let raw_hex = received_data
-                                .iter()
-                                .map(|b| format!("{:02X}", b))
-                                .collect::<Vec<_>>()
-                                .join(" ");
+                            // 处理缓冲区中的完整消息
+                            loop {
+                                // 检查是否找到了消息头 (AA 55)
+                                if let Some(header_pos) = message_buffer.windows(2).position(|w| w == [0xAA, 0x55]) {
+                                    // 如果消息头不在开始位置，丢弃前面的数据
+                                    if header_pos > 0 {
+                                        println!("⚠️  [I/O Thread] Discarding {} bytes before message header", header_pos);
+                                        message_buffer.drain(0..header_pos);
+                                    }
 
-                            if let Some((can_id, can_data)) = parse_received_can_message(received_data) {
-                                println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
-                                info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+                                    // 现在消息头在开始位置，计算消息长度
+                                    // 协议格式：AA 55 [type] [frame_type] [frame_mode] [id:4] [data_len] [data:8] [reserved] [checksum]
+                                    // 最小长度：2(头) + 1(type) + 1(frame_type) + 1(frame_mode) + 4(id) + 1(data_len) + 1(reserved) + 1(checksum) = 12字节
+                                    if message_buffer.len() < 10 {
+                                        // 还没有足够的数据来读取数据长度字段
+                                        break;
+                                    }
 
-                                // 发送通用CAN消息事件（包含原始数据）
-                                let can_message = serde_json::json!({
-                                    "id": can_id,
-                                    "data": can_data,
-                                    "rawData": raw_hex.clone(),
-                                    "timestamp": timestamp,
-                                    "direction": "received",
-                                    "frameType": "standard",
-                                });
-                                let _ = app_handle.emit("can-message-received", can_message);
+                                    // 读取数据长度字段 (字节9)
+                                    let data_len = message_buffer[9] as usize;
 
-                                // 检查是否是雷达消息
-                                if can_id == "0x0521" || can_id == "0x0522" || can_id == "0x0523" || can_id == "0x0524" {
-                                    let distance = parse_distance_from_data(&can_data);
-                                    println!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
-                                    info!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
-                                    let radar_message = serde_json::json!({
-                                        "id": can_id,
-                                        "distance": distance,
-                                        "data": can_data,
-                                        "rawData": raw_hex.clone(),
-                                        "timestamp": timestamp,
-                                    });
-                                    let _ = app_handle.emit("radar-message", radar_message);
+                                    // 计算完整消息长度：10(头部) + data_len + 2(保留+校验)
+                                    let message_length = 10 + data_len + 2;
+                                    println!("📏 [I/O Thread] Data length: {}, Expected message length: {}", data_len, message_length);
+
+                                    // 检查是否有完整的消息
+                                    if message_buffer.len() >= message_length {
+                                        let complete_message = message_buffer.drain(0..message_length).collect::<Vec<_>>();
+
+                                        let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+
+                                        // 将原始数据转换为十六进制字符串
+                                        let raw_hex = complete_message
+                                            .iter()
+                                            .map(|b| format!("{:02X}", b))
+                                            .collect::<Vec<_>>()
+                                            .join(" ");
+
+                                        println!("✅ [I/O Thread] Complete message extracted ({} bytes): {}", complete_message.len(), raw_hex);
+
+                                        if let Some((can_id, can_data)) = parse_received_can_message(&complete_message) {
+                                            println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+                                            info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+
+                                            // 发送通用CAN消息事件（包含原始数据）
+                                            let can_message = serde_json::json!({
+                                                "id": can_id,
+                                                "data": can_data,
+                                                "rawData": raw_hex.clone(),
+                                                "timestamp": timestamp,
+                                                "direction": "received",
+                                                "frameType": "standard",
+                                            });
+                                            let _ = app_handle.emit("can-message-received", can_message);
+
+                                            // 检查是否是雷达消息
+                                            if can_id == "0x0521" || can_id == "0x0522" || can_id == "0x0523" || can_id == "0x0524" {
+                                                let distance = parse_distance_from_data(&can_data);
+                                                println!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
+                                                info!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
+                                                let radar_message = serde_json::json!({
+                                                    "id": can_id,
+                                                    "distance": distance,
+                                                    "data": can_data,
+                                                    "rawData": raw_hex.clone(),
+                                                    "timestamp": timestamp,
+                                                });
+                                                let _ = app_handle.emit("radar-message", radar_message);
+                                            }
+                                        } else {
+                                            // 即使解析失败，也发送原始数据事件
+                                            println!("⚠️  [I/O Thread] Failed to parse CAN message, sending raw data");
+                                            info!("⚠️  [I/O Thread] Failed to parse CAN message from raw data: {}", raw_hex);
+
+                                            // 发送原始数据事件
+                                            let can_message = serde_json::json!({
+                                                "id": "UNKNOWN",
+                                                "data": raw_hex.clone(),
+                                                "rawData": raw_hex,
+                                                "timestamp": timestamp,
+                                                "direction": "received",
+                                                "frameType": "unknown",
+                                            });
+                                            let _ = app_handle.emit("can-message-received", can_message);
+                                        }
+                                        // 继续处理缓冲区中的下一条消息
+                                        continue;
+                                    } else {
+                                        // 还没有收到完整的消息，等待更多数据
+                                        println!("⏳ [I/O Thread] Incomplete message: have {} bytes, need {} bytes", message_buffer.len(), message_length);
+                                        break;
+                                    }
+                                } else {
+                                    // 没有找到消息头，清空缓冲区
+                                    println!("⚠️  [I/O Thread] No message header found, clearing buffer");
+                                    message_buffer.clear();
+                                    break;
                                 }
-                            } else {
-                                // 即使解析失败，也发送原始数据事件
-                                println!("⚠️  [I/O Thread] Failed to parse CAN message, sending raw data");
-                                info!("⚠️  [I/O Thread] Failed to parse CAN message from raw data: {:02X?}", received_data);
-
-                                // 发送原始数据事件
-                                let can_message = serde_json::json!({
-                                    "id": "UNKNOWN",
-                                    "data": raw_hex.clone(),
-                                    "rawData": raw_hex,
-                                    "timestamp": timestamp,
-                                    "direction": "received",
-                                    "frameType": "unknown",
-                                });
-                                let _ = app_handle.emit("can-message-received", can_message);
                             }
                         }
                         Ok(_) => {
