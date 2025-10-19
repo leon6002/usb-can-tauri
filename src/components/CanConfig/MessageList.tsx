@@ -7,6 +7,15 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
+  React.useEffect(() => {
+    console.log("📋 [MessageList] Rendering with", messages.length, "messages");
+    messages.forEach((msg, idx) => {
+      console.log(
+        `  [${idx}] ID: ${msg.id}, Data: ${msg.data}, Timestamp: ${msg.timestamp}`
+      );
+    });
+  }, [messages]);
+
   return (
     <div className="flex-1 bg-white flex flex-col">
       {/* Messages Header */}
@@ -31,50 +40,76 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
           </div>
         ) : (
           <div className="space-y-2">
-            {messages.slice().reverse().map((message, index) => (
-              <div
-                key={messages.length - 1 - index}
-                className={`p-4 rounded-lg shadow-sm ${
-                  message.direction === "sent"
-                    ? "bg-blue-50 border-l-4 border-blue-500"
-                    : "bg-green-50 border-l-4 border-green-500"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      message.direction === "sent"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-green-100 text-green-700"
-                    }`}>
-                      {message.direction === "sent" ? "发送" : "接收"}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      message.frameType === "extended"
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}>
-                      {message.frameType === "extended" ? "扩展帧" : "标准帧"}
+            {messages
+              .slice()
+              .reverse()
+              .map((message, index) => (
+                <div
+                  key={`${message.timestamp}-${message.id}-${message.data}-${index}`}
+                  className={`p-3 rounded-lg shadow-sm border-l-4 transition-all ${
+                    message.direction === "sent"
+                      ? "bg-blue-50 border-blue-400 hover:shadow-md"
+                      : "bg-green-50 border-green-400 hover:shadow-md"
+                  }`}
+                >
+                  {/* Header: Direction, Frame Type, Timestamp */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          message.direction === "sent"
+                            ? "bg-blue-200 text-blue-800"
+                            : "bg-green-200 text-green-800"
+                        }`}
+                      >
+                        {message.direction === "sent" ? "📤 发送" : "📥 接收"}
+                      </span>
+                      {message.frameType !== "unknown" && (
+                        <span className="text-xs text-gray-500">
+                          {message.frameType === "extended"
+                            ? "扩展帧"
+                            : "标准帧"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400 font-mono">
+                      {message.timestamp}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-500 font-mono">
-                    {message.timestamp}
-                  </span>
-                </div>
-                <div className="font-mono text-sm">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <span className="text-gray-600 text-xs">ID:</span>
-                      <span className="ml-1 font-semibold">{message.id}</span>
+
+                  {/* ID and Data in one line */}
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500 font-semibold">
+                        ID:
+                      </span>
+                      <code className="text-sm text-gray-900 bg-white px-2 py-1 rounded border border-gray-200">
+                        {message.id}
+                      </code>
                     </div>
-                    <div className="flex-1">
-                      <span className="text-gray-600 text-xs">Data:</span>
-                      <span className="ml-1 font-semibold">{message.data}</span>
+                    <div className="flex items-center gap-1 flex-1">
+                      <span className="text-xs text-gray-500 font-semibold">
+                        Data:
+                      </span>
+                      <code className="text-xs text-gray-900 bg-white px-2 py-1 rounded border border-gray-200 flex-1 overflow-x-auto">
+                        {message.data}
+                      </code>
                     </div>
                   </div>
+
+                  {/* Raw Data */}
+                  {message.rawData && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 font-semibold">
+                        Raw:
+                      </span>
+                      <code className="text-xs text-gray-700 bg-yellow-50 px-2 py-1 rounded border border-yellow-300 flex-1 overflow-x-auto font-mono">
+                        {message.rawData}
+                      </code>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>

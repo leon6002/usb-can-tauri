@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
 use serialport::{SerialPort, available_ports};
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{State, Emitter};
 use anyhow::{Result, anyhow};
 use log::{info, error, warn};
 use csv::ReaderBuilder;
@@ -41,20 +41,31 @@ pub struct CsvLoopProgress {
     pub vehicle_control: Option<VehicleControl>,
 }
 
+// 发送通道消息类型
+#[derive(Debug, Clone)]
+pub struct SendMessage {
+    pub packet: Vec<u8>,
+}
+
 // Application state
 #[derive(Clone)]
 pub struct AppState {
-    serial_port: Arc<Mutex<Option<Box<dyn SerialPort>>>>,
+    // 发送通道的发送端 - 用于将数据发送到写入线程
+    tx_send: Arc<Mutex<Option<mpsc::Sender<SendMessage>>>>,
     is_connected: Arc<Mutex<bool>>,
     csv_loop_running: Arc<AtomicBool>,
+    receive_thread_running: Arc<AtomicBool>,
+    write_thread_running: Arc<AtomicBool>,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            serial_port: Arc::new(Mutex::new(None)),
+            tx_send: Arc::new(Mutex::new(None)),
             is_connected: Arc::new(Mutex::new(false)),
             csv_loop_running: Arc::new(AtomicBool::new(false)),
+            receive_thread_running: Arc::new(AtomicBool::new(false)),
+            write_thread_running: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -301,22 +312,232 @@ async fn get_available_ports() -> Result<Vec<String>, String> {
     }
 }
 
+// 解析接收到的CAN消息 - 固定20字节协议
+// 协议格式（20字节）:
+// 字节位置 | 字段 | 说明
+// 0 | 数据包报头 | 0xAA
+// 1 | 数据包报头 | 0x55
+// 2 | 类型 | 0x01
+// 3 | 框架类型 | 0x01
+// 4 | 框架模式 | 0x01
+// 5-8 | CAN ID | 4字节 (小端序)
+// 9 | 数据长度 | 0x08
+// 10-17 | CAN数据 | 8字节
+// 18 | 保留 | 0x00
+// 19 | 检查代码 | 校验和
+fn parse_received_can_message(data: &[u8]) -> Option<(String, String)> {
+    // 检查长度
+    if data.len() < 20 {
+        println!("❌ [Parse] Data too short: {} bytes (need 20)", data.len());
+        return None;
+    }
+
+    // 检查帧头
+    if data[0] != 0xAA || data[1] != 0x55 {
+        println!("❌ [Parse] Invalid frame header: {:02X} {:02X}", data[0], data[1]);
+        return None;
+    }
+
+    println!("🔍 [Parse] Fixed 20-byte protocol");
+    println!("🔍 [Parse] Type: 0x{:02X}, Frame Type: 0x{:02X}, Frame Mode: 0x{:02X}",
+             data[2], data[3], data[4]);
+
+    // 解析CAN ID (字节5-8，小端序)
+    let can_id = (data[5] as u32) |
+                 ((data[6] as u32) << 8) |
+                 ((data[7] as u32) << 16) |
+                 ((data[8] as u32) << 24);
+
+    println!("🔍 [Parse] CAN ID bytes: {:02X} {:02X} {:02X} {:02X} -> 0x{:08X}",
+             data[5], data[6], data[7], data[8], can_id);
+
+    // 数据长度 (字节9)
+    let data_len = data[9] as usize;
+    println!("🔍 [Parse] Data length: {}", data_len);
+
+    if data_len > 8 {
+        println!("❌ [Parse] Invalid data length: {} (max 8)", data_len);
+        return None;
+    }
+
+    // 提取CAN数据 (字节10-17)
+    let can_data = data[10..10 + data_len]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    println!("🔍 [Parse] CAN Data: {}", can_data);
+
+    // 验证校验和 (字节19)
+    let checksum_received = data[19];
+    let checksum_calculated: u8 = data[2..19].iter().map(|&b| b as u32).sum::<u32>() as u8;
+
+    println!("🔍 [Parse] Checksum - Received: 0x{:02X}, Calculated: 0x{:02X}",
+             checksum_received, checksum_calculated);
+
+    if checksum_received != checksum_calculated {
+        println!("⚠️  [Parse] Checksum mismatch!");
+        // 继续处理，不中断
+    }
+
+    let can_id_str = format!("0x{:08X}", can_id);
+    println!("✅ [Parse] Successfully parsed - ID: {}, Data: {}", can_id_str, can_data);
+    Some((can_id_str, can_data))
+}
+
+// 从CAN数据中解析距离值（取最后两个字节）
+fn parse_distance_from_data(data: &str) -> u16 {
+    let bytes: Vec<&str> = data.split_whitespace().collect();
+    if bytes.len() >= 2 {
+        let last_two = format!("{}{}", bytes[bytes.len() - 2], bytes[bytes.len() - 1]);
+        if let Ok(distance) = u16::from_str_radix(&last_two, 16) {
+            return distance;
+        }
+    }
+    0
+}
+
+// 启动I/O线程 - 独占拥有串口，处理读写
+fn start_io_thread(
+    mut serial_port: Box<dyn SerialPort>,
+    state: AppState,
+    rx_send: mpsc::Receiver<SendMessage>,
+    app_handle: tauri::AppHandle,
+) {
+    state.write_thread_running.store(true, Ordering::SeqCst);
+    state.receive_thread_running.store(true, Ordering::SeqCst);
+
+    thread::spawn(move || {
+        let mut buffer = vec![0u8; 1024];
+        println!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
+        info!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
+
+        while state.write_thread_running.load(Ordering::SeqCst) {
+            // 尝试接收写入请求（非阻塞）
+            match rx_send.try_recv() {
+                Ok(msg) => {
+                    info!("I/O thread: sending {} bytes", msg.packet.len());
+                    match serial_port.write_all(&msg.packet) {
+                        Ok(_) => {
+                            info!("I/O thread: packet sent successfully");
+                            if let Err(e) = serial_port.flush() {
+                                warn!("I/O thread: flush failed: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            error!("I/O thread: write failed: {}", e);
+                        }
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    // 没有写入请求，尝试读取
+                    match serial_port.read(&mut buffer) {
+                        Ok(n) if n > 0 => {
+                            let received_data = &buffer[..n];
+                            // 打印原始数据
+                            println!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
+                            info!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
+
+                            let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+
+                            // 将原始数据转换为十六进制字符串
+                            let raw_hex = received_data
+                                .iter()
+                                .map(|b| format!("{:02X}", b))
+                                .collect::<Vec<_>>()
+                                .join(" ");
+
+                            if let Some((can_id, can_data)) = parse_received_can_message(received_data) {
+                                println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+                                info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+
+                                // 发送通用CAN消息事件（包含原始数据）
+                                let can_message = serde_json::json!({
+                                    "id": can_id,
+                                    "data": can_data,
+                                    "rawData": raw_hex.clone(),
+                                    "timestamp": timestamp,
+                                    "direction": "received",
+                                    "frameType": "standard",
+                                });
+                                let _ = app_handle.emit("can-message-received", can_message);
+
+                                // 检查是否是雷达消息
+                                if can_id == "0x0521" || can_id == "0x0522" || can_id == "0x0523" || can_id == "0x0524" {
+                                    let distance = parse_distance_from_data(&can_data);
+                                    println!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
+                                    info!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
+                                    let radar_message = serde_json::json!({
+                                        "id": can_id,
+                                        "distance": distance,
+                                        "data": can_data,
+                                        "rawData": raw_hex.clone(),
+                                        "timestamp": timestamp,
+                                    });
+                                    let _ = app_handle.emit("radar-message", radar_message);
+                                }
+                            } else {
+                                // 即使解析失败，也发送原始数据事件
+                                println!("⚠️  [I/O Thread] Failed to parse CAN message, sending raw data");
+                                info!("⚠️  [I/O Thread] Failed to parse CAN message from raw data: {:02X?}", received_data);
+
+                                // 发送原始数据事件
+                                let can_message = serde_json::json!({
+                                    "id": "UNKNOWN",
+                                    "data": raw_hex.clone(),
+                                    "rawData": raw_hex,
+                                    "timestamp": timestamp,
+                                    "direction": "received",
+                                    "frameType": "unknown",
+                                });
+                                let _ = app_handle.emit("can-message-received", can_message);
+                            }
+                        }
+                        Ok(_) => {
+                            // 读取0字节，短暂休眠
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                            // 超时是正常的，继续循环
+                            continue;
+                        }
+                        Err(e) => {
+                            error!("I/O thread: read error: {}", e);
+                            println!("❌ [I/O Thread] Read error: {}", e);
+                            thread::sleep(Duration::from_millis(10));
+                        }
+                    }
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    info!("I/O thread: channel disconnected, exiting");
+                    break;
+                }
+            }
+        }
+
+        state.receive_thread_running.store(false, Ordering::SeqCst);
+        info!("I/O thread stopped");
+    });
+}
+
+
+
 async fn send_can_config(state: &State<'_, AppState>, config: &SerialConfig) -> Result<()> {
     info!("Sending CAN config");
     let packet = create_can_config_packet(config);
 
-    let mut serial_port = state.serial_port.lock().unwrap();
-    if let Some(ref mut port) = *serial_port {
-        info!("Writing config packet to serial port");
-        port.write_all(&packet)?;
-
-        match port.flush() {
-            Ok(_) => info!("Config packet sent and flushed successfully"),
-            Err(e) => warn!("Config sent but flush failed: {}", e),
-        }
+    // 通过通道发送配置包
+    let tx_send = state.tx_send.lock().unwrap();
+    if let Some(ref sender) = *tx_send {
+        sender.send(SendMessage { packet }).map_err(|e| {
+            error!("Failed to send config packet through channel: {}", e);
+            anyhow!("Failed to send config packet")
+        })?;
+        info!("Config packet sent through channel");
     } else {
-        error!("Serial port not available");
-        return Err(anyhow!("Serial port not available"));
+        error!("Send channel not available");
+        return Err(anyhow!("Send channel not available"));
     }
 
     Ok(())
@@ -326,6 +547,7 @@ async fn send_can_config(state: &State<'_, AppState>, config: &SerialConfig) -> 
 async fn connect_serial(
     config: SerialConfig,
     state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     info!("Connecting to serial port: {}", config.port);
 
@@ -338,18 +560,29 @@ async fn connect_serial(
     }
 
     // Open serial port
+    println!("🔌 [Connect] Opening serial port: {} at {} baud", config.port, config.baud_rate);
     let port = match serialport::new(&config.port, config.baud_rate)
         .timeout(std::time::Duration::from_millis(1000))
         .open()
     {
-        Ok(port) => port,
-        Err(e) => return Err(format!("Failed to open port: {}", e)),
+        Ok(port) => {
+            println!("✅ [Connect] Serial port opened successfully");
+            port
+        }
+        Err(e) => {
+            println!("❌ [Connect] Failed to open port: {}", e);
+            return Err(format!("Failed to open port: {}", e));
+        }
     };
 
-    // Save port to state
+    // 创建发送通道
+    println!("📡 [Connect] Creating send channel");
+    let (tx_send, rx_send) = mpsc::channel();
+
+    // 保存发送端到state
     {
-        let mut serial_port = state.serial_port.lock().unwrap();
-        *serial_port = Some(port);
+        let mut tx_send_guard = state.tx_send.lock().unwrap();
+        *tx_send_guard = Some(tx_send);
     }
 
     // Set connection state
@@ -358,11 +591,19 @@ async fn connect_serial(
         *is_connected = true;
     }
 
-    // Send CAN config
+    // Send CAN config through channel
+    println!("⚙️  [Connect] Sending CAN configuration");
     if let Err(e) = send_can_config(&state, &config).await {
         warn!("Failed to send CAN configuration: {}", e);
+        println!("⚠️  [Connect] Failed to send CAN configuration: {}", e);
     }
 
+    // Start single I/O thread that handles both read and write
+    println!("🧵 [Connect] Starting I/O thread");
+    let state_clone = state.inner().clone();
+    start_io_thread(port, state_clone, rx_send, app_handle);
+
+    println!("✅ [Connect] Serial port connected successfully - Ready to receive messages!");
     info!("Serial port connected successfully");
     Ok("Connected successfully".to_string())
 }
@@ -371,15 +612,25 @@ async fn connect_serial(
 async fn disconnect_serial(state: State<'_, AppState>) -> Result<String, String> {
     info!("Disconnecting serial port");
 
+    // Stop receive thread
+    state.receive_thread_running.store(false, Ordering::SeqCst);
+
+    // Stop write thread
+    state.write_thread_running.store(false, Ordering::SeqCst);
+
+    // Clear send channel
     {
-        let mut serial_port = state.serial_port.lock().unwrap();
-        *serial_port = None;
+        let mut tx_send = state.tx_send.lock().unwrap();
+        *tx_send = None;
     }
 
     {
         let mut is_connected = state.is_connected.lock().unwrap();
         *is_connected = false;
     }
+
+    // 等待线程停止
+    thread::sleep(Duration::from_millis(100));
 
     info!("Serial port disconnected");
     Ok("Disconnected".to_string())
@@ -434,44 +685,25 @@ async fn send_can_message(
     };
 
 
-    // Send data
-    info!("Preparing to send packet to serial port...");
+    // Send data through channel
+    info!("Preparing to send packet through channel...");
+    info!("Packet content: {:02X?}", packet);
 
-    // 1. 获取串口锁并尝试解引用
-    let mut serial_port_guard = match state.serial_port.lock() {
-        Ok(guard) => guard,
-        Err(e) => {
-            error!("Failed to lock serial port mutex: {}", e);
-            return Err("Internal error: Failed to access serial port state.".to_string());
-        }
-    };
-
-    // 2. 检查串口是否可用，并尝试发送
-    if let Some(ref mut port) = *serial_port_guard {
-        info!("Serial port available, sending {} bytes", packet.len());
-        info!("Packet content: {:02X?}", packet);
-
-        // Write data
-        match port.write_all(&packet) {
-                Ok(_) => {
-                    info!("Packet written to serial port successfully");
-
-                    // Try to flush buffer
-                    if let Err(e) = port.flush() {
-                        warn!("Serial port buffer flush failed: {}", e);
-                    }
-
-                    info!("CAN message send completed!");
-                    Ok("Message sent successfully".to_string())
-                }
-                Err(e) => {
-                    error!("Serial port write failed: {}", e);
-                    Err(format!("Failed to send message: {}", e))
-                }
+    let tx_send = state.tx_send.lock().unwrap();
+    if let Some(ref sender) = *tx_send {
+        match sender.send(SendMessage { packet }) {
+            Ok(_) => {
+                info!("CAN message sent to write thread successfully!");
+                Ok("Message sent successfully".to_string())
             }
+            Err(e) => {
+                error!("Failed to send message through channel: {}", e);
+                Err(format!("Failed to send message: {}", e))
+            }
+        }
     } else {
-        error!("Serial port not available");
-        Err("Serial port not available".to_string())
+        error!("Send channel not available");
+        Err("Send channel not available".to_string())
     }
 
 
@@ -544,9 +776,11 @@ async fn start_csv_loop(
 
     // Clone state for the loop thread
     let state_clone = Arc::new(AppState {
-        serial_port: state.serial_port.clone(),
+        tx_send: state.tx_send.clone(),
         is_connected: state.is_connected.clone(),
         csv_loop_running: state.csv_loop_running.clone(),
+        receive_thread_running: state.receive_thread_running.clone(),
+        write_thread_running: state.write_thread_running.clone(),
     });
     let csv_content_clone = csv_content.clone();
     let config_clone = config.clone();
@@ -647,14 +881,13 @@ fn run_csv_loop(
         // Create and send packet
         let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
 
-        // Send packet
+        // Send packet through channel
         {
-            let mut serial_port = state.serial_port.lock().unwrap();
-            if let Some(ref mut port) = *serial_port {
-                if let Err(e) = port.write_all(&packet) {
-                    error!("Failed to send packet: {}", e);
+            let tx_send = state.tx_send.lock().unwrap();
+            if let Some(ref sender) = *tx_send {
+                if let Err(e) = sender.send(SendMessage { packet }) {
+                    error!("Failed to send packet through channel: {}", e);
                 } else {
-                    let _ = port.flush();
                     info!("Sent CAN message - ID: {}, Data: {}", can_id, can_data);
                 }
             }
@@ -774,9 +1007,11 @@ async fn start_csv_loop_with_preloaded_data(
 
     // Create Arc wrapper for the state
     let state_arc = Arc::new(AppState {
-        serial_port: state.serial_port.clone(),
+        tx_send: state.tx_send.clone(),
         is_connected: state.is_connected.clone(),
         csv_loop_running: state.csv_loop_running.clone(),
+        receive_thread_running: state.receive_thread_running.clone(),
+        write_thread_running: state.write_thread_running.clone(),
     });
 
     // Spawn thread for CSV loop
@@ -822,14 +1057,13 @@ fn run_csv_loop_with_preloaded_data(
         // Create and send packet
         let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
 
-        // Send packet
+        // Send packet through channel
         {
-            let mut serial_port = state.serial_port.lock().unwrap();
-            if let Some(ref mut port) = *serial_port {
-                if let Err(e) = port.write_all(&packet) {
-                    error!("Failed to send packet: {}", e);
+            let tx_send = state.tx_send.lock().unwrap();
+            if let Some(ref sender) = *tx_send {
+                if let Err(e) = sender.send(SendMessage { packet }) {
+                    error!("Failed to send packet through channel: {}", e);
                 } else {
-                    let _ = port.flush();
                     info!("Sent CAN message - ID: {}, Data: {}", can_id, can_data);
                 }
             }

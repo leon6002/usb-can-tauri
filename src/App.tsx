@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 // 测试Three.js导入
 import "./test-threejs";
 
@@ -12,6 +12,7 @@ import { useCanMessages } from "./hooks/useCanMessages";
 import { useCarControl } from "./hooks/useCarControl";
 import { use3DScene } from "./hooks/use3DScene";
 import { useDebugLogs } from "./hooks/useDebugLogs";
+import { useRadarDistance } from "./hooks/useRadarDistance";
 
 // Components
 import { Sidebar } from "./components/Layout/Sidebar";
@@ -52,6 +53,8 @@ function App() {
   } = useCarControl();
   const { logs, isDebugVisible, addDebugLog, clearLogs, toggleDebugPanel } =
     useDebugLogs();
+  const { radarDistances, isListening, startListening, stopListening } =
+    useRadarDistance();
 
   // 发送车辆控制命令
   const sendCarCommand = async (commandId: string) => {
@@ -297,6 +300,30 @@ function App() {
     sendCarCommand
   );
 
+  // 启动/停止雷达消息监听
+  const unlistenRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (isConnected && !isListening) {
+      // 连接后启动监听
+      startListening().then((unlisten) => {
+        unlistenRef.current = unlisten || null;
+      });
+    } else if (!isConnected && isListening) {
+      // 断开连接后停止监听
+      stopListening(unlistenRef.current || undefined);
+      unlistenRef.current = null;
+    }
+
+    return () => {
+      // 组件卸载时清理
+      if (unlistenRef.current) {
+        stopListening(unlistenRef.current);
+        unlistenRef.current = null;
+      }
+    };
+  }, [isConnected, isListening, startListening, stopListening]);
+
   return (
     <div className="h-screen bg-gray-100 flex overflow-hidden">
       {/* Left Sidebar */}
@@ -321,6 +348,7 @@ function App() {
             isDebugVisible={isDebugVisible}
             onToggleDebug={toggleDebugPanel}
             onClearDebugLogs={clearLogs}
+            radarDistances={radarDistances}
           />
         )}
 

@@ -7,7 +7,6 @@ import {
   CircleArrowDown,
 } from "lucide-react";
 import { CarStates } from "../../types";
-import { SteeringWheelUI } from "./SteeringWheelUI";
 
 interface CarControlPanelProps {
   isConnected: boolean;
@@ -20,7 +19,6 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
   isConnected,
   carStates,
   onSendCommand,
-  onSteeringChange,
 }) => {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -34,7 +32,7 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
             )
           }
           disabled={!isConnected}
-          className={`w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg ${
+          className={`w-full px-5 py-3 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg ${
             carStates.isDriving
               ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-200 disabled:from-gray-300 disabled:to-gray-400"
               : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-200 disabled:from-gray-300 disabled:to-gray-400"
@@ -53,13 +51,13 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
           )}
         </button>
 
-        {/* 方向盘UI */}
-        <div className="mt-4 flex justify-center">
+        {/* todo 方向盘UI - 暂时隐藏 */}
+        {/* <div className="mt-4 flex justify-center">
           <SteeringWheelUI
             onSteeringChange={onSteeringChange}
             externalSteeringAngle={carStates.currentSteeringAngle}
           />
-        </div>
+        </div> */}
       </div>
 
       {/* Suspension Controls */}

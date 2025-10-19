@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { CanMessage, SerialConfig } from "../types";
 
 export const useCanMessages = () => {
   const [messages, setMessages] = useState<CanMessage[]>([]);
   const [sendId, setSendId] = useState("123");
   const [sendData, setSendData] = useState("01 02 03 04");
+  const unlistenRef = useRef<(() => void) | null>(null);
 
   // 发送CAN消息
   const handleSendMessage = async (config: SerialConfig) => {
@@ -69,6 +71,62 @@ export const useCanMessages = () => {
   const clearMessages = () => {
     setMessages([]);
   };
+
+  // 监听接收到的CAN消息
+  useEffect(() => {
+    let isMounted = true;
+    const setupListener = async () => {
+      try {
+        // 如果已经有listener，先清理
+        if (unlistenRef.current) {
+          unlistenRef.current();
+          unlistenRef.current = null;
+        }
+
+        const unlisten = await listen<any>("can-message-received", (event) => {
+          if (!isMounted) return;
+
+          console.log("📨 [Frontend] Received event:", event.payload);
+          const receivedMessage: CanMessage = {
+            id: event.payload.id,
+            data: event.payload.data,
+            rawData: event.payload.rawData,
+            timestamp: event.payload.timestamp,
+            direction: "received",
+            frameType: event.payload.frameType || "standard",
+          };
+          console.log("📨 [Frontend] Adding message to list:", receivedMessage);
+          setMessages((prev) => {
+            console.log(
+              "📨 [Frontend] Previous messages count:",
+              prev.length,
+              "New total:",
+              prev.length + 1
+            );
+            return [...prev, receivedMessage];
+          });
+        });
+
+        if (isMounted) {
+          unlistenRef.current = unlisten;
+        } else {
+          unlisten();
+        }
+      } catch (error) {
+        console.error("Failed to setup CAN message listener:", error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      isMounted = false;
+      if (unlistenRef.current) {
+        unlistenRef.current();
+        unlistenRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     messages,
