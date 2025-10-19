@@ -411,16 +411,20 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
                   </span>
                 </div>
 
-                {/* 解析结果预览 */}
+
+              </div>  
+            </div>
+            <div className="grid grid-cols-1">
+                              {/* 解析结果预览 */}
                 {parsedVehicleControl && (
-                  <div className="mt-2 px-2 py-2 text-xs bg-green-50 border border-green-200 rounded text-green-700 space-y-1">
-                    <div className="font-semibold">✓ 解析成功</div>
+                  <div className="mt-2 px-2 py-2 text-xs bg-green-50 border border-green-200 rounded text-green-700 space-y-2">
+                    <div className="font-semibold">✓ CAN Data解析成功</div>
                     <div>
                       速度:{" "}
                       <span className="font-mono font-bold">
-                        {parsedVehicleControl.linear_velocity_mms}
+                        {parsedVehicleControl.linear_velocity_mms / 1000 * 3.6}
                       </span>{" "}
-                      mm/s
+                      km/h
                     </div>
                     <div>
                       转向角:{" "}
@@ -438,7 +442,6 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
             </div>
           </div>
         </div>
