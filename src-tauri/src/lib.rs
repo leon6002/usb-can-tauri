@@ -443,12 +443,16 @@ fn start_io_thread(
 
                             // 将接收到的数据添加到消息缓冲区
                             message_buffer.extend_from_slice(received_data);
-                            println!("📦 [I/O Thread] Message buffer size: {} bytes", message_buffer.len());
+                            println!("📦 [I/O Thread] Message buffer size: {} bytes, content: {:02X?}", message_buffer.len(), message_buffer);
 
                             // 处理缓冲区中的完整消息
                             loop {
+                                println!("🔄 [I/O Thread] Processing buffer, size: {}", message_buffer.len());
+
                                 // 检查是否找到了消息头 (AA 55)
                                 if let Some(header_pos) = message_buffer.windows(2).position(|w| w == [0xAA, 0x55]) {
+                                    println!("🎯 [I/O Thread] Found message header at position {}", header_pos);
+
                                     // 如果消息头不在开始位置，丢弃前面的数据
                                     if header_pos > 0 {
                                         println!("⚠️  [I/O Thread] Discarding {} bytes before message header", header_pos);
@@ -456,15 +460,22 @@ fn start_io_thread(
                                     }
 
                                     // 现在消息头在开始位置，计算消息长度
-                                    // 协议格式：AA 55 [type] [frame_type] [frame_mode] [id:4] [data_len] [data:8] [reserved] [checksum]
-                                    // 最小长度：2(头) + 1(type) + 1(frame_type) + 1(frame_mode) + 4(id) + 1(data_len) + 1(reserved) + 1(checksum) = 12字节
                                     if message_buffer.len() < 10 {
                                         // 还没有足够的数据来读取数据长度字段
+                                        println!("⏳ [I/O Thread] Not enough data to read length field: have {} bytes, need 10", message_buffer.len());
                                         break;
                                     }
 
                                     // 读取数据长度字段 (字节9)
                                     let data_len = message_buffer[9] as usize;
+                                    println!("📏 [I/O Thread] Byte[9] (data_len): 0x{:02X} = {}", message_buffer[9], data_len);
+
+                                    // 验证数据长度是否合理
+                                    if data_len > 8 {
+                                        println!("❌ [I/O Thread] Invalid data length: {} (max 8), skipping this byte", data_len);
+                                        message_buffer.remove(0);
+                                        continue;
+                                    }
 
                                     // 计算完整消息长度：10(头部) + data_len + 2(保留+校验)
                                     let message_length = 10 + data_len + 2;
@@ -531,6 +542,7 @@ fn start_io_thread(
                                             let _ = app_handle.emit("can-message-received", can_message);
                                         }
                                         // 继续处理缓冲区中的下一条消息
+                                        println!("🔄 [I/O Thread] Continuing to process buffer, remaining: {} bytes", message_buffer.len());
                                         continue;
                                     } else {
                                         // 还没有收到完整的消息，等待更多数据
@@ -538,10 +550,27 @@ fn start_io_thread(
                                         break;
                                     }
                                 } else {
-                                    // 没有找到消息头，清空缓冲区
-                                    println!("⚠️  [I/O Thread] No message header found, clearing buffer");
-                                    message_buffer.clear();
-                                    break;
+                                    // 没有找到完整的消息头 (AA 55)
+                                    // 检查缓冲区是否至少有2个字节
+                                    if message_buffer.len() < 2 {
+                                        // 缓冲区太小，等待更多数据
+                                        println!("⏳ [I/O Thread] Buffer too small to search for header: {} bytes", message_buffer.len());
+                                        break;
+                                    }
+
+                                    // 检查第一个字节是否是 AA
+                                    if message_buffer[0] == 0xAA {
+                                        // 第一个字节是 AA，但第二个字节不是 55
+                                        // 这可能是一个错误的 AA，丢弃它
+                                        println!("⚠️  [I/O Thread] Found 0xAA at position 0, but next byte is 0x{:02X} (not 0x55), discarding", message_buffer[1]);
+                                        message_buffer.remove(0);
+                                        continue;
+                                    } else {
+                                        // 第一个字节不是 AA，丢弃它
+                                        println!("⚠️  [I/O Thread] First byte is 0x{:02X} (not 0xAA), discarding", message_buffer[0]);
+                                        message_buffer.remove(0);
+                                        continue;
+                                    }
                                 }
                             }
                         }
