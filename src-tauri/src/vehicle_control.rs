@@ -7,6 +7,10 @@ pub struct VehicleControl {
     pub linear_velocity_mms: i16,
     /// 转向角度，单位 rad (Signed Int16, 0.001rad/count)
     pub steering_angle_rad: f32,
+    /// 档位 (0=disable, 1=P, 2=R, 3=N, 4=D)
+    pub gear: u8,
+    /// 档位名称 (disable/P/R/N/D)
+    pub gear_name: String,
 }
 
 /// 解析 8 字节的十六进制数据，转换为车速和转向角。
@@ -29,6 +33,17 @@ pub fn parse_control_data_4byte(data: &[u8]) -> Result<VehicleControl, &'static 
     if data.len() < 8 {
         return Err("输入数据长度必须至少是 8 字节");
     }
+
+    // 0. 解析档位 (data[0]的低4位)
+    let gear = data[0] & 0x0F;
+    let gear_name = match gear {
+        0x00 => "disable".to_string(),
+        0x01 => "P".to_string(),
+        0x02 => "R".to_string(),
+        0x03 => "N".to_string(),
+        0x04 => "D".to_string(),
+        _ => "Unknown".to_string(),
+    };
 
     // 1. 解析速度 (data[0-2], 小端序)
     // 取前3个字节，转换为小端序的u32
@@ -55,6 +70,8 @@ pub fn parse_control_data_4byte(data: &[u8]) -> Result<VehicleControl, &'static 
     Ok(VehicleControl {
         linear_velocity_mms,
         steering_angle_rad,
+        gear,
+        gear_name,
     })
 }
 

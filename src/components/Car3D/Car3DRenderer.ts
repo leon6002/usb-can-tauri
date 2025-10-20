@@ -419,6 +419,14 @@ export class Car3DRenderer {
   }
 
   /**
+   * 更新轮子旋转速度（用于动态调整）
+   * @param speed 轮子旋转速度 (rad/s)
+   */
+  public updateWheelRotationSpeed(speed: number): void {
+    this.animationController.wheelRotation.speed = Math.abs(speed);
+  }
+
+  /**
    * 开始道路移动
    */
   public startRoadMovement(speed: number = 2): void {
@@ -432,6 +440,14 @@ export class Car3DRenderer {
     this.animationController.stopRoadMovement();
     // 重置地面纹理偏移
     this.resetVehicleDynamics();
+  }
+
+  /**
+   * 更新道路移动速度（用于动态调整）
+   * @param speed 道路移动速度
+   */
+  public updateRoadMovementSpeed(speed: number): void {
+    this.animationController.roadMovement.speed = Math.abs(speed);
   }
 
   /**

@@ -105,21 +105,38 @@ function App() {
         );
 
         // 定义进度更新回调
-        const onProgressUpdate = (speed: number, steeringAngle: number) => {
+        const onProgressUpdate = (speed: number, steeringAngle: number, gear?: string) => {
           // steeringAngle 已经是轮胎转向角（从新的8字节数据格式解析），单位是弧度
           // 不需要再进行转向比转换
 
           // todo 计算方向盘转向角用于显示（方向盘转向角 = 轮胎转向角 * 转向比）
           // const steeringWheelAngle = steeringAngle * STEERING_RATIO;
 
-          // 更新状态面板显示方向盘转向角
-          updateVehicleControl(speed, steeringAngle);
+          // 更新状态面板显示方向盘转向角和档位
+          updateVehicleControl(speed, steeringAngle, gear);
 
           // 同时更新3D场景中的车身旋转（基于自行车模型）
           // 使用轮胎转向角来计算车身旋转
           const renderer = car3DRendererRef.current;
           if (renderer) {
             renderer.updateSteeringAngle(steeringAngle, speed);
+
+            // 根据速度动态更新轮子转速和道路移动速度
+            // speed 单位是 mm/s，需要转换为合适的动画速度
+            // 假设轮子半径约为 0.3m (300mm)，周长约为 1.88m (1880mm)
+            // 轮子转速 (rad/s) = 速度 (mm/s) / 轮子半径 (mm)
+            const wheelRadius = 300; // mm
+            const wheelRotationSpeed = Math.abs(speed) / wheelRadius;
+
+            // 道路移动速度与轮子转速成正比
+            // 调整系数以获得合适的视觉效果
+            const roadMovementSpeed = wheelRotationSpeed * 0.05;
+
+            // 更新轮子旋转速度
+            renderer.updateWheelRotationSpeed(wheelRotationSpeed);
+
+            // 更新道路移动速度
+            renderer.updateRoadMovementSpeed(roadMovementSpeed);
           }
         };
 

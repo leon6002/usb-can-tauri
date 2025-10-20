@@ -134,12 +134,13 @@ export const useCarControl = () => {
     currentSteeringAngle: 0,
   });
 
-  // 更新实时 CAN 数据（速度和转向角）
-  const updateVehicleControl = (speed: number, steeringAngle: number) => {
+  // 更新实时 CAN 数据（速度、转向角和档位）
+  const updateVehicleControl = (speed: number, steeringAngle: number, gear?: string) => {
     setCarStates((prev) => ({
       ...prev,
       currentSpeed: speed,
       currentSteeringAngle: steeringAngle,
+      ...(gear && { gear }),
     }));
   };
 
@@ -222,7 +223,7 @@ export const useCarControl = () => {
     csvStartRowIndex: number,
     config: any,
     onComplete?: () => void,
-    onProgressUpdate?: (speed: number, steeringAngle: number) => void
+    onProgressUpdate?: (speed: number, steeringAngle: number, gear?: string) => void
   ) => {
     try {
       console.log("🚀 startCsvLoop called with:", {
@@ -274,7 +275,8 @@ export const useCarControl = () => {
             if (data.vehicle_control) {
               onProgressUpdate(
                 data.vehicle_control.linear_velocity_mms,
-                data.vehicle_control.steering_angle_rad
+                data.vehicle_control.steering_angle_rad,
+                data.vehicle_control.gear_name
               );
             }
             currentIndex++;
