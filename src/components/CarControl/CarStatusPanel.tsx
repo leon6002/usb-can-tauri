@@ -45,7 +45,9 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
         {/* Gear - Highlighted */}
         <div className="bg-orange-50 p-2 rounded border border-orange-200">
           <div className="text-orange-600 text-xs font-medium mb-1">档位</div>
-          <div className="text-base font-bold text-orange-900">{gear || "N/A"}</div>
+          <div className="text-base font-bold text-orange-900">
+            {gear || "P"}
+          </div>
         </div>
 
         {/* Real-time Speed - Highlighted */}
