@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Toaster } from "sonner";
 // 测试Three.js导入
 import "./test-threejs";
 
@@ -105,7 +106,11 @@ function App() {
         );
 
         // 定义进度更新回调
-        const onProgressUpdate = (speed: number, steeringAngle: number, gear?: string) => {
+        const onProgressUpdate = (
+          speed: number,
+          steeringAngle: number,
+          gear?: string
+        ) => {
           // steeringAngle 已经是轮胎转向角（从新的8字节数据格式解析），单位是弧度
           // 不需要再进行转向比转换
 
@@ -353,6 +358,7 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-100 flex overflow-hidden">
+      <Toaster position="top-right" theme="light" richColors />
       {/* Left Sidebar */}
       <Sidebar
         activeTab={activeTab}
