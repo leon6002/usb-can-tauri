@@ -12,7 +12,7 @@ export const useSerial = () => {
     frameType: "extended",
     protocolLength: "fixed",
     canMode: "normal",
-    sendIntervalMs: 20,
+    sendIntervalMs: 10,
     canIdColumnIndex: 4,
     canDataColumnIndex: 8,
     csvStartRowIndex: 1,

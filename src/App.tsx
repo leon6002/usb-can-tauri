@@ -4,7 +4,7 @@ import "./test-threejs";
 
 // Types
 import { ActiveTab } from "./types";
-import { calculateWheelSteeringAngle } from "./types/vehicleControl";
+import { STEERING_RATIO } from "./types/vehicleControl";
 
 // Hooks
 import { useSerial } from "./hooks/useSerial";
@@ -106,8 +106,11 @@ function App() {
 
         // 定义进度更新回调
         const onProgressUpdate = (speed: number, steeringAngle: number) => {
-          // steeringAngle 是方向盘转向角，需要转换为轮胎转向角
-          const wheelSteeringAngle = calculateWheelSteeringAngle(steeringAngle);
+          // steeringAngle 已经是轮胎转向角（从新的8字节数据格式解析），单位是弧度
+          // 不需要再进行转向比转换
+
+          // todo 计算方向盘转向角用于显示（方向盘转向角 = 轮胎转向角 * 转向比）
+          // const steeringWheelAngle = steeringAngle * STEERING_RATIO;
 
           // 更新状态面板显示方向盘转向角
           updateVehicleControl(speed, steeringAngle);
@@ -116,7 +119,7 @@ function App() {
           // 使用轮胎转向角来计算车身旋转
           const renderer = car3DRendererRef.current;
           if (renderer) {
-            renderer.updateSteeringAngle(wheelSteeringAngle, speed);
+            renderer.updateSteeringAngle(steeringAngle, speed);
           }
         };
 
