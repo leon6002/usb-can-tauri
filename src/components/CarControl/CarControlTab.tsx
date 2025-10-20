@@ -63,7 +63,12 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
         {/* Right Panel - Controls */}
         <div className="w-80 bg-white flex flex-col overflow-y-auto">
           {/* Status Panel */}
-          <CarStatusPanel carStates={carStates} scene3DStatus={scene3DStatus} />
+          <CarStatusPanel
+            carStates={carStates}
+            scene3DStatus={scene3DStatus}
+            gear={carStates.gear}
+            steeringAngleDegrees={carStates.steeringAngleDegrees}
+          />
 
           {/* Radar Distance Panel */}
           <RadarDistancePanel radarDistances={radarDistances} />

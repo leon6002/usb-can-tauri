@@ -255,23 +255,38 @@ fn create_can_send_packet_fixed(id: &str, data: &str) -> Result<Vec<u8>> {
     let id_hex_part = id.strip_prefix("0x")
                          .or_else(|| id.strip_prefix("0X"))
                          .unwrap_or(id); // 如果没有前缀，则使用原始字符串
-    // 2. 判断剩余部分是否为空，如果为空，则默认设置为十六进制的 0x200 (即十进制的 512)
+    // 2. 判断剩余部分是否为空，如果为空，则默认设置为十六进制的 0x18C4D2D0
     let can_id = if id_hex_part.is_empty() {
         // 如果输入字符串是 "0x" 或 "0X"，则 id_hex_part 为空。
-        // 十六进制的 200 (u32)
-        0x200 
+        0x18C4D2D0
     } else {
         // 3. 否则，进行正常的十六进制解析
         u32::from_str_radix(id_hex_part, 16)
             .map_err(|_| anyhow!("Invalid CAN ID format: \"{}\"", id))?
     };
 
+    info!("Input CAN ID: 0x{:08X}", can_id);
+
+    // 自动检测帧类型：如果 ID > 0x7FF，则使用扩展帧；否则使用标准帧
+    let is_extended = can_id > 0x7FF;
+    info!("CAN ID 0x{:08X} -> {} frame", can_id, if is_extended { "Extended" } else { "Standard" });
+
     let mut packet = vec![0xAA, 0x55, 0x01, 0x01, 0x01]; // Header
 
-    // Extended frame: 4-byte ID, little-endian
-    let id_bytes = can_id.to_le_bytes();
+    // 根据帧类型选择 ID 字节数
+    let id_bytes = if is_extended {
+        // Extended frame: 4-byte ID, little-endian
+        can_id.to_le_bytes().to_vec()
+    } else {
+        // Standard frame: 2-byte ID, little-endian
+        let id_u16 = (can_id & 0x7FF) as u16;
+        info!("Standard frame: masking ID to 11 bits: 0x{:08X} -> 0x{:04X}", can_id, id_u16);
+        id_u16.to_le_bytes().to_vec()
+    };
+
     packet.extend_from_slice(&id_bytes);
-    info!("Extended frame ID bytes (little-endian): {:02X?}", id_bytes);
+    info!("CAN ID bytes (little-endian): {:02X?}", id_bytes);
+    info!("Packet so far: {:02X?}", packet);
     
 
     // Data length，fixed 8 bytes
@@ -398,6 +413,64 @@ fn parse_distance_from_data(data: &str) -> u16 {
     0
 }
 
+// 解析新协议的8字节数据 (auto_spd_ctrl_cmd)
+// 根据协议文档表 4-3：
+// 字节0低4位：目标档位 (00: disable, 01: P, 02: R, 03: N, 04: D)
+// 字节0高4位 + 字节1：目标车体速度 (16位, Unsigned, 精度0.001 m/s)
+// 字节2-3：目标车体转向角 (16位, signed, 精度0.01°)
+fn parse_vehicle_status_8byte(data: &str) -> Option<(String, f32)> {
+    let bytes: Vec<&str> = data.split_whitespace().collect();
+    if bytes.len() < 4 {
+        println!("⚠️  [Parse] Not enough bytes for vehicle status: {}", bytes.len());
+        return None;
+    }
+
+    // 解析字节
+    let byte0 = u8::from_str_radix(bytes[0], 16).ok()?;
+    let byte1 = u8::from_str_radix(bytes[1], 16).ok()?;
+    let byte2 = u8::from_str_radix(bytes[2], 16).ok()?;
+    let byte3 = u8::from_str_radix(bytes[3], 16).ok()?;
+
+    // 解析档位 (字节0的低4位)
+    let gear_value = byte0 & 0x0F;
+    let gear_name = match gear_value {
+        0x00 => "disable",
+        0x01 => "P",
+        0x02 => "R",
+        0x03 => "N",
+        0x04 => "D",
+        _ => "Unknown",
+    };
+
+    // 解析速度 (字节0的高4位 + 字节1，共16位，精度0.001 m/s)
+    // 根据CAN协议，起始位4，长度16位
+    // 这意味着从字节0的第4位开始，跨越16位
+    // 字节0: [bit7-4: 速度低4位][bit3-0: 档位]
+    // 字节1: [bit7-0: 速度高8位]
+    let speed_low_4bits = (byte0 >> 4) as u16;
+    let speed_high_8bits = byte1 as u16;
+    let speed_raw = (speed_high_8bits << 4) | speed_low_4bits;
+    let speed_mms = (speed_raw as f32) * 1.0; // 精度0.001 m/s = 1 mm/s
+
+    // 解析转向角 (字节2-3，16位 signed Little-Endian，精度0.01°)
+    // byte2 是低字节，byte3 是高字节
+    let angle_raw = (byte2 as i16) | ((byte3 as i16) << 8);
+    let steering_angle = angle_raw as f32 * 0.01;
+
+    println!("🚗 [Parse] Raw bytes: byte0=0x{:02X}, byte1=0x{:02X}, byte2=0x{:02X}, byte3=0x{:02X}", byte0, byte1, byte2, byte3);
+    println!("🚗 [Parse] Gear value: 0x{:X}, Speed low 4bits: 0x{:X}, Speed high 8bits: 0x{:02X}, Speed raw: 0x{:03X} = {}",
+             gear_value, speed_low_4bits, speed_high_8bits, speed_raw, speed_raw);
+    println!("🚗 [Parse] Angle bytes: byte2=0x{:02X}, byte3=0x{:02X}", byte2, byte3);
+    println!("🚗 [Parse] Angle raw (LE): 0x{:04X} = {}, Angle raw (BE): 0x{:04X} = {}",
+             angle_raw as u16, angle_raw, ((byte2 as i16) << 8) | (byte3 as i16), ((byte2 as i16) << 8) | (byte3 as i16));
+    println!("🚗 [Parse] Steering angle: {:.2}°",
+             steering_angle);
+    println!("🚗 [Parse] Vehicle Status - Gear: {}, Speed: {} mm/s ({:.3} m/s), Steering: {:.2}°",
+             gear_name, speed_raw, speed_mms * 0.001, steering_angle);
+
+    Some((format!("{}", gear_name), steering_angle))
+}
+
 // 启动I/O线程 - 独占拥有串口，处理读写
 fn start_io_thread(
     mut serial_port: Box<dyn SerialPort>,
@@ -500,8 +573,14 @@ fn start_io_thread(
                                             println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
                                             info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
 
+                                            // 尝试解析新协议的车辆状态（ID: 0x00000123）
+                                            let mut vehicle_status: Option<(String, f32)> = None;
+                                            if can_id == "0x00000123" {
+                                                vehicle_status = parse_vehicle_status_8byte(&can_data);
+                                            }
+
                                             // 发送通用CAN消息事件（包含原始数据）
-                                            let can_message = serde_json::json!({
+                                            let mut can_message = serde_json::json!({
                                                 "id": can_id,
                                                 "data": can_data,
                                                 "rawData": raw_hex.clone(),
@@ -509,6 +588,13 @@ fn start_io_thread(
                                                 "direction": "received",
                                                 "frameType": "standard",
                                             });
+
+                                            // 如果解析了车辆状态，添加到消息中
+                                            if let Some((gear, steering_angle)) = vehicle_status {
+                                                can_message["gear"] = serde_json::json!(gear);
+                                                can_message["steeringAngle"] = serde_json::json!(steering_angle);
+                                            }
+
                                             let _ = app_handle.emit("can-message-received", can_message);
 
                                             // 检查是否是雷达消息

@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from "react";
 import { FileUp, RefreshCwOff, RefreshCw } from "lucide-react";
 import { SerialConfig } from "../../types";
-import { extractVehicleControl } from "../../types/vehicleControl";
+import { extractVehicleStatus } from "../../types/vehicleControl";
 
 interface ConnectionPanelProps {
   isConnected: boolean;
@@ -129,8 +129,8 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
     [config.csvContent, config.canDataColumnIndex, startRowIndex]
   );
 
-  // 解析 CAN DATA 预览数据
-  const parsedVehicleControl = useMemo(() => {
+  // 解析 CAN DATA 预览数据（使用新的8字节协议）
+  const parsedVehicleStatus = useMemo(() => {
     try {
       if (
         !canDataPreview ||
@@ -142,9 +142,9 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
       ) {
         return null;
       }
-      return extractVehicleControl(canDataPreview);
+      return extractVehicleStatus(canDataPreview);
     } catch (error) {
-      console.error("Failed to parse vehicle control:", error);
+      console.error("Failed to parse vehicle status:", error);
       return null;
     }
   }, [canDataPreview]);
@@ -410,38 +410,42 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
                     {canDataPreview}
                   </span>
                 </div>
-
-
-              </div>  
+              </div>
             </div>
             <div className="grid grid-cols-1">
-                              {/* 解析结果预览 */}
-                {parsedVehicleControl && (
-                  <div className="mt-2 px-2 py-2 text-xs bg-green-50 border border-green-200 rounded text-green-700 space-y-2">
-                    <div className="font-semibold">✓ CAN Data解析成功</div>
-                    <div>
-                      速度:{" "}
-                      <span className="font-mono font-bold">
-                        {parsedVehicleControl.linear_velocity_mms / 1000 * 3.6}
-                      </span>{" "}
-                      km/h
-                    </div>
-                    <div>
-                      转向角:{" "}
-                      <span className="font-mono font-bold">
-                        {parsedVehicleControl.steering_angle_rad.toFixed(4)}
-                      </span>{" "}
-                      rad (
-                      <span className="font-mono font-bold">
-                        {(
-                          (parsedVehicleControl.steering_angle_rad * 180) /
-                          Math.PI
-                        ).toFixed(2)}
-                      </span>
-                      °)
-                    </div>
+              {/* 解析结果预览 */}
+              {parsedVehicleStatus && (
+                <div className="mt-2 px-2 py-2 text-xs bg-green-50 border border-green-200 rounded text-green-700 space-y-2">
+                  <div className="font-semibold">✓ CAN Data解析成功</div>
+                  <div>
+                    档位:{" "}
+                    <span className="font-mono font-bold">
+                      {parsedVehicleStatus.gearName}
+                    </span>
                   </div>
-                )}
+                  <div>
+                    速度:{" "}
+                    <span className="font-mono font-bold">
+                      {(parsedVehicleStatus.speed * 0.001).toFixed(3)}
+                    </span>{" "}
+                    m/s
+                  </div>
+                  <div>
+                    转向角:{" "}
+                    <span className="font-mono font-bold">
+                      {parsedVehicleStatus.steeringAngle.toFixed(2)}
+                    </span>{" "}
+                    ° (
+                    <span className="font-mono font-bold">
+                      {(
+                        (parsedVehicleStatus.steeringAngle * Math.PI) /
+                        180
+                      ).toFixed(4)}
+                    </span>
+                    {" rad)"})
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

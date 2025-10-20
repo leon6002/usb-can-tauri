@@ -41,6 +41,7 @@ function App() {
     handleSendMessage,
     sendCanCommand,
     clearMessages,
+    carStates: canMessageCarStates,
   } = useCanMessages();
   const {
     canCommands,
@@ -51,6 +52,12 @@ function App() {
     startCsvLoop,
     stopCsvLoop,
   } = useCarControl();
+
+  // 合并来自两个hook的carStates
+  const mergedCarStates = {
+    ...carStates,
+    ...canMessageCarStates,
+  };
   const { logs, isDebugVisible, addDebugLog, clearLogs, toggleDebugPanel } =
     useDebugLogs();
   const { radarDistances, isListening, startListening, stopListening } =
@@ -341,7 +348,7 @@ function App() {
         {activeTab === "car" && (
           <CarControlTab
             isConnected={isConnected}
-            carStates={carStates}
+            carStates={mergedCarStates as any}
             scene3DStatus={scene3DStatus}
             onSendCommand={sendCarCommand}
             debugLogs={logs}

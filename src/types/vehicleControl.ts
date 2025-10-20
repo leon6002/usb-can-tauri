@@ -12,6 +12,74 @@ export interface VehicleControl {
   steering_angle_rad: number;
 }
 
+/** 新协议：8字节数据格式 */
+export interface VehicleStatus {
+  /** 档位 (0=P, 1=R, 2=N, 3=D, 4=S) */
+  gear: number;
+  /** 档位名称 */
+  gearName: string;
+  /** 速度，单位 mm/s */
+  speed: number;
+  /** 转向角，单位度数 */
+  steeringAngle: number;
+}
+
+/**
+ * 解析新协议的8字节数据 (auto_spd_ctrl_cmd)
+ * 根据协议文档表 4-3：
+ * 字节0低4位：目标档位 (00: disable, 01: P, 02: R, 03: N, 04: D)
+ * 字节0高4位 + 字节1：目标车体速度 (16位, Unsigned, 精度0.001 m/s)
+ * 字节2-3：目标车体转向角 (16位, signed, 精度0.01°)
+ */
+export function parseVehicleStatus8Byte(data: number[]): VehicleStatus {
+  if (data.length < 4) {
+    throw new Error("输入数据长度必须至少是 4 字节");
+  }
+
+  const byte0 = data[0];
+  const byte1 = data[1];
+  const byte2 = data[2];
+  const byte3 = data[3];
+
+  // 解析档位 (字节0的低4位)
+  const gearValue = byte0 & 0x0f;
+  const gearMap: { [key: number]: string } = {
+    0x00: "disable",
+    0x01: "P",
+    0x02: "R",
+    0x03: "N",
+    0x04: "D",
+  };
+  const gearName = gearMap[gearValue] || "Unknown";
+
+  // 解析速度 (字节0的高4位 + 字节1，共16位，精度0.001 m/s)
+  // 字节0高4位是速度的低4位，字节1是速度的高8位
+  // 速度值 = (byte1 << 4) | (byte0 >> 4)
+  const speedRaw = (byte1 << 4) | ((byte0 >> 4) & 0x0f);
+  const speed = speedRaw * 1; // 精度0.001 m/s = 1 mm/s
+
+  // 解析转向角 (字节2-3，16位 signed Little-Endian，精度0.01°)
+  // byte2 是低字节，byte3 是高字节
+  const angleRaw = byte2 | (byte3 << 8);
+  const angleSigned = angleRaw > 32767 ? angleRaw - 65536 : angleRaw;
+  const steeringAngleDegrees = angleSigned * 0.01; // 单位：度数
+
+  return {
+    gear: gearValue,
+    gearName,
+    speed,
+    steeringAngle: steeringAngleDegrees,
+  };
+}
+
+/**
+ * 从 CAN 数据字符串提取车辆状态（新协议）
+ */
+export function extractVehicleStatus(canData: string): VehicleStatus {
+  const dataBytes = parseCanDataHex(canData);
+  return parseVehicleStatus8Byte(dataBytes);
+}
+
 /**
  * 从方向盘转向角计算轮胎转向角
  * 轮胎转向角 = 方向盘转向角 / 转向比
@@ -35,7 +103,7 @@ export function parseCanDataHex(hexStr: string): number[] {
 
   const result: number[] = [];
   for (let i = 0; i < cleaned.length; i += 2) {
-    const hex = cleaned.substr(i, 2);
+    const hex = cleaned.substring(i, i + 2);
     const byte = parseInt(hex, 16);
     if (isNaN(byte)) {
       throw new Error(`无效的十六进制字符: ${hex}`);

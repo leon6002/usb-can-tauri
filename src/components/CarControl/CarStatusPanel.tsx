@@ -4,11 +4,15 @@ import { CarStates, Scene3DStatus } from "../../types";
 interface CarStatusPanelProps {
   carStates: CarStates;
   scene3DStatus: Scene3DStatus;
+  gear?: string; // 档位
+  steeringAngleDegrees?: number; // 转向角（度数）
 }
 
 export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
   carStates,
   scene3DStatus,
+  gear,
+  steeringAngleDegrees,
 }) => {
   return (
     <div className="p-3 border-b border-gray-200">
@@ -46,6 +50,14 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
           </div>
         </div>
 
+        {/* Gear - Highlighted */}
+        {gear && (
+          <div className="bg-orange-50 p-2 rounded border border-orange-200">
+            <div className="text-orange-600 text-xs font-medium mb-1">档位</div>
+            <div className="text-base font-bold text-orange-900">{gear}</div>
+          </div>
+        )}
+
         {/* Real-time Speed - Highlighted */}
         <div className="bg-blue-50 p-2 rounded border border-blue-200">
           <div className="text-blue-600 text-xs font-medium mb-1">实时速度</div>
@@ -58,7 +70,10 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
         <div className="bg-purple-50 p-2 rounded border border-purple-200">
           <div className="text-purple-600 text-xs font-medium mb-1">转向角</div>
           <div className="text-base font-bold text-purple-900">
-            {((carStates.currentSteeringAngle * 180) / Math.PI).toFixed(1)}°
+            {steeringAngleDegrees !== undefined
+              ? steeringAngleDegrees.toFixed(1)
+              : ((carStates.currentSteeringAngle * 180) / Math.PI).toFixed(1)}
+            °
           </div>
         </div>
       </div>

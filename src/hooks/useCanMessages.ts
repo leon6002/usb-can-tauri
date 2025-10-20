@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { CanMessage, SerialConfig } from "../types";
+import { CanMessage, SerialConfig, CarStates } from "../types";
 
 export const useCanMessages = () => {
   const [messages, setMessages] = useState<CanMessage[]>([]);
   const [sendId, setSendId] = useState("123");
   const [sendData, setSendData] = useState("01 02 03 04");
+  const [carStates, setCarStates] = useState<Partial<CarStates>>({});
   const unlistenRef = useRef<(() => void) | null>(null);
 
   // 发送CAN消息
@@ -105,6 +106,24 @@ export const useCanMessages = () => {
             );
             return [...prev, receivedMessage];
           });
+
+          // 如果包含车辆状态信息，更新carStates
+          if (
+            event.payload.gear !== undefined ||
+            event.payload.steeringAngle !== undefined
+          ) {
+            console.log(
+              "🚗 [Frontend] Updating vehicle status - Gear:",
+              event.payload.gear,
+              "Steering:",
+              event.payload.steeringAngle
+            );
+            setCarStates((prev) => ({
+              ...prev,
+              gear: event.payload.gear,
+              steeringAngleDegrees: event.payload.steeringAngle,
+            }));
+          }
         });
 
         if (isMounted) {
@@ -137,5 +156,6 @@ export const useCanMessages = () => {
     handleSendMessage,
     sendCanCommand,
     clearMessages,
+    carStates,
   };
 };
