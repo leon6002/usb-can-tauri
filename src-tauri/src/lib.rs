@@ -98,7 +98,7 @@ fn create_can_config_packet(config: &SerialConfig) -> Vec<u8> {
     packet.push(baud_config);
 
     // Frame type: standard=0x01, extended=0x02
-    let frame_type_config = if config.protocol_length == "variable" && config.frame_type == "extended" { 0x02 } else { 0x01 };
+    let frame_type_config = if config.frame_type == "extended" { 0x02 } else { 0x01 };
     packet.push(frame_type_config);
 
     // Filter ID (4 bytes) + Mask ID (4 bytes)
@@ -206,8 +206,8 @@ fn create_can_send_packet(id: &str, data: &str, frame_type: &str) -> Result<Vec<
     Ok(packet)
 }
 
-fn create_can_send_packet_fixed(id: &str, data: &str) -> Result<Vec<u8>> {
-    info!("Creating CAN send packet (fixed) - ID: {}, Data: {}", id, data);
+fn create_can_send_packet_fixed(id: &str, data: &str, frame_type: &str) -> Result<Vec<u8>> {
+    info!("Creating CAN send packet (fixed) - ID: {}, Data: {}, Type: {}", id, data, frame_type);
 
     // Parse data - handle both single hex values and space-separated hex values
     let mut data_bytes: Vec<u8> = if data.contains(' ') {
@@ -267,25 +267,19 @@ fn create_can_send_packet_fixed(id: &str, data: &str) -> Result<Vec<u8>> {
 
     info!("Input CAN ID: 0x{:08X}", can_id);
 
-    // 自动检测帧类型：如果 ID > 0x7FF，则使用扩展帧；否则使用标准帧
-    let is_extended = can_id > 0x7FF;
-    info!("CAN ID 0x{:08X} -> {} frame", can_id, if is_extended { "Extended" } else { "Standard" });
+    // Use user-specified frame type
+    let is_extended = frame_type == "extended";
+    info!("CAN ID 0x{:08X} -> {} frame (user-specified)", can_id, frame_type);
 
-    let mut packet = vec![0xAA, 0x55, 0x01, 0x01, 0x01]; // Header
+    // Header: 0xAA, 0x55, 0x01, [frame_type], 0x01
+    // frame_type: 0x01 for standard frame, 0x02 for extended frame
+    let frame_type_byte = if is_extended { 0x02 } else { 0x01 };
+    let mut packet = vec![0xAA, 0x55, 0x01, frame_type_byte, 0x01]; // Header
 
-    // 根据帧类型选择 ID 字节数
-    let id_bytes = if is_extended {
-        // Extended frame: 4-byte ID, little-endian
-        can_id.to_le_bytes().to_vec()
-    } else {
-        // Standard frame: 2-byte ID, little-endian
-        let id_u16 = (can_id & 0x7FF) as u16;
-        info!("Standard frame: masking ID to 11 bits: 0x{:08X} -> 0x{:04X}", can_id, id_u16);
-        id_u16.to_le_bytes().to_vec()
-    };
-
+    // CAN ID: always 4 bytes (little-endian), pad with 0x00 if needed
+    let id_bytes = can_id.to_le_bytes().to_vec();
     packet.extend_from_slice(&id_bytes);
-    info!("CAN ID bytes (little-endian): {:02X?}", id_bytes);
+    info!("CAN ID bytes (4 bytes, little-endian): {:02X?}", id_bytes);
     info!("Packet so far: {:02X?}", packet);
     
 
@@ -826,7 +820,7 @@ async fn send_can_message(
     info!("Creating CAN packet...");
     let packet: Vec<u8> = {
         if protocol_length == "fixed" {
-            match create_can_send_packet_fixed(&id, &data) {
+            match create_can_send_packet_fixed(&id, &data, &frame_type) {
                 Ok(p) => {
                     info!("CAN packet created successfully (Fixed)");
                     p
@@ -975,10 +969,16 @@ fn run_csv_loop(
     can_id_column_index: usize,
     can_data_column_index: usize,
     csv_start_row_index: usize,
-    _config: serde_json::Value,
+    config: serde_json::Value,
     state: Arc<AppState>,
 ) -> Result<()> {
     println!("🔄 [Rust] run_csv_loop started - Start row: {}", csv_start_row_index);
+
+    // Extract frame_type from config
+    let frame_type = config.get("frame_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("standard")
+        .to_string();
 
     // Parse CSV content from string
     let mut reader = ReaderBuilder::new()
@@ -1034,6 +1034,13 @@ fn run_csv_loop(
             .ok_or_else(|| anyhow!("CAN Data column index out of range"))?
             .to_string();
 
+        // Check if CAN data is empty - if so, stop the loop
+        if can_data.trim().is_empty() {
+            println!("🛑 [Rust] Empty CAN data detected - CSV loop ended");
+            info!("Empty CAN data detected - CSV loop ended");
+            break;
+        }
+
         // Try to parse vehicle control data (speed and steering angle)
         let vehicle_control = extract_vehicle_control(&can_data).ok();
 
@@ -1045,7 +1052,7 @@ fn run_csv_loop(
         }
 
         // Create and send packet
-        let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
+        let packet = create_can_send_packet_fixed(&can_id, &can_data, &frame_type)?;
 
         // Send packet through channel
         {
@@ -1156,7 +1163,7 @@ async fn preload_csv_data(
 async fn start_csv_loop_with_preloaded_data(
     preloaded_data: Vec<CsvLoopProgress>,
     interval_ms: u64,
-    _config: serde_json::Value,
+    config: serde_json::Value,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     println!("🚀 [Rust] start_csv_loop_with_preloaded_data called - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
@@ -1181,10 +1188,12 @@ async fn start_csv_loop_with_preloaded_data(
     });
 
     // Spawn thread for CSV loop
+    let config_clone = config.clone();
     std::thread::spawn(move || {
         if let Err(e) = run_csv_loop_with_preloaded_data(
             preloaded_data,
             interval_ms,
+            config_clone,
             state_arc,
         ) {
             error!("CSV loop error: {}", e);
@@ -1197,6 +1206,7 @@ async fn start_csv_loop_with_preloaded_data(
 fn run_csv_loop_with_preloaded_data(
     preloaded_data: Vec<CsvLoopProgress>,
     interval_ms: u64,
+    config: serde_json::Value,
     state: Arc<AppState>,
 ) -> Result<()> {
     println!("🔄 [Rust] run_csv_loop_with_preloaded_data started - Records: {}", preloaded_data.len());
@@ -1212,6 +1222,13 @@ fn run_csv_loop_with_preloaded_data(
         let can_id = &progress.can_id;
         let can_data = &progress.can_data;
 
+        // Check if CAN data is empty - if so, stop the loop
+        if can_data.trim().is_empty() {
+            println!("🛑 [Rust] Empty CAN data detected - CSV loop ended");
+            info!("Empty CAN data detected - CSV loop ended");
+            break;
+        }
+
         // Log vehicle control data if available
         if let Some(ref vc) = progress.vehicle_control {
             println!("📊 [Rust] Record {}/{} - Speed: {} mm/s, Steering: {:.3} rad",
@@ -1221,7 +1238,11 @@ fn run_csv_loop_with_preloaded_data(
         }
 
         // Create and send packet
-        let packet = create_can_send_packet_fixed(&can_id, &can_data)?;
+        // Extract frame_type from config
+        let frame_type = config.get("frame_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("standard");
+        let packet = create_can_send_packet_fixed(&can_id, &can_data, frame_type)?;
 
         // Send packet through channel
         {

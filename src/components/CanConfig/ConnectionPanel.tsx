@@ -207,11 +207,7 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
           </div>
         </div>
 
-        <div
-          className={`grid gap-2 ${
-            config.protocolLength === "fixed" ? "grid-cols-2" : "grid-cols-3"
-          }`}
-        >
+        <div className="grid gap-2 grid-cols-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               协议长度
@@ -228,24 +224,22 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
               <option value="variable">VARIABLE（可变）</option>
             </select>
           </div>
-          {config.protocolLength !== "fixed" && (
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                帧类型
-              </label>
-              <select
-                value={config.frameType}
-                onChange={(e) =>
-                  onConfigChange({ ...config, frameType: e.target.value })
-                }
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                disabled={isConnected}
-              >
-                <option value="standard">标准帧</option>
-                <option value="extended">扩展帧</option>
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              帧类型
+            </label>
+            <select
+              value={config.frameType}
+              onChange={(e) =>
+                onConfigChange({ ...config, frameType: e.target.value })
+              }
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isConnected}
+            >
+              <option value="standard">标准帧</option>
+              <option value="extended">扩展帧</option>
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               CAN模式

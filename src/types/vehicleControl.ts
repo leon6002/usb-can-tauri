@@ -27,19 +27,23 @@ export interface VehicleStatus {
 /**
  * 解析新协议的8字节数据 (auto_spd_ctrl_cmd)
  * 根据协议文档表 4-3：
- * 字节0低4位：目标档位 (00: disable, 01: P, 02: R, 03: N, 04: D)
- * 字节0高4位 + 字节1：目标车体速度 (16位, Unsigned, 精度0.001 m/s)
- * 字节2-3：目标车体转向角 (16位, signed, 精度0.01°)
+ * 字节0-2 (小端序)：速度值 (20位) + 档位 (4位)
+ *   - 低4位 (data[0] & 0x0F): 档位 (4=D档)
+ *   - 高20位: 速度值 (mm/s)
+ * 字节2-4 (16位补码)：转向角 (0.01度/count)
+ *   - 取字节2-4，小端序读取为 data[4] data[3] data[2]
+ *   - 去掉首尾半个字节，提取中间的值
  */
 export function parseVehicleStatus8Byte(data: number[]): VehicleStatus {
-  if (data.length < 4) {
-    throw new Error("输入数据长度必须至少是 4 字节");
+  if (data.length < 8) {
+    throw new Error("输入数据长度必须至少是 8 字节");
   }
 
   const byte0 = data[0];
   const byte1 = data[1];
   const byte2 = data[2];
   const byte3 = data[3];
+  const byte4 = data[4];
 
   // 解析档位 (字节0的低4位)
   const gearValue = byte0 & 0x0f;
@@ -52,15 +56,24 @@ export function parseVehicleStatus8Byte(data: number[]): VehicleStatus {
   };
   const gearName = gearMap[gearValue] || "Unknown";
 
-  // 解析速度 (字节0的高4位 + 字节1，共16位，精度0.001 m/s)
-  // 字节0高4位是速度的低4位，字节1是速度的高8位
-  // 速度值 = (byte1 << 4) | (byte0 >> 4)
-  const speedRaw = (byte1 << 4) | ((byte0 >> 4) & 0x0f);
-  const speed = speedRaw * 1; // 精度0.001 m/s = 1 mm/s
+  // 解析速度 (字节0-2，小端序)
+  // 取前3个字节，转换为小端序的u32
+  const speedRaw = byte0 | (byte1 << 8) | (byte2 << 16);
+  // 高20位是速度值，低4位是档位
+  const speed = (speedRaw >> 4) & 0xFFFFF; // 取高20位
 
-  // 解析转向角 (字节2-3，16位 signed Little-Endian，精度0.01°)
-  // byte2 是低字节，byte3 是高字节
-  const angleRaw = byte2 | (byte3 << 8);
+  // 解析转向角 (字节2-4，16位补码)
+  // 取字节2-4（data[2], data[3], data[4]），小端序读取为 data[4] data[3] data[2]
+  // 去掉首尾半个字节，提取中间的 F9C0
+  // 从 data[4] data[3] data[2] 中提取：
+  // - data[4] 的低4位作为高字节的高4位
+  // - data[3] 作为高字节的低4位和低字节的高4位
+  // - data[2] 的高4位作为低字节的低4位
+  const highByte = ((byte4 & 0x0f) << 4) | ((byte3 >> 4) & 0x0f);
+  const lowByte = ((byte3 & 0x0f) << 4) | ((byte2 >> 4) & 0x0f);
+
+  // 组合成16位有符号整数
+  const angleRaw = (highByte << 8) | lowByte;
   const angleSigned = angleRaw > 32767 ? angleRaw - 65536 : angleRaw;
   const steeringAngleDegrees = angleSigned * 0.01; // 单位：度数
 

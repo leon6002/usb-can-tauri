@@ -9,7 +9,7 @@ export const useSerial = () => {
     port: "COM23",
     baudRate: 2000000,
     canBaudRate: 500000,
-    frameType: "standard",
+    frameType: "extended",
     protocolLength: "fixed",
     canMode: "normal",
     sendIntervalMs: 20,
