@@ -4,7 +4,7 @@ import "./test-threejs";
 
 // Types
 import { ActiveTab } from "./types";
-import { STEERING_RATIO } from "./types/vehicleControl";
+// import { STEERING_RATIO } from "./types/vehicleControl";
 
 // Hooks
 import { useSerial } from "./hooks/useSerial";
