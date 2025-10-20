@@ -62,18 +62,32 @@ export const useDebugLogs = () => {
 
   // 监听接收到的CAN消息
   useEffect(() => {
+    let isMounted = true;
     const setupListener = async () => {
       try {
+        // 如果已经有listener，先清理
+        if (unlistenRef.current) {
+          unlistenRef.current();
+          unlistenRef.current = null;
+        }
+
         const unlisten = await listen<any>("can-message-received", (event) => {
+          if (!isMounted) return;
+
           addDebugLog(
             "接收CAN消息",
             "received",
             event.payload.id,
             event.payload.data,
-            `接收到CAN消息 - ID: ${event.payload.id}, Data: ${event.payload.data}`
+            `接收到CAN消息`
           );
         });
-        unlistenRef.current = unlisten;
+
+        if (isMounted) {
+          unlistenRef.current = unlisten;
+        } else {
+          unlisten();
+        }
       } catch (error) {
         console.error("Failed to setup CAN message listener:", error);
       }
@@ -82,12 +96,13 @@ export const useDebugLogs = () => {
     setupListener();
 
     return () => {
+      isMounted = false;
       if (unlistenRef.current) {
         unlistenRef.current();
         unlistenRef.current = null;
       }
     };
-  }, [addDebugLog]);
+  }, []);
 
   return {
     logs,

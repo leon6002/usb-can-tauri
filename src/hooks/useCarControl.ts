@@ -135,7 +135,11 @@ export const useCarControl = () => {
   });
 
   // 更新实时 CAN 数据（速度、转向角和档位）
-  const updateVehicleControl = (speed: number, steeringAngle: number, gear?: string) => {
+  const updateVehicleControl = (
+    speed: number,
+    steeringAngle: number,
+    gear?: string
+  ) => {
     setCarStates((prev) => ({
       ...prev,
       currentSpeed: speed,
@@ -170,6 +174,9 @@ export const useCarControl = () => {
           break;
         case "fan_level_2":
           newState.fanLevel = 2;
+          break;
+        case "fan_level_3":
+          newState.fanLevel = 3;
           break;
         case "light_mode_1":
           newState.lightMode = 1;
@@ -223,7 +230,11 @@ export const useCarControl = () => {
     csvStartRowIndex: number,
     config: any,
     onComplete?: () => void,
-    onProgressUpdate?: (speed: number, steeringAngle: number, gear?: string) => void
+    onProgressUpdate?: (
+      speed: number,
+      steeringAngle: number,
+      gear?: string
+    ) => void
   ) => {
     try {
       console.log("🚀 startCsvLoop called with:", {

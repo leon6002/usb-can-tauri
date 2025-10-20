@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Bug, X, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Bug,
+  X,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  ArrowUpFromLine,
+  ArrowDownToLine,
+} from "lucide-react";
 
 interface DebugLog {
   id: string;
@@ -89,42 +97,71 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                     return (
                       <div
                         key={log.id}
-                        className={`border rounded p-2 text-xs transition-all ${
+                        className={`border rounded p-3 text-xs transition-all ${
                           isReceived
                             ? "bg-green-50 border-green-200 hover:bg-green-100"
-                            : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+                            : "bg-blue-50 border-blue-200 hover:bg-blue-100"
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-1">
+                        {/* 标题行 */}
+                        <div className="flex items-center justify-between mb-2">
                           <span
-                            className={`font-medium ${
-                              isReceived ? "text-green-600" : "text-blue-600"
+                            className={`font-semibold flex items-center ${
+                              isReceived ? "text-green-700" : "text-blue-700"
                             }`}
                           >
-                            {isReceived ? "📥" : "📤"} {log.action}
+                            {isReceived ? (
+                              <ArrowDownToLine className="w-4 h-4 mr-1.5" />
+                            ) : (
+                              <ArrowUpFromLine className="w-4 h-4 mr-1.5" />
+                            )}
+                            {log.action}
                           </span>
-                          <span className="text-gray-500">{log.timestamp}</span>
+                          <span className="text-gray-500 text-xs">
+                            {log.timestamp}
+                          </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-gray-700">
-                          <div>
-                            <span className="font-medium">命令ID:</span>{" "}
-                            {log.commandId}
+
+                        {/* 内容行 - 紧凑布局 */}
+                        <div className="space-y-1.5 text-gray-700">
+                          {/* 第一行：命令ID 和 CAN ID */}
+                          <div className="flex gap-4 text-xs">
+                            <div className="flex gap-1">
+                              <span className="font-medium text-gray-600">
+                                命令ID:
+                              </span>
+                              <span className="font-mono text-gray-800">
+                                {log.commandId}
+                              </span>
+                            </div>
+                            <div className="flex gap-1">
+                              <span className="font-medium text-gray-600">
+                                CAN ID:
+                              </span>
+                              <span className="font-mono text-gray-800">
+                                {log.canId}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-medium">CAN ID:</span>{" "}
-                            <span className="bg-gray-200 px-1 rounded font-mono">
-                              {log.canId}
+
+                          {/* 第二行：数据 */}
+                          <div className="flex gap-1 text-xs">
+                            <span className="font-medium text-gray-600 flex-shrink-0">
+                              数据:
                             </span>
-                          </div>
-                          <div>
-                            <span className="font-medium">数据:</span>{" "}
-                            <span className="bg-gray-200 px-1 rounded font-mono">
+                            <span className="font-mono text-gray-800 break-all">
                               {log.data}
                             </span>
                           </div>
-                          <div className="col-span-2">
-                            <span className="font-medium">描述:</span>{" "}
-                            {log.description}
+
+                          {/* 第三行：描述 */}
+                          <div className="flex gap-1 text-xs">
+                            <span className="font-medium text-gray-600 flex-shrink-0">
+                              描述:
+                            </span>
+                            <span className="text-gray-700 break-words">
+                              {log.description}
+                            </span>
                           </div>
                         </div>
                       </div>

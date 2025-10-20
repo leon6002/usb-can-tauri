@@ -71,7 +71,10 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
           />
 
           {/* Radar Distance Panel */}
-          <RadarDistancePanel radarDistances={radarDistances} />
+          <RadarDistancePanel
+            radarDistances={radarDistances}
+            isConnected={isConnected}
+          />
 
           {/* Control Panels */}
           <CarControlPanel

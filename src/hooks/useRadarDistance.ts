@@ -2,12 +2,12 @@ import { useState, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { RadarDistances, RadarData, RadarMessage } from "../types";
 
-// 雷达CAN ID映射
+// 雷达CAN ID映射（8位十六进制格式）
 const RADAR_CAN_IDS = {
-  RADAR_1: "0x0521",
-  RADAR_2: "0x0522",
-  RADAR_3: "0x0523",
-  RADAR_4: "0x0524",
+  RADAR_1: "0x00000521",
+  RADAR_2: "0x00000522",
+  RADAR_3: "0x00000523",
+  RADAR_4: "0x00000524",
 };
 
 export const useRadarDistance = () => {
@@ -25,19 +25,27 @@ export const useRadarDistance = () => {
   // 例如：0x01 83 02 02 F2 -> 取最后两个字节 02 F2 -> 0x02F2 = 754mm
   const parseDistanceFromData = (data: string): number => {
     try {
-      console.log("data received", data);
       // 移除空格并转换为大写
       const cleanData = data.replace(/\s+/g, "").toUpperCase();
+      console.log("📏 [Radar] Raw data:", data, "Clean data:", cleanData);
 
       // 获取最后4个字符（最后两个字节）
       if (cleanData.length >= 4) {
         const lastTwoBytes = cleanData.slice(-4);
         const distance = parseInt(lastTwoBytes, 16);
+        console.log(
+          "📏 [Radar] Last two bytes:",
+          lastTwoBytes,
+          "Distance:",
+          distance,
+          "mm"
+        );
         return distance;
       }
+      console.warn("⚠️  [Radar] Data too short:", cleanData);
       return 0;
     } catch (error) {
-      console.error("Error parsing distance from data:", error);
+      console.error("❌ [Radar] Error parsing distance from data:", error);
       return 0;
     }
   };
@@ -46,6 +54,13 @@ export const useRadarDistance = () => {
   const handleRadarMessage = useCallback((message: RadarMessage) => {
     const distance = parseDistanceFromData(message.data);
     const timestamp = new Date().toLocaleTimeString();
+
+    console.log(
+      "📡 [Radar Handler] Received message - ID:",
+      message.canId,
+      "Distance:",
+      distance
+    );
 
     const radarData: RadarData = {
       id: message.canId,
@@ -59,13 +74,19 @@ export const useRadarDistance = () => {
 
       // 根据CAN ID更新对应的雷达数据
       if (message.canId === RADAR_CAN_IDS.RADAR_1) {
+        console.log("✅ [Radar] Updating RADAR_1");
         updated.radar1 = radarData;
       } else if (message.canId === RADAR_CAN_IDS.RADAR_2) {
+        console.log("✅ [Radar] Updating RADAR_2");
         updated.radar2 = radarData;
       } else if (message.canId === RADAR_CAN_IDS.RADAR_3) {
+        console.log("✅ [Radar] Updating RADAR_3");
         updated.radar3 = radarData;
       } else if (message.canId === RADAR_CAN_IDS.RADAR_4) {
+        console.log("✅ [Radar] Updating RADAR_4");
         updated.radar4 = radarData;
+      } else {
+        console.warn("⚠️  [Radar] Unknown radar ID:", message.canId);
       }
 
       return updated;
@@ -81,12 +102,12 @@ export const useRadarDistance = () => {
       });
 
       setIsListening(true);
-      // console.log("Started listening for radar messages");
+      // console.log("✅ Started listening for radar messages");
 
       // 返回取消监听函数
       return unlisten;
     } catch (error) {
-      console.error("Failed to start listening for radar messages:", error);
+      console.error("❌ Failed to start listening for radar messages:", error);
       setIsListening(false);
     }
   }, [handleRadarMessage]);
@@ -97,7 +118,7 @@ export const useRadarDistance = () => {
       unlisten();
     }
     setIsListening(false);
-    // console.log("Stopped listening for radar messages");
+    // console.log("⏹️  Stopped listening for radar messages");
   }, []);
 
   // 清空雷达数据

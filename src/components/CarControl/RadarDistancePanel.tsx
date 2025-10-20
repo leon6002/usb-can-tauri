@@ -3,10 +3,12 @@ import { RadarDistances } from "../../types";
 
 interface RadarDistancePanelProps {
   radarDistances: RadarDistances;
+  isConnected?: boolean;
 }
 
 export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
   radarDistances,
+  isConnected = false,
 }) => {
   const getRadarColor = (distance: number | null): string => {
     if (distance === null) return "bg-gray-100";
@@ -23,10 +25,10 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
   };
 
   const radarList = [
-    { name: "前雷达", data: radarDistances.radar1, id: "0x0521" },
-    { name: "后雷达", data: radarDistances.radar2, id: "0x0522" },
-    { name: "左雷达", data: radarDistances.radar3, id: "0x0523" },
-    { name: "右雷达", data: radarDistances.radar4, id: "0x0524" },
+    { name: "雷达1", data: radarDistances.radar1, id: "0x00000521" },
+    { name: "雷达2", data: radarDistances.radar2, id: "0x00000522" },
+    { name: "雷达3", data: radarDistances.radar3, id: "0x00000523" },
+    { name: "雷达4", data: radarDistances.radar4, id: "0x00000524" },
   ];
 
   return (
@@ -49,6 +51,8 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
               {radar.data?.distance !== null &&
               radar.data?.distance !== undefined
                 ? `${radar.data.distance} mm`
+                : isConnected
+                ? "已连接"
                 : "未连接"}
             </div>
           </div>
