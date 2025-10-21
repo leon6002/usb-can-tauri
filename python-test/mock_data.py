@@ -36,7 +36,7 @@ def start_mock(output_filename='driving_data_final_version_speed_to_zero.csv'):
     anchor_angles = np.random.uniform(-MAX_ANGLE * 0.8, MAX_ANGLE * 0.8, BASE_ANCHOR_COUNT) 
     
     # 强制开头和结尾
-    INITIAL_STRAIGHT_ANCHORS = 5 
+    INITIAL_STRAIGHT_ANCHORS = 2 
     anchor_angles[:INITIAL_STRAIGHT_ANCHORS] = 0.0
     anchor_angles[-1] = 0.0 
 
