@@ -74,16 +74,16 @@ export const useRadarDistance = () => {
 
       // 根据CAN ID更新对应的雷达数据
       if (message.canId === RADAR_CAN_IDS.RADAR_1) {
-        console.log("✅ [Radar] Updating RADAR_1");
+        // console.log("✅ [Radar] Updating RADAR_1");
         updated.radar1 = radarData;
       } else if (message.canId === RADAR_CAN_IDS.RADAR_2) {
-        console.log("✅ [Radar] Updating RADAR_2");
+        // console.log("✅ [Radar] Updating RADAR_2");
         updated.radar2 = radarData;
       } else if (message.canId === RADAR_CAN_IDS.RADAR_3) {
-        console.log("✅ [Radar] Updating RADAR_3");
+        // console.log("✅ [Radar] Updating RADAR_3");
         updated.radar3 = radarData;
       } else if (message.canId === RADAR_CAN_IDS.RADAR_4) {
-        console.log("✅ [Radar] Updating RADAR_4");
+        // console.log("✅ [Radar] Updating RADAR_4");
         updated.radar4 = radarData;
       } else {
         console.warn("⚠️  [Radar] Unknown radar ID:", message.canId);
@@ -102,7 +102,7 @@ export const useRadarDistance = () => {
       });
 
       setIsListening(true);
-      // console.log("✅ Started listening for radar messages");
+      console.log("✅ Started listening for radar messages");
 
       // 返回取消监听函数
       return unlisten;
@@ -118,7 +118,7 @@ export const useRadarDistance = () => {
       unlisten();
     }
     setIsListening(false);
-    // console.log("⏹️  Stopped listening for radar messages");
+    console.log("⏹️  Stopped listening for radar messages");
   }, []);
 
   // 清空雷达数据

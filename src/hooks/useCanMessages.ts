@@ -102,12 +102,12 @@ export const useCanMessages = () => {
   ) => {
     try {
       // 验证 CAN ID
-      console.log("🔍 验证车辆命令 CAN ID:", {
-        canId,
-        frameType: config.frameType,
-      });
+      // console.log("🔍 验证车辆命令 CAN ID:", {
+      //   canId,
+      //   frameType: config.frameType,
+      // });
       const validation = validateCanId(canId, config.frameType);
-      console.log("✅ 验证结果:", validation);
+      // console.log("✅ 验证结果:", validation);
 
       if (!validation.valid) {
         console.warn("❌ CAN ID 验证失败:", validation.error);
@@ -121,7 +121,7 @@ export const useCanMessages = () => {
         frameType: config.frameType,
         protocolLength: config.protocolLength,
       };
-      console.log("发送车辆命令参数:", params);
+      // console.log("发送车辆命令参数:", params);
       await invoke("send_can_message", params);
 
       // 添加到消息列表
@@ -169,12 +169,12 @@ export const useCanMessages = () => {
           };
           console.log("📨 [Frontend] Adding message to list:", receivedMessage);
           setMessages((prev) => {
-            console.log(
-              "📨 [Frontend] Previous messages count:",
-              prev.length,
-              "New total:",
-              prev.length + 1
-            );
+            // console.log(
+            //   "📨 [Frontend] Previous messages count:",
+            //   prev.length,
+            //   "New total:",
+            //   prev.length + 1
+            // );
             return [...prev, receivedMessage];
           });
 
