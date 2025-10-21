@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 // 测试Three.js导入
 import "./test-threejs";
 
@@ -420,7 +420,11 @@ function App() {
     async (port: string) => {
       try {
         await connectToPort(port);
+        toast.success(`已连接到 ${port}`);
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        toast.error(`连接失败: ${errorMessage}`);
         console.error("Demo connect error:", error);
       }
     },

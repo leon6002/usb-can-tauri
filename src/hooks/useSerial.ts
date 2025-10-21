@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import { SerialConfig } from "../types";
 import { loadDefaultCsv } from "../utils/csvLoader";
 
@@ -53,6 +54,7 @@ export const useSerial = () => {
       if (isConnected) {
         await invoke("disconnect_serial");
         setIsConnected(false);
+        toast.success("已断开连接");
       } else {
         // 转换字段名为Rust后端期望的格式
         const rustConfig = {
@@ -65,10 +67,13 @@ export const useSerial = () => {
         };
         await invoke("connect_serial", { config: rustConfig });
         setIsConnected(true);
+        toast.success(`已连接到 ${config.port}`);
       }
     } catch (error) {
       console.error("Connection error:", error);
-      alert(`连接错误: ${error}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast.error(`连接错误: ${errorMessage}`);
     }
   };
 
@@ -77,8 +82,12 @@ export const useSerial = () => {
     try {
       await invoke("disconnect_serial");
       setIsConnected(false);
+      toast.success("已断开连接");
     } catch (error) {
       console.error("Disconnect error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast.error(`断开连接错误: ${errorMessage}`);
     }
   };
 

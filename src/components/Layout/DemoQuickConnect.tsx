@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { RefreshCw, Zap, ZapOff } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import { getDemoQuickConnect } from "../../config/appConfig";
 import {
   Select,
@@ -63,6 +64,12 @@ export const DemoQuickConnect: React.FC<DemoQuickConnectProps> = ({
     setIsLoading(true);
     try {
       onConnect(port);
+      toast.success(`已连接到 ${port}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast.error(`连接失败: ${errorMessage}`);
+      console.error("Connection error:", error);
     } finally {
       setIsLoading(false);
     }
