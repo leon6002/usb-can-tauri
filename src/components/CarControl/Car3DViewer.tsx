@@ -9,7 +9,7 @@ export const Car3DViewer: React.FC<Car3DViewerProps> = ({
   scene3DStatus: _scene3DStatus,
 }) => {
   return (
-    <div className="flex-1 relative">
+    <div className="flex-1 relative min-h-0">
       <div
         id="car-3d-container"
         className="w-full h-full relative bg-gradient-to-br from-blue-50 to-indigo-100"

@@ -60,10 +60,11 @@ export class SceneManager implements ISceneManager {
    */
   public createRenderer(config: RendererConfig): void {
     this.renderer = new THREE.WebGLRenderer({ antialias: config.antialias });
-    this.renderer.setSize(
-      this.container.clientWidth,
-      this.container.clientHeight
-    );
+    // 使用 Math.floor 确保像素对齐，防止出现空白
+    const width = Math.floor(this.container.clientWidth);
+    const height = Math.floor(this.container.clientHeight);
+    // 第三个参数设为 false，防止 CSS 缩放导致的模糊
+    this.renderer.setSize(width, height, false);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = config.shadowMapEnabled;
     this.renderer.shadowMap.type = config.shadowMapType;
@@ -73,6 +74,15 @@ export class SceneManager implements ISceneManager {
 
     // 清空容器内容，防止重复渲染
     this.container.innerHTML = "";
+
+    // 设置 canvas 样式，确保填满容器，没有空白
+    this.renderer.domElement.style.display = "block";
+    this.renderer.domElement.style.width = "100%";
+    this.renderer.domElement.style.height = "100%";
+    this.renderer.domElement.style.margin = "0";
+    this.renderer.domElement.style.padding = "0";
+    this.renderer.domElement.style.border = "none";
+
     this.container.appendChild(this.renderer.domElement);
 
     // 监听窗口大小变化
@@ -294,7 +304,8 @@ export class SceneManager implements ISceneManager {
     this.groundTexture.magFilter = THREE.LinearFilter;
     this.groundTexture.minFilter = THREE.LinearFilter;
 
-    const groundGeometry = new THREE.PlaneGeometry(100, 150);
+    // 创建圆形地面几何体（半径150）
+    const groundGeometry = new THREE.CircleGeometry(75, 64);
     const groundMaterial = new THREE.MeshLambertMaterial({
       map: this.groundTexture,
       color: 0xffffff, // 白色作为基础，与纹理混合
@@ -306,7 +317,7 @@ export class SceneManager implements ISceneManager {
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
 
-    console.log("✓ 地面创建完成");
+    console.log("✓ 圆形地面创建完成（半径：150）");
   }
 
   /**
@@ -400,13 +411,17 @@ export class SceneManager implements ISceneManager {
    * 处理窗口大小变化
    */
   public onWindowResize(): void {
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
+    // 使用 Math.floor 确保像素对齐，防止出现空白
+    const width = Math.floor(this.container.clientWidth);
+    const height = Math.floor(this.container.clientHeight);
+
+    if (width === 0 || height === 0) return;
 
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
 
-    this.renderer.setSize(width, height);
+    // 第三个参数设为 false，防止 CSS 缩放导致的模糊
+    this.renderer.setSize(width, height, false);
   }
 
   /**

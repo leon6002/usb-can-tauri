@@ -153,6 +153,17 @@ export class CameraController implements ICameraController {
   }
 
   /**
+   * 处理窗口大小变化
+   */
+  public onWindowResize(): void {
+    // OrbitControls 会自动响应相机的 aspect 变化
+    // 这里只需要确保控制器状态正确
+    if (this.controls) {
+      this.controls.update();
+    }
+  }
+
+  /**
    * 更新运镜动画
    */
   public update(_delta: number): void {

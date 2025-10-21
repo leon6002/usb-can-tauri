@@ -46,6 +46,8 @@ export class Car3DRenderer {
   private groundTexture: THREE.CanvasTexture | null = null;
   // 地面纹理偏移
   private groundTextureOffset = 0;
+  // Resize 事件处理的绑定版本
+  private onWindowResizeBound: () => void;
 
   constructor(
     containerId: string,
@@ -59,6 +61,7 @@ export class Car3DRenderer {
     this.container = container;
     this.clock = new THREE.Clock();
     this.onSendCommand = onSendCommand;
+    this.onWindowResizeBound = this.handleWindowResize.bind(this);
 
     // 初始化模块
     this.sceneManager = new SceneManager(container);
@@ -109,6 +112,9 @@ export class Car3DRenderer {
       // 加载车辆模型
       await this.loadCarModel();
 
+      // 添加 resize 事件监听
+      window.addEventListener("resize", this.onWindowResizeBound);
+
       // 开始渲染循环
       this.animate();
 
@@ -117,6 +123,16 @@ export class Car3DRenderer {
       console.error("Car3DRenderer初始化失败:", error);
       this.showLoadError(error as Error);
     }
+  }
+
+  /**
+   * 处理窗口大小变化
+   */
+  private handleWindowResize(): void {
+    // 更新 SceneManager
+    this.sceneManager.onWindowResize();
+    // 更新 CameraController
+    this.cameraController.onWindowResize();
   }
 
   /**
@@ -589,6 +605,9 @@ export class Car3DRenderer {
    * 清理资源
    */
   public dispose(): void {
+    // 移除 resize 事件监听
+    window.removeEventListener("resize", this.onWindowResizeBound);
+
     // 停止动画循环
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);

@@ -47,7 +47,7 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Status Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      <div className="bg-white border-b border-t border-gray-200 px-6 py-4">
         <div className="flex items-center justify-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"

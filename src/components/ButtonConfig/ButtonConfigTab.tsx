@@ -60,7 +60,11 @@ export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
                         type="text"
                         value={command.canId}
                         onChange={(e) =>
-                          onUpdateCanCommand(command.id, "canId", e.target.value)
+                          onUpdateCanCommand(
+                            command.id,
+                            "canId",
+                            e.target.value
+                          )
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
                         placeholder="123"
@@ -119,12 +123,22 @@ export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
 
           {/* Help Text */}
           <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-blue-800 mb-2">💡 配置说明</h3>
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">
+              💡 配置说明
+            </h3>
             <div className="text-sm text-blue-700 space-y-1">
-              <p>• <strong>命令名称</strong>：将显示在车辆控制页面的按钮上</p>
-              <p>• <strong>CAN ID</strong>：十六进制格式，如 123、1A2B</p>
-              <p>• <strong>数据</strong>：十六进制格式，空格分隔，如 01 02 03</p>
-              <p>• <strong>描述</strong>：命令的详细说明，便于理解功能</p>
+              <p>
+                • <strong>命令名称</strong>：将显示在车辆控制页面的按钮上
+              </p>
+              <p>
+                • <strong>CAN ID</strong>：十六进制格式，如 123、1A2B
+              </p>
+              <p>
+                • <strong>数据</strong>：十六进制格式，空格分隔，如 01 02 03
+              </p>
+              <p>
+                • <strong>描述</strong>：命令的详细说明，便于理解功能
+              </p>
             </div>
           </div>
         </div>
