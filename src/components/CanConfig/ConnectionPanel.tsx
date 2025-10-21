@@ -1,7 +1,8 @@
 import React, { useRef, useMemo } from "react";
-import { FileUp, RefreshCwOff, RefreshCw } from "lucide-react";
+import { FileUp, RefreshCwOff, RefreshCw, Download } from "lucide-react";
 import { SerialConfig } from "../../types";
 import { extractVehicleStatus } from "../../types/vehicleControl";
+import { loadDefaultCsv } from "../../utils/csvLoader";
 
 interface ConnectionPanelProps {
   isConnected: boolean;
@@ -37,6 +38,26 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
         console.error("Failed to read CSV file:", error);
         alert("读取 CSV 文件失败");
       }
+    }
+  };
+
+  // 加载预置的示例数据
+  const handleLoadPresetData = async () => {
+    try {
+      const csvRows = await loadDefaultCsv();
+      // 将 CSV 行转换为文本格式
+      const csvText = csvRows
+        .map((row) => `${row.can_id},${row.can_data},${row.interval_ms}`)
+        .join("\n");
+
+      onConfigChange({
+        ...config,
+        csvFilePath: "sample-trajectory.csv (预置)",
+        csvContent: csvText,
+      });
+    } catch (error) {
+      console.error("Failed to load preset CSV:", error);
+      alert("加载预置数据失败");
     }
   };
 
@@ -285,6 +306,14 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
                 >
                   <FileUp className="w-3 h-3" />
                   {config.csvFilePath ? "已选择" : "选择"}
+                </button>
+                <button
+                  onClick={handleLoadPresetData}
+                  className="flex-1 px-2 py-1 text-xs border border-green-300 rounded bg-green-50 hover:bg-green-100 text-green-700 font-medium transition-colors flex items-center justify-center gap-1"
+                  title="加载预置的示例轨迹数据"
+                >
+                  <Download className="w-3 h-3" />
+                  示例数据
                 </button>
                 {config.csvFilePath && (
                   <span className="flex-1 px-2 py-1 text-xs bg-blue-50 border border-blue-200 rounded text-blue-700 truncate">

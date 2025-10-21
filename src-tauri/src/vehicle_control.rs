@@ -47,10 +47,11 @@ pub fn parse_control_data_4byte(data: &[u8]) -> Result<VehicleControl, &'static 
 
     // 1. 解析速度 (data[0-2], 小端序)
     // 取前3个字节，转换为小端序的u32
-    let speed_raw = u32::from_le_bytes([data[0], data[1], data[2], 0]);
+    // let speed_raw = u32::from_le_bytes([data[0], data[1], data[2], 0]);
     // 高20位是速度值，低4位是档位
-    let linear_velocity_mms = (speed_raw >> 4) as i16;
-
+    let speed_high_byte = ((data[2] & 0x0F) << 4) | ((data[1] >> 4) & 0x0F);
+    let speed_low_byte = ((data[1] & 0x0F) << 4) | ((data[0] >> 4) & 0x0F);
+    let linear_velocity_mms = i16::from_be_bytes([speed_high_byte, speed_low_byte]);
     // 2. 解析转向角 (data[2-4], 16位补码)
     // 取字节2-4（00 9C 0F），小端序读取为 0F 9C 00
     // 去掉首尾半个字节，得到 F9C0 = -1600 (16位补码)
@@ -114,8 +115,8 @@ mod tests {
         // 测试数据: 04 4B 00 9C 0F 00 A0 7C
         // 速度: 04 4B 00 (小端序) -> 0x004B04 >> 4 = 0x004B0 = 1200 mm/s
         // 转向角: 9C 0F -> 交换为 0F 9C -> 0xF9C0 = -1600 (16位补码) * 0.01 = -16度
-        let hex_data: [u8; 8] = [0x04, 0x4B, 0x00, 0x9C, 0x0F, 0x00, 0xA0, 0x7C];
-
+        // let hex_data: [u8; 8] = [0x04, 0x4B, 0x00, 0x9C, 0x0F, 0x00, 0xA0, 0x7C];
+        let hex_data: [u8; 8] = [0x84, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xD0, 0xCF];
         match parse_control_data_4byte(&hex_data) {
             Ok(control) => {
                 println!("成功解析 8 字节控制数据:");

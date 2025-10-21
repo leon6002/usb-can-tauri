@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Toaster } from "sonner";
 // 测试Three.js导入
 import "./test-threejs";
@@ -61,8 +61,7 @@ function App() {
   };
   const { logs, isDebugVisible, addDebugLog, clearLogs, toggleDebugPanel } =
     useDebugLogs();
-  const { radarDistances, isListening, startListening, stopListening } =
-    useRadarDistance();
+  const { radarDistances, startListening, stopListening } = useRadarDistance();
 
   // 发送车辆控制命令
   const sendCarCommand = async (commandId: string) => {
@@ -332,19 +331,71 @@ function App() {
     sendCarCommand
   );
 
-  // 启动/停止雷达消息监听
+  // 启动/停止雷达消息监听和定时发送雷达查询命令
   const unlistenRef = useRef<(() => void) | null>(null);
+  const radarIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const configRef = useRef(config);
+  const isConnectedRef = useRef(isConnected);
+
+  // 同步最新的 config 和 isConnected 到 ref
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   useEffect(() => {
-    if (isConnected && !isListening) {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  // 雷达查询命令配置
+  const RADAR_QUERIES = [
+    { id: "0x521", data: "01 03 01 00 00 01" },
+    { id: "0x522", data: "02 03 01 00 00 01" },
+    { id: "0x523", data: "03 03 01 00 00 01" },
+    { id: "0x524", data: "04 03 01 00 00 01" },
+  ];
+
+  // 发送雷达查询命令
+  const sendRadarQuery = useCallback(async () => {
+    if (!isConnectedRef.current) return;
+
+    try {
+      for (const radar of RADAR_QUERIES) {
+        await sendCanCommand(radar.id, radar.data, configRef.current);
+      }
+    } catch (error) {
+      console.error("❌ Failed to send radar query:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isConnected) {
       // 连接后启动监听
-      startListening().then((unlisten) => {
-        unlistenRef.current = unlisten || null;
-      });
-    } else if (!isConnected && isListening) {
+      if (!unlistenRef.current) {
+        startListening().then((unlisten) => {
+          unlistenRef.current = unlisten || null;
+        });
+      }
+
+      // 启动定时发送雷达查询命令（每隔1秒）
+      if (!radarIntervalRef.current) {
+        radarIntervalRef.current = setInterval(() => {
+          sendRadarQuery();
+        }, 1000);
+        console.log("📡 [Radar] Started sending radar queries every 1 second");
+      }
+    } else {
       // 断开连接后停止监听
-      stopListening(unlistenRef.current || undefined);
-      unlistenRef.current = null;
+      if (unlistenRef.current) {
+        stopListening(unlistenRef.current || undefined);
+        unlistenRef.current = null;
+      }
+
+      // 停止发送雷达查询命令
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+        radarIntervalRef.current = null;
+        console.log("📡 [Radar] Stopped sending radar queries");
+      }
     }
 
     return () => {
@@ -353,8 +404,12 @@ function App() {
         stopListening(unlistenRef.current);
         unlistenRef.current = null;
       }
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+        radarIntervalRef.current = null;
+      }
     };
-  }, [isConnected, isListening, startListening, stopListening]);
+  }, [isConnected, startListening, stopListening, sendRadarQuery]);
 
   return (
     <div className="h-screen bg-gray-100 flex overflow-hidden">

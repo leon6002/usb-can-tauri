@@ -36,6 +36,7 @@ export interface VehicleStatus {
  */
 export function parseVehicleStatus8Byte(data: number[]): VehicleStatus {
   if (data.length < 8) {
+    console.log("data is: ", data);
     throw new Error("输入数据长度必须至少是 8 字节");
   }
 
@@ -60,7 +61,7 @@ export function parseVehicleStatus8Byte(data: number[]): VehicleStatus {
   // 取前3个字节，转换为小端序的u32
   const speedRaw = byte0 | (byte1 << 8) | (byte2 << 16);
   // 高20位是速度值，低4位是档位
-  const speed = (speedRaw >> 4) & 0xFFFFF; // 取高20位
+  const speed = (speedRaw >> 4) & 0xfffff; // 取高20位
 
   // 解析转向角 (字节2-4，16位补码)
   // 取字节2-4（data[2], data[3], data[4]），小端序读取为 data[4] data[3] data[2]
@@ -128,33 +129,53 @@ export function parseCanDataHex(hexStr: string): number[] {
 }
 
 /**
- * 解析 4 字节的十六进制数据，转换为车速和转向角
+ * 解析 8 字节的十六进制数据，转换为车速和转向角
+ * 与后端 parse_control_data_4byte 函数逻辑一致
+ *
  * 协议:
- * data[0], data[1]: 线速度高低八位 (signed int16, mm/s)
- * data[2], data[3]: 转角高低八位 (signed int16, 0.001rad)
+ * data[0-2] (小端序): 速度值 (20位) + 档位 (4位)
+ *   - 低4位 (data[0] & 0x0F): 档位 (4=D档)
+ *   - 高20位: 速度值 (mm/s)
+ * data[3-4] (小端序, 16位补码): 转向角 (0.01度/count)
+ * data[6-7]: 保留
  */
 export function parseControlData4Byte(data: number[]): VehicleControl {
-  if (data.length < 4) {
-    throw new Error("输入数据长度必须至少是 4 字节");
+  if (data.length < 8) {
+    throw new Error("输入数据长度必须至少是 8 字节");
   }
 
-  // 解析线速度 (data[0] 和 data[1]) - Big-Endian
-  const linearVelocityBytes = [data[0], data[1]];
-  const linearVelocityMms =
-    (linearVelocityBytes[0] << 8) | linearVelocityBytes[1];
-  // 转换为有符号整数
+  const byte0 = data[0];
+  const byte1 = data[1];
+  const byte2 = data[2];
+  const byte3 = data[3];
+  const byte4 = data[4];
+
+  // 1. 解析速度 (data[0-2], 小端序)
+  // 高20位是速度值，低4位是档位
+  const speedHighByte = ((byte2 & 0x0f) << 4) | ((byte1 >> 4) & 0x0f);
+  const speedLowByte = ((byte1 & 0x0f) << 4) | ((byte0 >> 4) & 0x0f);
+
+  // 组合成16位有符号整数 (Big-Endian)
+  const speedRaw = (speedHighByte << 8) | speedLowByte;
+  console.log("speedRaw", speedRaw);
   const linearVelocityMmsSigned =
-    linearVelocityMms > 32767 ? linearVelocityMms - 65536 : linearVelocityMms;
+    speedRaw > 32767 ? speedRaw - 65536 : speedRaw;
 
-  // 解析转向角 (data[2] 和 data[3]) - Big-Endian
-  const steeringAngleBytes = [data[2], data[3]];
-  const steeringAngleRaw = (steeringAngleBytes[0] << 8) | steeringAngleBytes[1];
-  // 转换为有符号整数
-  const steeringAngleRawSigned =
-    steeringAngleRaw > 32767 ? steeringAngleRaw - 65536 : steeringAngleRaw;
+  // 2. 解析转向角 (data[3-4], 16位补码)
+  // 从 data[4] data[3] data[2] 中提取：
+  // - data[4] 的低4位作为高字节的高4位
+  // - data[3] 作为高字节的低4位和低字节的高4位
+  // - data[2] 的高4位作为低字节的低4位
+  const highByte = ((byte4 & 0x0f) << 4) | ((byte3 >> 4) & 0x0f);
+  const lowByte = ((byte3 & 0x0f) << 4) | ((byte2 >> 4) & 0x0f);
 
-  // 转换转向角单位: 从 0.001 rad 计数转换为 rad
-  const steeringAngleRad = steeringAngleRawSigned * 0.001;
+  // 组合成16位有符号整数 (Big-Endian)
+  const angleRaw = (highByte << 8) | lowByte;
+  const steeringAngleRawSigned = angleRaw > 32767 ? angleRaw - 65536 : angleRaw;
+
+  // 3. 转换转向角单位: 从 0.01度 计数转换为 rad
+  // 0.01度 = 0.01 * π/180 rad ≈ 0.0001745 rad
+  const steeringAngleRad = (steeringAngleRawSigned * 0.01 * Math.PI) / 180.0;
 
   return {
     linear_velocity_mms: linearVelocityMmsSigned,
@@ -167,6 +188,7 @@ export function parseControlData4Byte(data: number[]): VehicleControl {
  */
 export function extractVehicleControl(canData: string): VehicleControl {
   const dataBytes = parseCanDataHex(canData);
+  console.log("dataBytes", dataBytes);
   return parseControlData4Byte(dataBytes);
 }
 

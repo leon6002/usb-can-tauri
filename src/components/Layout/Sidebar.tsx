@@ -7,7 +7,7 @@ import {
   Wrench,
   Gamepad2,
   RefreshCwOff,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import { ActiveTab, SerialConfig } from "../../types";
 
@@ -33,9 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center gap-3">
           <Settings className="w-6 h-6 text-blue-600" />
           <div>
-            <h1 className="text-lg font-bold text-gray-900">
-              USB-CAN工具
-            </h1>
+            <h1 className="text-lg font-bold text-gray-900">OSYX 车控系统</h1>
             <div className="flex items-center gap-2 mt-1">
               {isConnected ? (
                 <>
@@ -98,7 +96,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="text-xs text-gray-500 font-medium">快速连接</div>
           <div className="flex items-center gap-2 text-xs">
             <span className="text-gray-600">端口:</span>
-            <span className="font-mono bg-gray-100 px-2 py-1 rounded">{config.port}</span>
+            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+              {config.port}
+            </span>
           </div>
           <button
             onClick={onConnect}

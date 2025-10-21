@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SerialConfig } from "../types";
+import { loadDefaultCsv } from "../utils/csvLoader";
 
 export const useSerial = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -13,22 +14,37 @@ export const useSerial = () => {
     protocolLength: "fixed",
     canMode: "normal",
     sendIntervalMs: 10,
-    canIdColumnIndex: 4,
-    canDataColumnIndex: 8,
+    canIdColumnIndex: 0,
+    canDataColumnIndex: 1,
     csvStartRowIndex: 1,
   });
 
-  // 获取可用串口
+  // 获取可用串口和加载预置CSV数据
   useEffect(() => {
-    const fetchPorts = async () => {
+    const initializeApp = async () => {
       try {
+        // 获取可用串口
         const ports = await invoke<string[]>("get_available_ports");
         setAvailablePorts(ports);
+
+        // 加载预置的示例数据
+        console.log("📂 Loading preset CSV data on app startup...");
+        const csvRows = await loadDefaultCsv();
+        const csvText = csvRows
+          .map((row) => `${row.can_id},${row.can_data},${row.interval_ms}`)
+          .join("\n");
+
+        setConfig((prevConfig) => ({
+          ...prevConfig,
+          csvFilePath: "sample-trajectory.csv (预置)",
+          csvContent: csvText,
+        }));
+        console.log("✅ Preset CSV data loaded successfully");
       } catch (error) {
-        console.error("Failed to get ports:", error);
+        console.error("Failed to initialize app:", error);
       }
     };
-    fetchPorts();
+    initializeApp();
   }, []);
 
   // 连接/断开串口
