@@ -4,11 +4,13 @@ import { RadarDistances } from "../../types";
 interface RadarDistancePanelProps {
   radarDistances: RadarDistances;
   isConnected?: boolean;
+  compact?: boolean;
 }
 
 export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
   radarDistances,
   isConnected = false,
+  compact = false,
 }) => {
   const getRadarColor = (distance: number | null): string => {
     if (distance === null) return "bg-gray-100";
@@ -30,6 +32,35 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
     { name: "雷达3", data: radarDistances.radar3, id: "0x00000523" },
     { name: "雷达4", data: radarDistances.radar4, id: "0x00000524" },
   ];
+
+  if (compact) {
+    return (
+      <div className="px-3 py-2 border-b border-gray-200">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-semibold text-gray-800 whitespace-nowrap">
+            雷达:
+          </span>
+          <div className="flex gap-1">
+            {radarList.map((radar) => (
+              <div
+                key={radar.id}
+                className={`px-2 py-1 rounded border text-xs font-medium ${getRadarColor(
+                  radar.data?.distance ?? null
+                )} ${getRadarTextColor(radar.data?.distance ?? null)}`}
+              >
+                {radar.data?.distance !== null &&
+                radar.data?.distance !== undefined
+                  ? `${radar.data.distance}mm`
+                  : isConnected
+                  ? "已连"
+                  : "未连"}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 border-b border-gray-200">

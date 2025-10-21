@@ -24,6 +24,7 @@ interface DebugPanelProps {
   onToggle: () => void;
   logs: DebugLog[];
   onClearLogs: () => void;
+  showToggleButton?: boolean;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({
@@ -31,23 +32,26 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   onToggle,
   logs,
   onClearLogs,
+  showToggleButton = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <>
       {/* 调试按钮 - 固定在右下角 */}
-      <button
-        onClick={onToggle}
-        className={`fixed bottom-4 right-4 z-50 p-3 rounded-full shadow-lg transition-all duration-300 ${
-          isVisible
-            ? "bg-red-500 hover:bg-red-600 text-white"
-            : "bg-blue-500 hover:bg-blue-600 text-white"
-        }`}
-        title={isVisible ? "隐藏调试面板" : "显示调试面板"}
-      >
-        {isVisible ? <X className="w-5 h-5" /> : <Bug className="w-5 h-5" />}
-      </button>
+      {showToggleButton && (
+        <button
+          onClick={onToggle}
+          className={`fixed bottom-4 right-4 z-50 p-3 rounded-full shadow-lg transition-all duration-300 ${
+            isVisible
+              ? "bg-red-500 hover:bg-red-600 text-white"
+              : "bg-blue-500 hover:bg-blue-600 text-white"
+          }`}
+          title={isVisible ? "隐藏调试面板" : "显示调试面板"}
+        >
+          {isVisible ? <X className="w-5 h-5" /> : <Bug className="w-5 h-5" />}
+        </button>
+      )}
 
       {/* 调试面板 */}
       {isVisible && (

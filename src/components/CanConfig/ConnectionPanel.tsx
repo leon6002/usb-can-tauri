@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from "react";
-import { FileUp, RefreshCwOff, RefreshCw, Download } from "lucide-react";
+import { FileUp, Zap, ZapOff, Download } from "lucide-react";
 import { SerialConfig } from "../../types";
 import { extractVehicleStatus } from "../../types/vehicleControl";
 import { loadDefaultCsv } from "../../utils/csvLoader";
@@ -483,12 +483,12 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
         >
           {isConnected ? (
             <>
-              <RefreshCwOff className="w-3 h-3 inline mr-1" />
+              <ZapOff className="w-3 h-3 inline mr-1" />
               断开
             </>
           ) : (
             <>
-              <RefreshCw className="w-3 h-3 inline mr-1" />
+              <Zap className="w-3 h-3 inline mr-1" />
               连接
             </>
           )}

@@ -82,6 +82,29 @@ export const useSerial = () => {
     }
   };
 
+  // 连接到指定端口（用于演示模式快速连接）
+  const connectToPort = async (port: string) => {
+    try {
+      const rustConfig = {
+        port,
+        baud_rate: config.baudRate,
+        can_baud_rate: config.canBaudRate,
+        frame_type: config.frameType,
+        can_mode: config.canMode,
+        protocol_length: config.protocolLength,
+      };
+      await invoke("connect_serial", { config: rustConfig });
+      setIsConnected(true);
+      setConfig((prev) => ({
+        ...prev,
+        port,
+      }));
+    } catch (error) {
+      console.error("Connection error:", error);
+      throw error;
+    }
+  };
+
   return {
     isConnected,
     availablePorts,
@@ -89,5 +112,6 @@ export const useSerial = () => {
     setConfig,
     handleConnect,
     handleDisconnect,
+    connectToPort,
   };
 };

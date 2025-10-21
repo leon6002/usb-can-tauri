@@ -7,6 +7,9 @@ import "./test-threejs";
 import { ActiveTab } from "./types";
 // import { STEERING_RATIO } from "./types/vehicleControl";
 
+// Config
+import { isDemoMode } from "./config/appConfig";
+
 // Hooks
 import { useSerial } from "./hooks/useSerial";
 import { useCanMessages } from "./hooks/useCanMessages";
@@ -32,6 +35,7 @@ function App() {
     setConfig,
     handleConnect,
     handleDisconnect,
+    connectToPort,
   } = useSerial();
   const {
     messages,
@@ -411,22 +415,27 @@ function App() {
     };
   }, [isConnected, startListening, stopListening, sendRadarQuery]);
 
+  // 演示模式下的快速连接处理
+  const handleDemoConnect = useCallback(
+    async (port: string) => {
+      try {
+        await connectToPort(port);
+      } catch (error) {
+        console.error("Demo connect error:", error);
+      }
+    },
+    [connectToPort]
+  );
+
+  const demoMode = isDemoMode();
+
   return (
     <div className="h-screen bg-gray-100 flex overflow-hidden">
       <Toaster position="top-right" theme="light" richColors />
-      {/* Left Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isConnected={isConnected}
-        config={config}
-        onConnect={handleConnect}
-      />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Tab Content */}
-        {activeTab === "car" && (
+      {/* 演示模式：只显示车辆控制界面 */}
+      {demoMode ? (
+        <div className="w-full h-full overflow-hidden">
           <CarControlTab
             isConnected={isConnected}
             carStates={mergedCarStates as any}
@@ -437,34 +446,67 @@ function App() {
             onToggleDebug={toggleDebugPanel}
             onClearDebugLogs={clearLogs}
             radarDistances={radarDistances}
+            isDemoMode={true}
+            onDemoConnect={handleDemoConnect}
+            onDemoDisconnect={handleDisconnect}
           />
-        )}
-
-        {activeTab === "config" && (
-          <CanConfigTab
+        </div>
+      ) : (
+        /* 调试模式：显示完整界面 */
+        <>
+          {/* Left Sidebar */}
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
             isConnected={isConnected}
             config={config}
-            availablePorts={availablePorts}
-            messages={messages}
-            sendId={sendId}
-            sendData={sendData}
             onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onConfigChange={setConfig}
-            onSendMessage={() => handleSendMessage(config)}
-            onClearMessages={clearMessages}
-            onSendIdChange={setSendId}
-            onSendDataChange={setSendData}
           />
-        )}
 
-        {activeTab === "buttons" && (
-          <ButtonConfigTab
-            canCommands={canCommands}
-            onUpdateCanCommand={updateCanCommand}
-          />
-        )}
-      </div>
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Tab Content */}
+            {activeTab === "car" && (
+              <CarControlTab
+                isConnected={isConnected}
+                carStates={mergedCarStates as any}
+                scene3DStatus={scene3DStatus}
+                onSendCommand={sendCarCommand}
+                debugLogs={logs}
+                isDebugVisible={isDebugVisible}
+                onToggleDebug={toggleDebugPanel}
+                onClearDebugLogs={clearLogs}
+                radarDistances={radarDistances}
+              />
+            )}
+
+            {activeTab === "config" && (
+              <CanConfigTab
+                isConnected={isConnected}
+                config={config}
+                availablePorts={availablePorts}
+                messages={messages}
+                sendId={sendId}
+                sendData={sendData}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
+                onConfigChange={setConfig}
+                onSendMessage={() => handleSendMessage(config)}
+                onClearMessages={clearMessages}
+                onSendIdChange={setSendId}
+                onSendDataChange={setSendData}
+              />
+            )}
+
+            {activeTab === "buttons" && (
+              <ButtonConfigTab
+                canCommands={canCommands}
+                onUpdateCanCommand={updateCanCommand}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
