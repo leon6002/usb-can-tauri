@@ -152,12 +152,14 @@ def process_csv_to_can(input_filepath: str, output_filepath: str):
                         clamped_status = "Yes"
                         
                     output_data.append({
+                        "can_id":"0x18C4D2D0",
+                        "can_data": hex_data,
+                        "interval_ms": 10,
                         "Index": row_index + 1,
                         "Speed_mm/s": f"{linear_velocity_mms}",
                         "Angle_deg": f"{angle_deg:.2f}",
                         "Angle_Clamped": clamped_status,
-                        "AliveCounter_Hex": f"{alive_counter:02X}",
-                        "HexData": hex_data
+                        "AliveCounter_Hex": f"{alive_counter:02X}"
                     })
                     
                     # 更新心跳计数器 (00 -> 10 -> ... -> F0 -> 00 循环)
@@ -177,8 +179,8 @@ def process_csv_to_can(input_filepath: str, output_filepath: str):
         print(f"处理文件时发生未预期的错误: {e}")
 
 if __name__ == "__main__":
-    input_csv_file_path = '/Users/cgl/codes/zheng-related/usb-can-tauri/python-test/input.csv'
-    output_csv_file_path = 'can_output6.csv'
+    input_csv_file_path = '/Users/cgl/codes/zheng-related/usb-can-tauri/python-test/driving_data.csv'
+    output_csv_file_path = 'can_output9.csv'
     
     # 检查示例文件是否存在，如果不存在则提示用户创建
     if not os.path.exists(input_csv_file_path):

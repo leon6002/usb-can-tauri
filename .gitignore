@@ -68,3 +68,5 @@ ehthumbs.db
 public/car-assets/videos/
 
 /python-test/venv
+
+__pycache__
