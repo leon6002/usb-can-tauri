@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -95,49 +95,48 @@ export const useCanMessages = () => {
   };
 
   // 发送CAN命令
-  const sendCanCommand = async (
-    canId: string,
-    data: string,
-    config: SerialConfig
-  ) => {
-    try {
-      // 验证 CAN ID
-      // console.log("🔍 验证车辆命令 CAN ID:", {
-      //   canId,
-      //   frameType: config.frameType,
-      // });
-      const validation = validateCanId(canId, config.frameType);
-      // console.log("✅ 验证结果:", validation);
+  const sendCanCommand = useCallback(
+    async (canId: string, data: string, config: SerialConfig) => {
+      try {
+        // 验证 CAN ID
+        // console.log("🔍 验证车辆命令 CAN ID:", {
+        //   canId,
+        //   frameType: config.frameType,
+        // });
+        const validation = validateCanId(canId, config.frameType);
+        // console.log("✅ 验证结果:", validation);
 
-      if (!validation.valid) {
-        console.warn("❌ CAN ID 验证失败:", validation.error);
-        toast.error(validation.error);
-        return;
+        if (!validation.valid) {
+          console.warn("❌ CAN ID 验证失败:", validation.error);
+          toast.error(validation.error);
+          return;
+        }
+
+        const params = {
+          id: canId,
+          data: data,
+          frameType: config.frameType,
+          protocolLength: config.protocolLength,
+        };
+        // console.log("发送车辆命令参数:", params);
+        await invoke("send_can_message", params);
+
+        // 添加到消息列表
+        const newMessage: CanMessage = {
+          id: canId,
+          data: data,
+          timestamp: new Date().toLocaleTimeString(),
+          direction: "sent",
+          frameType: config.frameType as "standard" | "extended",
+        };
+        setMessages((prev) => [...prev, newMessage]);
+      } catch (error) {
+        console.error("Send car command error:", error);
+        toast.error(`发送车辆命令错误: ${error}`);
       }
-
-      const params = {
-        id: canId,
-        data: data,
-        frameType: config.frameType,
-        protocolLength: config.protocolLength,
-      };
-      // console.log("发送车辆命令参数:", params);
-      await invoke("send_can_message", params);
-
-      // 添加到消息列表
-      const newMessage: CanMessage = {
-        id: canId,
-        data: data,
-        timestamp: new Date().toLocaleTimeString(),
-        direction: "sent",
-        frameType: config.frameType as "standard" | "extended",
-      };
-      setMessages((prev) => [...prev, newMessage]);
-    } catch (error) {
-      console.error("Send car command error:", error);
-      toast.error(`发送车辆命令错误: ${error}`);
-    }
-  };
+    },
+    []
+  );
 
   // 清空消息
   const clearMessages = () => {

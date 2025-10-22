@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { CarStates, CanCommand } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -135,21 +135,20 @@ export const useCarControl = () => {
   });
 
   // 更新实时 CAN 数据（速度、转向角和档位）
-  const updateVehicleControl = (
-    speed: number,
-    steeringAngle: number,
-    gear?: string
-  ) => {
-    setCarStates((prev) => ({
-      ...prev,
-      currentSpeed: speed,
-      currentSteeringAngle: steeringAngle,
-      ...(gear && { gear }),
-    }));
-  };
+  const updateVehicleControl = useCallback(
+    (speed: number, steeringAngle: number, gear?: string) => {
+      setCarStates((prev) => ({
+        ...prev,
+        currentSpeed: speed,
+        currentSteeringAngle: steeringAngle,
+        ...(gear && { gear }),
+      }));
+    },
+    []
+  );
 
   // 更新车辆状态
-  const updateCarState = (commandId: string) => {
+  const updateCarState = useCallback((commandId: string) => {
     setCarStates((prev) => {
       const newState = { ...prev };
 
@@ -202,134 +201,139 @@ export const useCarControl = () => {
         case "suspension_down":
           newState.suspensionStatus = "降低";
           break;
+        case "suspension_stop":
+          newState.suspensionStatus = "正常";
+          break;
       }
 
       return newState;
     });
-  };
+  }, []);
 
   // 更新CAN命令配置
-  const updateCanCommand = (
-    commandId: string,
-    field: keyof CanCommand,
-    value: string
-  ) => {
-    setCanCommands((prev) =>
-      prev.map((cmd) =>
-        cmd.id === commandId ? { ...cmd, [field]: value } : cmd
-      )
-    );
-  };
+  const updateCanCommand = useCallback(
+    (commandId: string, field: keyof CanCommand, value: string) => {
+      setCanCommands((prev) =>
+        prev.map((cmd) =>
+          cmd.id === commandId ? { ...cmd, [field]: value } : cmd
+        )
+      );
+    },
+    []
+  );
 
   // 开始循环发送CSV数据（使用预解析的数据）
-  const startCsvLoop = async (
-    csvContent: string,
-    intervalMs: number,
-    canIdColumnIndex: number,
-    canDataColumnIndex: number,
-    csvStartRowIndex: number,
-    config: any,
-    onComplete?: () => void,
-    onProgressUpdate?: (
-      speed: number,
-      steeringAngle: number,
-      gear?: string
-    ) => void
-  ) => {
-    try {
-      console.log("🚀 startCsvLoop called with:", {
-        csvContentLength: csvContent.length,
-        intervalMs,
-        canIdColumnIndex,
-        canDataColumnIndex,
-        csvStartRowIndex,
-      });
+  const startCsvLoop = useCallback(
+    async (
+      csvContent: string,
+      intervalMs: number,
+      canIdColumnIndex: number,
+      canDataColumnIndex: number,
+      csvStartRowIndex: number,
+      config: any,
+      onComplete?: () => void,
+      onProgressUpdate?: (
+        speed: number,
+        steeringAngle: number,
+        gear?: string
+      ) => void
+    ) => {
+      try {
+        console.log("🚀 startCsvLoop called with:", {
+          csvContentLength: csvContent.length,
+          intervalMs,
+          canIdColumnIndex,
+          canDataColumnIndex,
+          csvStartRowIndex,
+        });
 
-      // 第一步：预加载并解析 CSV 数据
-      console.log("📂 Preloading CSV data...");
-      const preloadedData = await invoke<any[]>("preload_csv_data", {
-        csvContent: csvContent,
-        canIdColumnIndex: canIdColumnIndex,
-        canDataColumnIndex: canDataColumnIndex,
-        csvStartRowIndex: csvStartRowIndex,
-      });
+        // 第一步：预加载并解析 CSV 数据
+        console.log("📂 Preloading CSV data...");
+        const preloadedData = await invoke<any[]>("preload_csv_data", {
+          csvContent: csvContent,
+          canIdColumnIndex: canIdColumnIndex,
+          canDataColumnIndex: canDataColumnIndex,
+          csvStartRowIndex: csvStartRowIndex,
+        });
 
-      console.log(`✅ Preloaded ${preloadedData.length} records`);
+        console.log(`✅ Preloaded ${preloadedData.length} records`);
 
-      // 第二步：使用预解析的数据启动循环
-      const result = await invoke("start_csv_loop_with_preloaded_data", {
-        preloadedData: preloadedData,
-        intervalMs: intervalMs,
-        config: {
-          port: config.port,
-          baud_rate: config.baudRate,
-          can_baud_rate: config.canBaudRate,
-          frame_type: config.frameType,
-          can_mode: config.canMode,
-          protocol_length: config.protocolLength,
-        },
-      });
+        // 第二步：使用预解析的数据启动循环
+        const result = await invoke("start_csv_loop_with_preloaded_data", {
+          preloadedData: preloadedData,
+          intervalMs: intervalMs,
+          config: {
+            port: config.port,
+            baud_rate: config.baudRate,
+            can_baud_rate: config.canBaudRate,
+            frame_type: config.frameType,
+            can_mode: config.canMode,
+            protocol_length: config.protocolLength,
+          },
+        });
 
-      console.log("✅ startCsvLoop result:", result);
+        console.log("✅ startCsvLoop result:", result);
 
-      // 第三步：实时更新进度（模拟）
-      if (onProgressUpdate && preloadedData.length > 0) {
-        let currentIndex = 0;
-        // 清除之前的 progressInterval（如果存在）
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-        }
-
-        progressIntervalRef.current = setInterval(() => {
-          if (currentIndex < preloadedData.length) {
-            const data = preloadedData[currentIndex];
-            if (data.vehicle_control) {
-              onProgressUpdate(
-                data.vehicle_control.linear_velocity_mms,
-                data.vehicle_control.steering_angle_rad,
-                data.vehicle_control.gear_name
-              );
-            }
-            currentIndex++;
-          } else {
-            if (progressIntervalRef.current) {
-              clearInterval(progressIntervalRef.current);
-              progressIntervalRef.current = null;
-            }
+        // 第三步：实时更新进度（模拟）
+        if (onProgressUpdate && preloadedData.length > 0) {
+          let currentIndex = 0;
+          // 清除之前的 progressInterval（如果存在）
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
           }
-        }, intervalMs);
-      }
 
-      // 计算预期的完成时间
-      const estimatedDuration = preloadedData.length * intervalMs + 1000; // 加1秒缓冲
-
-      console.log(
-        `📊 CSV loop will complete in approximately ${estimatedDuration}ms (${preloadedData.length} records × ${intervalMs}ms)`
-      );
-
-      // 设置定时器，在预期时间后检查并触发完成回调
-      if (onComplete) {
-        // 清除之前的 completeTimeout（如果存在）
-        if (completeTimeoutRef.current) {
-          clearTimeout(completeTimeoutRef.current);
+          progressIntervalRef.current = setInterval(() => {
+            if (currentIndex < preloadedData.length) {
+              const data = preloadedData[currentIndex];
+              if (data.vehicle_control) {
+                onProgressUpdate(
+                  data.vehicle_control.linear_velocity_mms,
+                  data.vehicle_control.steering_angle_rad,
+                  data.vehicle_control.gear_name
+                );
+              }
+              currentIndex++;
+            } else {
+              if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+                progressIntervalRef.current = null;
+              }
+            }
+          }, intervalMs);
         }
 
-        completeTimeoutRef.current = setTimeout(() => {
-          console.log(
-            "✅ CSV loop should be completed, triggering onComplete callback"
-          );
-          onComplete();
-          completeTimeoutRef.current = null;
-        }, estimatedDuration);
+        // 计算预期的完成时间
+        const estimatedDuration = preloadedData.length * intervalMs + 1000; // 加1秒缓冲
+
+        console.log(
+          `📊 CSV loop will complete in approximately ${estimatedDuration}ms (${preloadedData.length} records × ${intervalMs}ms)`
+        );
+
+        // 设置定时器，在预期时间后检查并触发完成回调
+        if (onComplete) {
+          // 清除之前的 completeTimeout（如果存在）
+          if (completeTimeoutRef.current) {
+            clearTimeout(completeTimeoutRef.current);
+          }
+
+          completeTimeoutRef.current = setTimeout(() => {
+            console.log(
+              "✅ CSV loop should be completed, triggering onComplete callback"
+            );
+            onComplete();
+            completeTimeoutRef.current = null;
+          }, estimatedDuration);
+        }
+      } catch (error) {
+        console.error("❌ Failed to start CSV loop:", error);
+        throw error;
       }
-    } catch (error) {
-      console.error("❌ Failed to start CSV loop:", error);
-      throw error;
-    }
-  };
+    },
+    []
+  );
 
   // 停止循环发送
-  const stopCsvLoop = async () => {
+  const stopCsvLoop = useCallback(async () => {
     try {
       // 清除前端的定时器
       if (progressIntervalRef.current) {
@@ -351,7 +355,7 @@ export const useCarControl = () => {
       console.error("Failed to stop CSV loop:", error);
       throw error;
     }
-  };
+  }, []);
 
   return {
     canCommands,

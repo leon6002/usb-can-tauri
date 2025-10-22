@@ -1,41 +1,30 @@
-import React from "react";
+import React, { memo } from "react";
 import { Car3DViewer } from "./Car3DViewer";
 import { CarStatusPanel } from "./CarStatusPanel";
 import { CarControlPanel } from "./CarControlPanel";
 import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
-import { CarStates, Scene3DStatus, RadarDistances } from "../../types";
-import { DebugLog } from "../../hooks/useDebugLogs";
+import { useCarState } from "../../contexts/CarStateContext";
+import { useCarCommand } from "../../contexts/CarCommandContext";
+import { useDebug } from "../../contexts/DebugContext";
 
 interface CarControlTabProps {
   isConnected: boolean;
-  carStates: CarStates;
-  scene3DStatus: Scene3DStatus;
-  onSendCommand: (commandId: string) => void;
-  debugLogs: DebugLog[];
-  isDebugVisible: boolean;
-  onToggleDebug: () => void;
-  onClearDebugLogs: () => void;
-  radarDistances: RadarDistances;
   isDemoMode?: boolean;
   onDemoConnect?: (port: string) => void;
   onDemoDisconnect?: () => void;
 }
 
-export const CarControlTab: React.FC<CarControlTabProps> = ({
+const CarControlTabComponent: React.FC<CarControlTabProps> = ({
   isConnected,
-  carStates,
-  scene3DStatus,
-  onSendCommand,
-  debugLogs,
-  isDebugVisible,
-  onToggleDebug,
-  onClearDebugLogs,
-  radarDistances,
   isDemoMode = false,
   onDemoConnect,
   onDemoDisconnect,
 }) => {
+  // 从 Context 获取状态和函数
+  const { mergedCarStates, scene3DStatus, radarDistances } = useCarState();
+  const { sendCarCommand } = useCarCommand();
+  const { logs, isDebugVisible, toggleDebugPanel, clearLogs } = useDebug();
   const handleSteeringChange = (angle: number) => {
     // 通知3D场景更新前轮转向和车身旋转
     const renderer = (window as any).car3DRenderer;
@@ -43,6 +32,16 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
       renderer.updateSteeringAngle(angle);
     }
   };
+
+  console.log("car control tab rendering", {
+    isConnected,
+    mergedCarStatesKeys: Object.keys(mergedCarStates),
+    scene3DStatusKeys: Object.keys(scene3DStatus),
+    debugLogsLength: logs.length,
+    isDebugVisible,
+    radarDistancesRadar1: radarDistances?.radar1?.distance,
+    isDemoMode,
+  });
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
@@ -180,10 +179,10 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
 
           {/* Status Panel */}
           <CarStatusPanel
-            carStates={carStates}
+            carStates={mergedCarStates}
             scene3DStatus={scene3DStatus}
-            gear={carStates.gear}
-            steeringAngleDegrees={carStates.steeringAngleDegrees}
+            gear={mergedCarStates.gear}
+            steeringAngleDegrees={mergedCarStates.steeringAngleDegrees}
             radarDistances={radarDistances}
             isConnected={isConnected}
           />
@@ -191,8 +190,8 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
           {/* Control Panels */}
           <CarControlPanel
             isConnected={isConnected}
-            carStates={carStates}
-            onSendCommand={onSendCommand}
+            carStates={mergedCarStates}
+            onSendCommand={sendCarCommand}
             onSteeringChange={handleSteeringChange}
           />
         </div>
@@ -201,11 +200,31 @@ export const CarControlTab: React.FC<CarControlTabProps> = ({
       {/* Debug Panel */}
       <DebugPanel
         isVisible={isDebugVisible}
-        onToggle={onToggleDebug}
-        logs={debugLogs}
-        onClearLogs={onClearDebugLogs}
+        onToggle={toggleDebugPanel}
+        logs={logs}
+        onClearLogs={clearLogs}
         showToggleButton={!isDemoMode}
       />
     </div>
   );
 };
+
+// 自定义比较函数来追踪哪个 prop 改变了
+const arePropsEqual = (
+  prevProps: CarControlTabProps,
+  nextProps: CarControlTabProps
+): boolean => {
+  const keys = Object.keys(prevProps) as (keyof CarControlTabProps)[];
+
+  for (const key of keys) {
+    if (prevProps[key] !== nextProps[key]) {
+      console.log(`❌ CarControlTab prop changed: ${String(key)}`);
+      return false;
+    }
+  }
+
+  return true;
+};
+
+// 使用 memo 包装，避免不必要的重新渲染
+export const CarControlTab = memo(CarControlTabComponent, arePropsEqual);

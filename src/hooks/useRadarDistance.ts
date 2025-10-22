@@ -70,26 +70,40 @@ export const useRadarDistance = () => {
     };
 
     setRadarDistances((prev) => {
-      const updated = { ...prev, lastUpdate: timestamp };
+      let updated = prev;
+      let hasChanged = false;
 
       // 根据CAN ID更新对应的雷达数据
       if (message.canId === RADAR_CAN_IDS.RADAR_1) {
         // console.log("✅ [Radar] Updating RADAR_1");
-        updated.radar1 = radarData;
+        if (prev.radar1?.distance !== distance) {
+          updated = { ...prev, radar1: radarData };
+          hasChanged = true;
+        }
       } else if (message.canId === RADAR_CAN_IDS.RADAR_2) {
         // console.log("✅ [Radar] Updating RADAR_2");
-        updated.radar2 = radarData;
+        if (prev.radar2?.distance !== distance) {
+          updated = { ...prev, radar2: radarData };
+          hasChanged = true;
+        }
       } else if (message.canId === RADAR_CAN_IDS.RADAR_3) {
         // console.log("✅ [Radar] Updating RADAR_3");
-        updated.radar3 = radarData;
+        if (prev.radar3?.distance !== distance) {
+          updated = { ...prev, radar3: radarData };
+          hasChanged = true;
+        }
       } else if (message.canId === RADAR_CAN_IDS.RADAR_4) {
         // console.log("✅ [Radar] Updating RADAR_4");
-        updated.radar4 = radarData;
+        if (prev.radar4?.distance !== distance) {
+          updated = { ...prev, radar4: radarData };
+          hasChanged = true;
+        }
       } else {
         console.warn("⚠️  [Radar] Unknown radar ID:", message.canId);
       }
 
-      return updated;
+      // 只有当数据实际改变时才返回新对象
+      return hasChanged ? updated : prev;
     });
   }, []);
 

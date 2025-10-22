@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  Play,
-  Square,
-  CircleStop,
-  CircleArrowUp,
-  CircleArrowDown,
-} from "lucide-react";
+import { Play, Square, CircleArrowUp, CircleArrowDown } from "lucide-react";
 import { CarStates } from "../../types";
 
 interface CarControlPanelProps {
@@ -20,6 +14,14 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
   carStates,
   onSendCommand,
 }) => {
+  // 根据 carStates.suspensionStatus 判断当前状态
+  const suspensionControlling =
+    carStates.suspensionStatus === "升高"
+      ? "up"
+      : carStates.suspensionStatus === "降低"
+      ? "down"
+      : null;
+  console.log("suspension status is:", suspensionControlling);
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-6">
       {/* Main Controls */}
@@ -63,30 +65,46 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       {/* Suspension Controls */}
       <div>
         <h4 className="text-sm font-semibold text-gray-700 mb-3">悬架控制</h4>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => onSendCommand("suspension_up")}
-            disabled={!isConnected}
-            className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
+            onClick={() => {
+              onSendCommand("suspension_up");
+            }}
+            disabled={!isConnected || suspensionControlling !== null}
+            className={`px-3 py-2 text-sm rounded-lg font-medium ${
+              suspensionControlling === "up"
+                ? "bg-green-500 text-white border border-green-600"
+                : "bg-white border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300"
+            } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
           >
-            <CircleArrowUp className="w-4 h-4 inline mr-1" />
-            升高
+            <span
+              className={`${
+                suspensionControlling === "up" ? "animate-pulse" : ""
+              }`}
+            >
+              <CircleArrowUp className="w-4 h-4 inline mr-1" />
+              {suspensionControlling === "up" ? "升高中" : "升高"}
+            </span>
           </button>
           <button
-            onClick={() => onSendCommand("suspension_down")}
-            disabled={!isConnected}
-            className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
+            onClick={() => {
+              onSendCommand("suspension_down");
+            }}
+            disabled={!isConnected || suspensionControlling !== null}
+            className={`px-3 py-2 text-sm rounded-lg font-medium ${
+              suspensionControlling === "down"
+                ? "bg-orange-500 text-white border border-orange-600"
+                : "bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300"
+            } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
           >
-            <CircleArrowDown className="w-4 h-4 inline mr-1" />
-            降低
-          </button>
-          <button
-            onClick={() => onSendCommand("suspension_stop")}
-            disabled={!isConnected}
-            className="px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
-          >
-            <CircleStop className="w-4 h-4 inline mr-1" />
-            停止
+            <span
+              className={`${
+                suspensionControlling === "down" ? "animate-pulse" : ""
+              }`}
+            >
+              <CircleArrowDown className="w-4 h-4 inline mr-1" />
+              {suspensionControlling === "down" ? "降低中" : "降低"}
+            </span>
           </button>
         </div>
       </div>

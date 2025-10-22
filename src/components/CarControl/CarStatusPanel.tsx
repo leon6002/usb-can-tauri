@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { CarStates, Scene3DStatus, RadarDistances } from "../../types";
 import { Radar } from "lucide-react";
 
@@ -11,7 +11,7 @@ interface CarStatusPanelProps {
   isConnected?: boolean;
 }
 
-export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
+const CarStatusPanelComponent: React.FC<CarStatusPanelProps> = ({
   carStates,
   gear,
   steeringAngleDegrees,
@@ -128,3 +128,57 @@ export const CarStatusPanel: React.FC<CarStatusPanelProps> = ({
     </div>
   );
 };
+
+// 自定义比较函数：只比较实际的数据值，忽略对象引用
+const arePropsEqual = (
+  prevProps: CarStatusPanelProps,
+  nextProps: CarStatusPanelProps
+): boolean => {
+  // 比较基本属性
+  if (
+    prevProps.isConnected !== nextProps.isConnected ||
+    prevProps.gear !== nextProps.gear ||
+    prevProps.steeringAngleDegrees !== nextProps.steeringAngleDegrees
+  ) {
+    return false;
+  }
+
+  // 比较 carStates
+  if (
+    prevProps.carStates.isDriving !== nextProps.carStates.isDriving ||
+    prevProps.carStates.leftDoorStatus !== nextProps.carStates.leftDoorStatus ||
+    prevProps.carStates.rightDoorStatus !==
+      nextProps.carStates.rightDoorStatus ||
+    prevProps.carStates.fanLevel !== nextProps.carStates.fanLevel ||
+    prevProps.carStates.lightMode !== nextProps.carStates.lightMode ||
+    prevProps.carStates.suspensionStatus !==
+      nextProps.carStates.suspensionStatus ||
+    prevProps.carStates.currentSpeed !== nextProps.carStates.currentSpeed ||
+    prevProps.carStates.currentSteeringAngle !==
+      nextProps.carStates.currentSteeringAngle
+  ) {
+    return false;
+  }
+
+  // 比较 radarDistances
+  if (prevProps.radarDistances && nextProps.radarDistances) {
+    if (
+      prevProps.radarDistances.radar1?.distance !==
+        nextProps.radarDistances.radar1?.distance ||
+      prevProps.radarDistances.radar2?.distance !==
+        nextProps.radarDistances.radar2?.distance ||
+      prevProps.radarDistances.radar3?.distance !==
+        nextProps.radarDistances.radar3?.distance ||
+      prevProps.radarDistances.radar4?.distance !==
+        nextProps.radarDistances.radar4?.distance
+    ) {
+      return false;
+    }
+  } else if (prevProps.radarDistances !== nextProps.radarDistances) {
+    return false;
+  }
+
+  return true;
+};
+
+export const CarStatusPanel = memo(CarStatusPanelComponent, arePropsEqual);

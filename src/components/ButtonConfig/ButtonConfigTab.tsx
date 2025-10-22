@@ -1,19 +1,10 @@
 import React from "react";
-import { CanCommand } from "../../types";
+import { useCarCommand } from "../../contexts/CarCommandContext";
 
-interface ButtonConfigTabProps {
-  canCommands: CanCommand[];
-  onUpdateCanCommand: (
-    commandId: string,
-    field: keyof CanCommand,
-    value: string
-  ) => void;
-}
+interface ButtonConfigTabProps {}
 
-export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
-  canCommands,
-  onUpdateCanCommand,
-}) => {
+export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = () => {
+  const { canCommands, updateCanCommand } = useCarCommand();
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Status Bar */}
@@ -44,7 +35,7 @@ export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
                       type="text"
                       value={command.name}
                       onChange={(e) =>
-                        onUpdateCanCommand(command.id, "name", e.target.value)
+                        updateCanCommand(command.id, "name", e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       placeholder="输入命令名称"
@@ -60,11 +51,7 @@ export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
                         type="text"
                         value={command.canId}
                         onChange={(e) =>
-                          onUpdateCanCommand(
-                            command.id,
-                            "canId",
-                            e.target.value
-                          )
+                          updateCanCommand(command.id, "canId", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
                         placeholder="123"
@@ -79,7 +66,7 @@ export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
                         type="text"
                         value={command.data}
                         onChange={(e) =>
-                          onUpdateCanCommand(command.id, "data", e.target.value)
+                          updateCanCommand(command.id, "data", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
                         placeholder="01 02"
@@ -94,7 +81,7 @@ export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = ({
                     <textarea
                       value={command.description}
                       onChange={(e) =>
-                        onUpdateCanCommand(
+                        updateCanCommand(
                           command.id,
                           "description",
                           e.target.value
