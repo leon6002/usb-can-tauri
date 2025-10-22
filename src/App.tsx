@@ -9,7 +9,7 @@ import { ActiveTab } from "./types";
 // import { STEERING_RATIO } from "./types/vehicleControl";
 
 // Config
-import { isDemoMode } from "./config/appConfig";
+import { isDemoMode, getRadarQueryInterval } from "./config/appConfig";
 
 // Hooks
 import { useSerial } from "./hooks/useSerial";
@@ -256,6 +256,8 @@ function App() {
             renderer.startCameraAnimation("side", 2000, true);
             // 显示门按钮
             renderer.setDoorButtonsVisible(true);
+            // 重置悬架高度
+            // renderer.resetSuspensionHeight();
           }
         } else if (commandId === "door_open" || commandId === "door_close") {
           // 门命令 - 发送开/关命令，动画结束后自动发送停止信号
@@ -270,8 +272,8 @@ function App() {
           await sendCanCommand(command.canId, command.data, configRef.current);
           updateCarState(commandId);
 
-          // 门动画持续时间约为 1.5 秒，动画结束后自动发送停止信号
-          const doorAnimationDuration = 1500; // 毫秒
+          // 门动画持续时间约为 4 秒，动画结束后自动发送停止信号
+          const doorAnimationDuration = 4000; // 毫秒
           setTimeout(async () => {
             console.log("🚪 门动画结束，自动发送停止信号");
             const stopCommand = canCommands.find(
@@ -317,7 +319,7 @@ function App() {
           }
           suspensionTimeoutRef.current = setTimeout(() => {
             sendCarCommand("suspension_stop");
-          }, 2000);
+          }, 4000);
         } else if (commandId === "suspension_down") {
           // 悬挂降低命令
           addDebugLog(
@@ -342,7 +344,7 @@ function App() {
           }
           suspensionTimeoutRef.current = setTimeout(() => {
             sendCarCommand("suspension_stop");
-          }, 2000);
+          }, 4000);
         } else if (commandId === "suspension_stop") {
           // 悬挂停止命令
           addDebugLog(
@@ -447,12 +449,15 @@ function App() {
 
       console.log("radar lisening");
 
-      // 启动定时发送雷达查询命令（每隔1秒）
+      // 启动定时发送雷达查询命令
       if (!radarIntervalRef.current) {
+        const radarInterval = getRadarQueryInterval();
         radarIntervalRef.current = setInterval(() => {
           sendRadarQuery();
-        }, 1000);
-        console.log("📡 [Radar] Started sending radar queries every 1 second");
+        }, radarInterval);
+        console.log(
+          `📡 [Radar] Started sending radar queries every ${radarInterval}ms`
+        );
       }
     } else {
       // 断开连接后停止监听

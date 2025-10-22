@@ -558,6 +558,31 @@ export class Car3DRenderer {
   }
 
   /**
+   * 获取当前悬架高度
+   */
+  public getSuspensionHeight(): number {
+    return this.animationController.getSuspensionHeight();
+  }
+
+  /**
+   * 获取悬架高度限制信息
+   */
+  public getSuspensionHeightLimit(): {
+    currentHeight: number;
+    maxHeight: number;
+    minHeight: number;
+  } {
+    return this.animationController.getSuspensionHeightLimit();
+  }
+
+  /**
+   * 重置悬架高度
+   */
+  public resetSuspensionHeight(): void {
+    this.animationController.resetSuspensionHeight();
+  }
+
+  /**
    * 重置车辆动力学参数
    * 当停止行驶时调用，重置速度、纹理偏移等
    */

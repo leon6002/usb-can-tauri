@@ -22,6 +22,16 @@ interface AppConfig {
     port: string;
     baudRate: number;
   };
+  // UI 功能开关
+  features?: {
+    // 是否显示风扇档位控制
+    showFanControl?: boolean;
+  };
+  // 雷达配置
+  radar?: {
+    // 雷达查询间隔（毫秒）
+    queryIntervalMs?: number;
+  };
 }
 
 // ============================================
@@ -36,6 +46,18 @@ const APP_CONFIG: AppConfig = {
     port: "/dev/tty.usbserial-2110",
     baudRate: 115200,
   },
+
+  // UI 功能开关
+  features: {
+    // 是否显示风扇档位控制（0-3档）
+    showFanControl: false,
+  },
+
+  // 雷达配置
+  radar: {
+    // 雷达查询间隔（毫秒）- 默认 100000ms (100秒)
+    queryIntervalMs: 100000,
+  },
 };
 
 // ============================================
@@ -49,5 +71,17 @@ export const isDemoMode = (): boolean => APP_CONFIG.mode === "DEMO";
 export const isDebugMode = (): boolean => APP_CONFIG.mode === "DEBUG";
 
 export const getDemoQuickConnect = () => APP_CONFIG.demoQuickConnect;
+
+/**
+ * 检查是否显示风扇档位控制
+ */
+export const isShowFanControl = (): boolean =>
+  APP_CONFIG.features?.showFanControl ?? true;
+
+/**
+ * 获取雷达查询间隔（毫秒）
+ */
+export const getRadarQueryInterval = (): number =>
+  APP_CONFIG.radar?.queryIntervalMs ?? 100000;
 
 export default APP_CONFIG;
