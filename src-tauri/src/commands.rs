@@ -161,11 +161,11 @@ pub async fn send_can_message(
             error!("Connection check failed: device not connected");
             return Err("Not connected".to_string());
         }
-        info!("Connection check passed");
+        // info!("Connection check passed");
     }
 
     // Create send packet based on protocol_length
-    info!("Creating CAN packet...");
+    // info!("Creating CAN packet...");
     let packet: Vec<u8> = if protocol_length == "variable" {
         match create_can_send_packet_variable(&id, &data, &frame_type) {
             Ok(p) => {
@@ -180,7 +180,7 @@ pub async fn send_can_message(
     } else {
         match create_can_send_packet_fixed(&id, &data, &frame_type) {
             Ok(p) => {
-                info!("CAN packet (fixed) created successfully");
+                // info!("CAN packet (fixed) created successfully");
                 p
             },
             Err(e) => {
@@ -191,14 +191,14 @@ pub async fn send_can_message(
     };
 
     // Send data through channel
-    info!("Preparing to send packet through channel...");
+    // info!("Preparing to send packet through channel...");
     info!("Packet content: {:02X?}", packet);
 
     let tx_send = state.tx_send.lock().unwrap();
     if let Some(ref sender) = *tx_send {
         match sender.send(SendMessage { packet }) {
             Ok(_) => {
-                info!("CAN message sent to write thread successfully!");
+                // info!("CAN message sent to write thread successfully!");
                 Ok("Message sent successfully".to_string())
             }
             Err(e) => {
@@ -238,7 +238,7 @@ pub async fn start_csv_loop(
             return Err("Not connected".to_string());
         }
     }
-    println!("✅ [Rust] Connection check passed");
+    // println!("✅ [Rust] Connection check passed");
 
     state.csv_loop_running.store(true, Ordering::SeqCst);
 

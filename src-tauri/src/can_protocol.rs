@@ -68,7 +68,7 @@ pub fn create_can_config_packet(config: &SerialConfig) -> Vec<u8> {
 /// 
 /// 根据 CAN ID 和数据生成发送数据包
 pub fn create_can_send_packet_fixed(id: &str, data: &str, frame_type: &str) -> Result<Vec<u8>> {
-    info!("Creating CAN send packet (fixed) - ID: {}, Data: {}, Type: {}", id, data, frame_type);
+    // info!("Creating CAN send packet (fixed) - ID: {}, Data: {}, Type: {}", id, data, frame_type);
 
     // Parse data - handle both single hex values and space-separated hex values
     let mut data_bytes: Vec<u8> = if data.contains(' ') {
@@ -149,14 +149,14 @@ pub fn create_can_send_packet_fixed(id: &str, data: &str, frame_type: &str) -> R
     // CAN ID: always 4 bytes (little-endian)
     let id_bytes = can_id.to_le_bytes().to_vec();
     packet.extend_from_slice(&id_bytes);
-    info!("CAN ID bytes (4 bytes, little-endian): {:02X?}", id_bytes);
+    // info!("CAN ID bytes (4 bytes, little-endian): {:02X?}", id_bytes);
 
     // Data length: fixed 8 bytes
     packet.push(0x08);
     
     // Data content
     packet.extend_from_slice(&data_bytes);
-    info!("Added data bytes: {:02X?}", data_bytes);
+    // info!("Added data bytes: {:02X?}", data_bytes);
     
     // Reserved byte
     packet.push(0x00);
@@ -286,7 +286,7 @@ pub fn create_can_send_packet_variable(id: &str, data: &str, frame_type: &str) -
 
     // Data content
     packet.extend_from_slice(&data_bytes);
-    info!("Added data bytes: {:02X?}", data_bytes);
+    // info!("Added data bytes: {:02X?}", data_bytes);
 
     // End flag
     packet.push(0x55);

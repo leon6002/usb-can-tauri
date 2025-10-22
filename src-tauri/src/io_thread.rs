@@ -34,10 +34,9 @@ pub fn start_io_thread(
             // 尝试接收写入请求（非阻塞）
             match rx_send.try_recv() {
                 Ok(msg) => {
-                    info!("I/O thread: sending {} bytes", msg.packet.len());
+                    // info!("I/O thread: sending {} bytes", msg.packet.len());
                     match serial_port.write_all(&msg.packet) {
                         Ok(_) => {
-                            info!("I/O thread: packet sent successfully");
                             if let Err(e) = serial_port.flush() {
                                 warn!("I/O thread: flush failed: {}", e);
                             }
