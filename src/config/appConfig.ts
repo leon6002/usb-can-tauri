@@ -44,7 +44,7 @@ const APP_CONFIG: AppConfig = {
   // 演示模式下的快速连接配置（仅在 mode === "DEMO" 时使用）
   demoQuickConnect: {
     port: "/dev/tty.usbserial-2110",
-    baudRate: 115200,
+    baudRate: 2000000,
   },
 
   // UI 功能开关
@@ -55,8 +55,8 @@ const APP_CONFIG: AppConfig = {
 
   // 雷达配置
   radar: {
-    // 雷达查询间隔（毫秒）- 默认 100000ms (100秒)
-    queryIntervalMs: 100000,
+    // 雷达查询间隔（毫秒）- 默认 1000ms (1秒)
+    queryIntervalMs: 1000,
   },
 };
 
@@ -76,12 +76,12 @@ export const getDemoQuickConnect = () => APP_CONFIG.demoQuickConnect;
  * 检查是否显示风扇档位控制
  */
 export const isShowFanControl = (): boolean =>
-  APP_CONFIG.features?.showFanControl ?? true;
+  APP_CONFIG.features?.showFanControl ?? false;
 
 /**
  * 获取雷达查询间隔（毫秒）
  */
 export const getRadarQueryInterval = (): number =>
-  APP_CONFIG.radar?.queryIntervalMs ?? 100000;
+  APP_CONFIG.radar?.queryIntervalMs ?? 1000;
 
 export default APP_CONFIG;
