@@ -1,8 +1,8 @@
 [package]
-name = "usb-can-tauri"
+name = "osyx-car-control-tool"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A car control tool by OSYX technology"
+authors = ["Gulong Chen"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
