@@ -1,6 +1,7 @@
 import React from "react";
 import { Play, Square, CircleArrowUp, CircleArrowDown } from "lucide-react";
 import { CarStates } from "../../types";
+import { isShowFanControl } from "../../config/appConfig";
 
 interface CarControlPanelProps {
   isConnected: boolean;
@@ -110,25 +111,27 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       </div>
 
       {/* Fan Controls */}
-      <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">风扇控制</h4>
-        <div className="grid grid-cols-4 gap-2">
-          {[0, 1, 2, 3].map((level) => (
-            <button
-              key={level}
-              onClick={() => onSendCommand(`fan_level_${level}`)}
-              disabled={!isConnected}
-              className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
-                carStates.fanLevel === level
-                  ? "bg-white border-2 border-blue-500 text-blue-600 shadow-lg transform scale-105"
-                  : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
-              } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
-            >
-              {level}档
-            </button>
-          ))}
+      {isShowFanControl() && (
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">风扇控制</h4>
+          <div className="grid grid-cols-4 gap-2">
+            {[0, 1, 2, 3].map((level) => (
+              <button
+                key={level}
+                onClick={() => onSendCommand(`fan_level_${level}`)}
+                disabled={!isConnected}
+                className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
+                  carStates.fanLevel === level
+                    ? "bg-white border-2 border-blue-500 text-blue-600 shadow-lg transform scale-105"
+                    : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
+                } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
+              >
+                {level}档
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Light Controls */}
       <div>
