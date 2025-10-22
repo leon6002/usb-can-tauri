@@ -37,10 +37,17 @@ export class AnimationController implements IAnimationController {
   private suspensionAnimation = {
     isAnimating: false,
     direction: 0, // 1: 升高, -1: 降低, 0: 停止
-    duration: 600, // 动画持续时间（毫秒）
+    duration: 3000, // 动画持续时间（毫秒）
     startTime: 0,
     startPositions: new Map<THREE.Object3D, THREE.Vector3>(),
-    maxHeight: 0.03, // 最大升高距离（米）
+    maxHeight: 0.04, // 最大升高距离（米）
+  };
+
+  // 悬挂高度限制
+  private suspensionHeightLimit = {
+    currentHeight: 0.2, // 当前累积高度（米）
+    maxHeight: 0.38, // 最大升高高度（米）
+    minHeight: 0.16, // 最小高度（米）
   };
 
   private wheels: WheelObjects;
@@ -461,6 +468,21 @@ export class AnimationController implements IAnimationController {
       return; // 已在动画中
     }
 
+    // 检查是否已达到最大高度（预留一个单位的空间）
+    const projectedHeight =
+      this.suspensionHeightLimit.currentHeight +
+      this.suspensionAnimation.maxHeight;
+    if (projectedHeight > this.suspensionHeightLimit.maxHeight) {
+      console.log(
+        `⚠️ 悬挂已达到最大高度 (当前: ${this.suspensionHeightLimit.currentHeight.toFixed(
+          3
+        )}m，预计: ${projectedHeight.toFixed(3)}m，限制: ${
+          this.suspensionHeightLimit.maxHeight
+        }m)，无法继续升高`
+      );
+      return;
+    }
+
     console.log("🔧 开始悬挂升高动画");
     this.suspensionAnimation.isAnimating = true;
     this.suspensionAnimation.direction = -1; // 升高（悬挂向下压缩）
@@ -482,7 +504,20 @@ export class AnimationController implements IAnimationController {
         );
       }
     });
-    console.log(`  悬挂将向下压缩 0.3m，车身将向上升`);
+
+    // 立即增加高度（在动画开始时）
+    this.suspensionHeightLimit.currentHeight +=
+      this.suspensionAnimation.maxHeight;
+    this.suspensionHeightLimit.currentHeight = Math.min(
+      this.suspensionHeightLimit.currentHeight,
+      this.suspensionHeightLimit.maxHeight
+    );
+
+    console.log(
+      `  悬挂将向下压缩 0.03m，车身将向上升 (当前高度: ${this.suspensionHeightLimit.currentHeight.toFixed(
+        3
+      )}m / ${this.suspensionHeightLimit.maxHeight}m)`
+    );
   }
 
   /**
@@ -491,6 +526,19 @@ export class AnimationController implements IAnimationController {
   public startSuspensionDown(): void {
     if (this.suspensionAnimation.isAnimating) {
       return; // 已在动画中
+    }
+
+    // 检查是否已达到最小高度
+    if (
+      this.suspensionHeightLimit.currentHeight <=
+      this.suspensionHeightLimit.minHeight
+    ) {
+      console.log(
+        `⚠️ 悬挂已达到最小高度 (${this.suspensionHeightLimit.currentHeight.toFixed(
+          3
+        )}m / ${this.suspensionHeightLimit.minHeight}m)，无法继续降低`
+      );
+      return;
     }
 
     console.log("🔧 开始悬挂降低动画");
@@ -514,7 +562,11 @@ export class AnimationController implements IAnimationController {
         );
       }
     });
-    console.log(`  悬挂将向上伸展 0.3m，车身将向下降`);
+    console.log(
+      `  悬挂将向上伸展 0.03m，车身将向下降 (当前高度: ${this.suspensionHeightLimit.currentHeight.toFixed(
+        3
+      )}m)`
+    );
   }
 
   /**
@@ -525,6 +577,36 @@ export class AnimationController implements IAnimationController {
     this.suspensionAnimation.isAnimating = false;
     this.suspensionAnimation.direction = 0;
     this.suspensionAnimation.startPositions.clear();
+  }
+
+  /**
+   * 获取当前悬架高度
+   */
+  public getSuspensionHeight(): number {
+    return this.suspensionHeightLimit.currentHeight;
+  }
+
+  /**
+   * 获取悬架高度限制信息
+   */
+  public getSuspensionHeightLimit(): {
+    currentHeight: number;
+    maxHeight: number;
+    minHeight: number;
+  } {
+    return {
+      currentHeight: this.suspensionHeightLimit.currentHeight,
+      maxHeight: this.suspensionHeightLimit.maxHeight,
+      minHeight: this.suspensionHeightLimit.minHeight,
+    };
+  }
+
+  /**
+   * 重置悬架高度（用于停止行驶时）
+   */
+  public resetSuspensionHeight(): void {
+    this.suspensionHeightLimit.currentHeight = 0;
+    console.log("🔧 悬架高度已重置");
   }
 
   /**
@@ -570,10 +652,37 @@ export class AnimationController implements IAnimationController {
 
     // 动画完成
     if (progress >= 1.0) {
+      // 保存 direction 用于高度计算（在设置为 0 之前）
+      const animationDirection = this.suspensionAnimation.direction;
+
       this.suspensionAnimation.isAnimating = false;
       this.suspensionAnimation.direction = 0;
+
+      // 更新累积高度
+      // 升高时（direction = -1），高度增加 maxHeight
+      // 降低时（direction = 1），高度减少 maxHeight
+      const heightChange =
+        animationDirection > 0
+          ? -animationDirection * this.suspensionAnimation.maxHeight * 2
+          : -animationDirection * this.suspensionAnimation.maxHeight;
+      console.log("悬挂动画完成 heightChange!!", heightChange);
+      this.suspensionHeightLimit.currentHeight += heightChange;
+
+      // 确保高度在限制范围内
+      this.suspensionHeightLimit.currentHeight = Math.max(
+        this.suspensionHeightLimit.minHeight,
+        Math.min(
+          this.suspensionHeightLimit.currentHeight,
+          this.suspensionHeightLimit.maxHeight
+        )
+      );
+
       this.suspensionAnimation.startPositions.clear();
-      console.log("✅ 悬挂动画完成");
+      console.log(
+        `✅ 悬挂动画完成 (当前高度: ${this.suspensionHeightLimit.currentHeight.toFixed(
+          3
+        )}m / ${this.suspensionHeightLimit.maxHeight}m)`
+      );
     }
   }
 
