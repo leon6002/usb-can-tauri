@@ -8,10 +8,10 @@ def start_mock(output_filename='driving_data_final_version_speed_to_zero.csv'):
 
     # --- 参数设定 ---
     DATA_POINTS = 4000  # 总数据量
-    MAX_ANGLE = 60      # 最大转向角范围
+    MAX_ANGLE = 32      # 最大转向角范围
     MIN_SPEED_TARGET = 0 # 【关键修正】: 目标最低速度设置为 0
     DISPLAY_MIN_SPEED = 1000 # 仅用于打印显示的速度最小值，不参与计算
-    MAX_SPEED = 3000    # 最大速度 (必须是 SPEED_STEP 的倍数)
+    MAX_SPEED = 5000    # 最大速度 (必须是 SPEED_STEP 的倍数)
     SPEED_STEP = 100    # 速度的步长设置
     
     # 控制转弯稀疏度和缓慢度的关键参数

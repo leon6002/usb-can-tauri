@@ -9,10 +9,57 @@ use std::time::Duration;
 use anyhow::{Result, anyhow};
 use csv::ReaderBuilder;
 use log::{info, error};
+use tauri::Emitter;
 
 use crate::{AppState, SendMessage, CsvLoopProgress};
 use crate::can_protocol::{create_can_send_packet_fixed, create_can_send_packet_variable};
 use crate::vehicle_control::extract_vehicle_control;
+
+/// 生成停止信号数据
+/// 格式：
+/// - 字节0-2：04 00 00（保持D档，速度为0）
+/// - 字节3-5：00 00 00（转向角为0）
+/// - 字节6：心跳值（最后一条数据的第7字节高位+1，最大F0，超过则回到00）
+/// - 字节7：校验位（前7字节的XOR）
+fn generate_stop_signal(last_can_data: &str) -> Result<String> {
+    let bytes: Vec<&str> = last_can_data.split_whitespace().collect();
+
+    if bytes.len() < 8 {
+        return Err(anyhow!("Invalid CAN data format for stop signal generation"));
+    }
+
+    // 获取第7字节（索引6）的高位作为心跳值
+    let byte7_str = bytes[6];
+    let byte7 = u8::from_str_radix(byte7_str, 16)
+        .map_err(|_| anyhow!("Failed to parse byte 7 as hex"))?;
+
+    // 心跳值 = 第7字节高位 + 1，最大值F0，超过则回到00
+    let heartbeat_high = (byte7 >> 4) + 1;
+    let heartbeat = if heartbeat_high > 0x0F { 0x00 } else { heartbeat_high };
+    let byte7_new = (heartbeat << 4) | 0x00; // 低位为0
+
+    // 停止信号：04 00 00 00 00 00 [heartbeat]0 [checksum]
+    let bytes_fixed = [0x04u8, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+    // 计算校验位（前7字节的XOR）
+    let mut checksum = 0u8;
+    for &b in &bytes_fixed {
+        checksum ^= b;
+    }
+    checksum ^= byte7_new;
+
+    // 生成停止信号数据字符串
+    let stop_signal = format!(
+        "{:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
+        bytes_fixed[0], bytes_fixed[1], bytes_fixed[2], bytes_fixed[3],
+        bytes_fixed[4], bytes_fixed[5], byte7_new, checksum
+    );
+
+    println!("📤 [Rust] Generated stop signal: {} (heartbeat: {:X}, checksum: {:02X})", stop_signal, heartbeat, checksum);
+    info!("Generated stop signal: {} (heartbeat: {:X}, checksum: {:02X})", stop_signal, heartbeat, checksum);
+
+    Ok(stop_signal)
+}
 
 /// 运行 CSV 循环 - 从 CSV 内容读取数据并发送
 pub fn run_csv_loop(
@@ -27,10 +74,12 @@ pub fn run_csv_loop(
     println!("🔄 [Rust] run_csv_loop started - Start row: {}", csv_start_row_index);
 
     // Extract frame_type and protocol_length from config
-    let frame_type = config.get("frame_type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("standard")
-        .to_string();
+    // let frame_type = config.get("frame_type")
+    //     .and_then(|v| v.as_str())
+    //     .unwrap_or("extended")
+    //     .to_string();
+    // todo 自动行驶先写死为extended，因为ID有四字节
+    let frame_type = "extended";
 
     let protocol_length = config.get("protocol_length")
         .and_then(|v| v.as_str())
@@ -72,11 +121,15 @@ pub fn run_csv_loop(
 
     println!("✅ [Rust] Using {} records starting from row {}", filtered_records.len(), csv_start_row_index);
 
+    let mut last_can_data: Option<String> = None;
+    let mut user_stopped = false;
+
     // Loop through records once
     for (index, record) in filtered_records.iter().enumerate() {
         // Check if loop should stop
         if !state.csv_loop_running.load(Ordering::SeqCst) {
             println!("🛑 [Rust] CSV loop stopped by user");
+            user_stopped = true;
             break;
         }
 
@@ -112,6 +165,7 @@ pub fn run_csv_loop(
         let packet = if protocol_length == "variable" {
             create_can_send_packet_variable(&can_id, &can_data, &frame_type)?
         } else {
+            info!("Creating CAN send packet (fixed) - ID: {}, Data: {}, Type: {}", can_id, can_data, frame_type);
             create_can_send_packet_fixed(&can_id, &can_data, &frame_type)?
         };
 
@@ -127,14 +181,48 @@ pub fn run_csv_loop(
             }
         }
 
+        // Record the last CAN data for stop signal
+        last_can_data = Some(can_data.clone());
+
         // Sleep for interval (except after the last record)
         if index < filtered_records.len() - 1 {
             thread::sleep(Duration::from_millis(interval_ms));
         }
     }
 
-    println!("✅ [Rust] CSV loop completed - All records sent");
-    info!("CSV loop completed - All records sent");
+    // Send stop signal if loop was stopped by user
+    if user_stopped {
+        if let Some(last_data) = last_can_data {
+            println!("📤 [Rust] Sending stop signal based on last data: {}", last_data);
+
+            // Generate stop signal
+            if let Ok(stop_signal_data) = generate_stop_signal(&last_data) {
+                // Send stop signal with CAN ID 0x18C4D2D0
+                let stop_can_id = "0x18C4D2D0";
+                let packet = if protocol_length == "variable" {
+                    create_can_send_packet_variable(stop_can_id, &stop_signal_data, &frame_type)?
+                } else {
+                    create_can_send_packet_fixed(stop_can_id, &stop_signal_data, &frame_type)?
+                };
+
+                // Send stop signal packet
+                {
+                    let tx_send = state.tx_send.lock().unwrap();
+                    if let Some(ref sender) = *tx_send {
+                        if let Err(e) = sender.send(SendMessage { packet }) {
+                            error!("Failed to send stop signal: {}", e);
+                        } else {
+                            info!("Sent stop signal - ID: {}, Data: {}", stop_can_id, stop_signal_data);
+                            println!("✅ [Rust] Stop signal sent successfully");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!("✅ [Rust] CSV loop completed");
+    info!("CSV loop completed");
 
     // Stop the loop flag
     state.csv_loop_running.store(false, Ordering::SeqCst);
@@ -148,14 +236,24 @@ pub fn run_csv_loop_with_preloaded_data(
     interval_ms: u64,
     config: serde_json::Value,
     state: Arc<AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<()> {
     println!("🔄 [Rust] run_csv_loop_with_preloaded_data started - Records: {}", preloaded_data.len());
+
+    let protocol_length = config.get("protocol_length")
+        .and_then(|v| v.as_str())
+        .unwrap_or("fixed");
+
+    let frame_type = "extended"; // CSV driving data always uses extended frame
+    let mut last_can_data: Option<String> = None;
+    let mut user_stopped = false;
 
     // Loop through records once
     for (index, progress) in preloaded_data.iter().enumerate() {
         // Check if loop should stop
         if !state.csv_loop_running.load(Ordering::SeqCst) {
             println!("🛑 [Rust] CSV loop stopped by user");
+            user_stopped = true;
             break;
         }
 
@@ -177,16 +275,6 @@ pub fn run_csv_loop_with_preloaded_data(
                   index + 1, preloaded_data.len(), vc.linear_velocity_mms, vc.steering_angle_rad);
         }
 
-        // Create and send packet
-        // Extract frame_type and protocol_length from config
-        let frame_type = config.get("frame_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("standard");
-
-        let protocol_length = config.get("protocol_length")
-            .and_then(|v| v.as_str())
-            .unwrap_or("fixed");
-
         let packet = if protocol_length == "variable" {
             create_can_send_packet_variable(&can_id, &can_data, frame_type)?
         } else {
@@ -205,17 +293,58 @@ pub fn run_csv_loop_with_preloaded_data(
             }
         }
 
+        // Record the last CAN data for stop signal
+        last_can_data = Some(can_data.clone());
+
         // Sleep for interval (except after the last record)
         if index < preloaded_data.len() - 1 {
             thread::sleep(Duration::from_millis(interval_ms));
         }
     }
 
-    println!("✅ [Rust] CSV loop completed - All records sent");
-    info!("CSV loop completed - All records sent");
+    // Send stop signal if loop was stopped by user
+    if user_stopped {
+        if let Some(last_data) = last_can_data {
+            println!("📤 [Rust] Sending stop signal based on last data: {}", last_data);
+
+            // Generate stop signal
+            if let Ok(stop_signal_data) = generate_stop_signal(&last_data) {
+                // Send stop signal with CAN ID 0x18C4D2D0
+                let stop_can_id = "0x18C4D2D0";
+                let packet = if protocol_length == "variable" {
+                    create_can_send_packet_variable(stop_can_id, &stop_signal_data, frame_type)?
+                } else {
+                    create_can_send_packet_fixed(stop_can_id, &stop_signal_data, frame_type)?
+                };
+
+                // Send stop signal packet
+                {
+                    let tx_send = state.tx_send.lock().unwrap();
+                    if let Some(ref sender) = *tx_send {
+                        if let Err(e) = sender.send(SendMessage { packet }) {
+                            error!("Failed to send stop signal: {}", e);
+                        } else {
+                            info!("Sent stop signal - ID: {}, Data: {}", stop_can_id, stop_signal_data);
+                            println!("✅ [Rust] Stop signal sent successfully");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!("✅ [Rust] CSV loop completed");
+    info!("CSV loop completed");
 
     // Stop the loop flag
     state.csv_loop_running.store(false, Ordering::SeqCst);
+
+    // 发送 CSV 循环完成事件到前端
+    let _ = app_handle.emit("csv-loop-completed", serde_json::json!({
+        "status": "completed",
+        "timestamp": chrono::Local::now().to_rfc3339(),
+    }));
+    println!("📤 [Rust] Emitted csv-loop-completed event");
 
     Ok(())
 }

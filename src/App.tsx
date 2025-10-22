@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Toaster, toast } from "sonner";
+import { listen } from "@tauri-apps/api/event";
 // 测试Three.js导入
 import "./test-threejs";
 
@@ -450,7 +451,7 @@ function App() {
       if (!radarIntervalRef.current) {
         radarIntervalRef.current = setInterval(() => {
           sendRadarQuery();
-        }, 10000);
+        }, 1000);
         console.log("📡 [Radar] Started sending radar queries every 1 second");
       }
     } else {
@@ -480,6 +481,73 @@ function App() {
       }
     };
   }, [isConnected, startListening, stopListening, sendRadarQuery]);
+
+  // CSV 循环完成事件监听器
+  const csvLoopUnlistenRef = useRef<(() => void) | null>(null);
+
+  // 监听 CSV 循环完成事件
+  useEffect(() => {
+    let isMounted = true;
+
+    const setupCsvLoopListener = async () => {
+      try {
+        const unlisten = await listen<any>("csv-loop-completed", (event) => {
+          if (!isMounted) return;
+
+          console.log(
+            "🎉 [Frontend] CSV loop completed event received:",
+            event.payload
+          );
+          addDebugLog(
+            "CSV循环完成事件",
+            "csv_loop_completed",
+            "CSV",
+            "完成",
+            "后端已完成所有数据发送"
+          );
+
+          // 自动触发停止行驶
+          (async () => {
+            try {
+              await stopCsvLoop();
+              updateVehicleControl(0, 0);
+              updateCarState("stop_driving");
+
+              // 触发3D动画
+              if (car3DRendererRef.current) {
+                const renderer = car3DRendererRef.current;
+                console.log("🛑 自动停止行驶动画");
+                renderer.setIsDriving(false);
+                renderer.stopWheelRotation();
+                renderer.stopRoadMovement();
+                renderer.startCameraAnimation("side", 2000, true);
+              }
+            } catch (error) {
+              console.error("❌ Failed to auto-stop driving:", error);
+            }
+          })();
+        });
+
+        if (isMounted) {
+          csvLoopUnlistenRef.current = unlisten;
+        } else {
+          unlisten();
+        }
+      } catch (error) {
+        console.error("Failed to setup CSV loop listener:", error);
+      }
+    };
+
+    setupCsvLoopListener();
+
+    return () => {
+      isMounted = false;
+      if (csvLoopUnlistenRef.current) {
+        csvLoopUnlistenRef.current();
+        csvLoopUnlistenRef.current = null;
+      }
+    };
+  }, [stopCsvLoop, updateVehicleControl, updateCarState, addDebugLog]);
 
   // 演示模式下的快速连接处理
   const handleDemoConnect = useCallback(

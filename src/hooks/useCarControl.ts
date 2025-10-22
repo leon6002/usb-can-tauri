@@ -231,7 +231,7 @@ export const useCarControl = () => {
       canDataColumnIndex: number,
       csvStartRowIndex: number,
       config: any,
-      onComplete?: () => void,
+      _onComplete?: () => void,
       onProgressUpdate?: (
         speed: number,
         steeringAngle: number,
@@ -302,28 +302,12 @@ export const useCarControl = () => {
           }, intervalMs);
         }
 
-        // 计算预期的完成时间
-        const estimatedDuration = preloadedData.length * intervalMs + 1000; // 加1秒缓冲
-
+        // 注意：不再使用前端定时器来判断完成时间
+        // 改为由后端通过事件通知前端循环已完成
+        // 这样可以避免前端计算不准确导致提前停止的问题
         console.log(
-          `📊 CSV loop will complete in approximately ${estimatedDuration}ms (${preloadedData.length} records × ${intervalMs}ms)`
+          `📊 CSV loop started with ${preloadedData.length} records at ${intervalMs}ms interval`
         );
-
-        // 设置定时器，在预期时间后检查并触发完成回调
-        if (onComplete) {
-          // 清除之前的 completeTimeout（如果存在）
-          if (completeTimeoutRef.current) {
-            clearTimeout(completeTimeoutRef.current);
-          }
-
-          completeTimeoutRef.current = setTimeout(() => {
-            console.log(
-              "✅ CSV loop should be completed, triggering onComplete callback"
-            );
-            onComplete();
-            completeTimeoutRef.current = null;
-          }, estimatedDuration);
-        }
       } catch (error) {
         console.error("❌ Failed to start CSV loop:", error);
         throw error;

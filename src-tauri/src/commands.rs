@@ -346,6 +346,7 @@ pub async fn start_csv_loop_with_preloaded_data(
     interval_ms: u64,
     config: serde_json::Value,
     state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     println!("🚀 [Rust] start_csv_loop_with_preloaded_data called - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
     info!("Starting CSV loop with preloaded data - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
@@ -372,6 +373,7 @@ pub async fn start_csv_loop_with_preloaded_data(
             interval_ms,
             config_clone,
             state_arc,
+            app_handle,
         ) {
             error!("CSV loop error: {}", e);
         }
