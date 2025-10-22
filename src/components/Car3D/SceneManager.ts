@@ -269,7 +269,7 @@ export class SceneManager implements ISceneManager {
 
     // 添加草地细节纹理
     groundCtx.fillStyle = "rgba(76, 153, 76, 0.6)";
-    for (let i = 0; i < 2000; i++) {
+    for (let i = 0; i < 1000; i++) {
       const x = Math.random() * groundCanvas.width;
       const y = Math.random() * groundCanvas.height;
       const size = Math.random() * 3 + 1;
@@ -278,7 +278,7 @@ export class SceneManager implements ISceneManager {
 
     // 添加更细的草纹
     groundCtx.fillStyle = "rgba(102, 178, 102, 0.4)";
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 1000; i++) {
       const x = Math.random() * groundCanvas.width;
       const y = Math.random() * groundCanvas.height;
       const size = Math.random() * 1.5;
@@ -286,15 +286,15 @@ export class SceneManager implements ISceneManager {
     }
 
     // 添加一些随机的深色斑点（土壤）
-    groundCtx.fillStyle = "rgba(101, 67, 33, 0.3)";
-    for (let i = 0; i < 500; i++) {
-      const x = Math.random() * groundCanvas.width;
-      const y = Math.random() * groundCanvas.height;
-      const radius = Math.random() * 8 + 2;
-      groundCtx.beginPath();
-      groundCtx.arc(x, y, radius, 0, Math.PI * 2);
-      groundCtx.fill();
-    }
+    // groundCtx.fillStyle = "rgba(101, 67, 33, 0.3)";
+    // for (let i = 0; i < 500; i++) {
+    //   const x = Math.random() * groundCanvas.width;
+    //   const y = Math.random() * groundCanvas.height;
+    //   const radius = Math.random() * 8 + 2;
+    //   groundCtx.beginPath();
+    //   groundCtx.arc(x, y, radius, 0, Math.PI * 2);
+    //   groundCtx.fill();
+    // }
 
     // 创建纹理
     this.groundTexture = new THREE.CanvasTexture(groundCanvas);
@@ -304,7 +304,7 @@ export class SceneManager implements ISceneManager {
     this.groundTexture.magFilter = THREE.LinearFilter;
     this.groundTexture.minFilter = THREE.LinearFilter;
 
-    // 创建圆形地面几何体（半径150）
+    // 创建圆形地面几何体（半径75）
     const groundGeometry = new THREE.CircleGeometry(75, 64);
     const groundMaterial = new THREE.MeshLambertMaterial({
       map: this.groundTexture,
@@ -317,7 +317,7 @@ export class SceneManager implements ISceneManager {
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
 
-    console.log("✓ 圆形地面创建完成（半径：150）");
+    console.log("✓ 圆形地面创建完成（半径：75）");
   }
 
   /**

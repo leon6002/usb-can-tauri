@@ -15,7 +15,7 @@ export class CameraController implements ICameraController {
     isActive: false,
     mode: "orbit",
     startTime: 0,
-    duration: 10000, // 10秒
+    duration: 3000, // 10秒
     originalPosition: null,
     originalTarget: null,
     keyframes: [],
@@ -24,9 +24,11 @@ export class CameraController implements ICameraController {
 
   private camera: THREE.PerspectiveCamera;
   private carBodyYaw: number = 0; // 车身偏转角
+  private steeringAngle: number = 0; // 前轮转向角（用于动态调整相机位置）
   private cameraDistance: number = 10; // 相机距离车身的距离
   private cameraHeight: number = 2; // 相机高度
   private isDriving: boolean = false; // 是否正在行驶
+  private maxCameraLateralOffset: number = 3; // 相机最大横向偏移（米）
 
   // 停止行驶时的平滑过渡状态
   private stoppingTransition = {
@@ -63,7 +65,7 @@ export class CameraController implements ICameraController {
    */
   public startAnimation(
     mode: CameraAnimationMode,
-    duration: number = 10000,
+    duration: number = 3000,
     keepFinalPosition: boolean = false
   ): void {
     if (this.animationState.isActive) {
@@ -127,6 +129,13 @@ export class CameraController implements ICameraController {
    */
   public setCarBodyYaw(yaw: number): void {
     this.carBodyYaw = yaw;
+  }
+
+  /**
+   * 设置前轮转向角（用于动态调整相机位置）
+   */
+  public setSteeringAngle(angle: number): void {
+    this.steeringAngle = angle;
   }
 
   /**
@@ -225,6 +234,7 @@ export class CameraController implements ICameraController {
   /**
    * 应用相机旋转补偿
    * 行驶时：相机始终跟在车的后面，看向车的前方
+   * 根据转向角动态调整相机的左右位置，向转弯内角方向移动
    * 停止时：相机保持自由控制状态
    */
   private applyCameraRotationCompensation(): void {
@@ -235,10 +245,17 @@ export class CameraController implements ICameraController {
       return;
     }
 
+    // 根据转向角计算相机的横向偏移
+    // 转向角为正时（向右转），相机向右移动（转弯内角）
+    // 转向角为负时（向左转），相机向左移动（转弯内角）
+    // 使用 sin 函数使偏移平滑变化
+    const lateralOffset =
+      Math.sin(this.steeringAngle) * this.maxCameraLateralOffset;
+
     // 相机相对于车身的位置（车的后方）
-    // 在车身坐标系中：后方 = -Z 方向
+    // 在车身坐标系中：后方 = -Z 方向，右侧 = +X 方向
     const relativePos = new THREE.Vector3(
-      0,
+      lateralOffset, // 根据转向角动态调整横向位置
       this.cameraHeight,
       this.cameraDistance
     );

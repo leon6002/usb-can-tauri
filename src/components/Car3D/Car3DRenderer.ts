@@ -241,12 +241,14 @@ export class Car3DRenderer {
 
       // 更新相机位置（始终在车的后面）
       this.cameraController.setCarBodyYaw(this.vehicleDynamics.bodyYaw);
+      // 根据转向角动态调整相机位置（向转弯内角方向移动）
+      this.cameraController.setSteeringAngle(steeringAngle * 10);
 
       // 更新道路弯曲
       this.updateRoadTransform();
 
       // 更新地面纹理偏移（模拟地面移动）
-      this.updateGroundTextureOffset(speedMs, deltaTime);
+      this.updateGroundTextureOffset(speedMs * 0.5, deltaTime);
     }
   }
 
@@ -332,24 +334,36 @@ export class Car3DRenderer {
   /**
    * 更新地面纹理偏移（模拟地面移动）
    * 根据车身旋转角度调整纹理偏移方向
+   *
+   * 关键点：
+   * - 纹理应该沿着车的前进方向移动
+   * - 车的前进方向由 bodyYaw 决定
+   * - 使用与道路纹理相同的速度计算方式保持一致
    */
   private updateGroundTextureOffset(speedMs: number, deltaTime: number): void {
     if (!this.groundTexture) return;
 
-    // 根据速度更新纹理偏移
-    // 速度越快，纹理移动越快
-    const textureScrollSpeed = speedMs * 0.5; // 调整系数以获得合适的速度感
+    // 使用与道路纹理相同的速度计算方式
+    // 轮子转速 (rad/s) = 速度 (m/s) / 轮子半径 (m)
+    const wheelRadius = 0.3; // 轮子半径（米）
+    const wheelRotationSpeed = Math.abs(speedMs) / wheelRadius;
+
+    // 纹理移动速度与轮子转速成正比
+    // 使用与道路相同的系数 0.05
+    const textureScrollSpeed = wheelRotationSpeed * 0.01;
     this.groundTextureOffset += textureScrollSpeed * deltaTime;
 
     // 保持偏移在 0-1 之间（纹理会循环）
     this.groundTextureOffset = this.groundTextureOffset % 1;
 
-    // 根据车身旋转角度调整纹理偏移
+    // 根据车身旋转角度调整纹理偏移方向
     // 当车转向时，纹理偏移方向也应该改变
     const bodyYaw = this.vehicleDynamics.bodyYaw;
 
     // 计算纹理的 X 和 Y 偏移
-    // 使用正弦和余弦来根据旋转角度分解偏移
+    // 车的前进方向是 bodyYaw 角度的方向
+    // bodyYaw = 0 时，车向前（+Y 方向），纹理应该向 +Y 移动
+    // bodyYaw = π/2 时，车向右（+X 方向），纹理应该向 +X 移动
     this.groundTexture.offset.x = Math.sin(bodyYaw) * this.groundTextureOffset;
     this.groundTexture.offset.y = Math.cos(bodyYaw) * this.groundTextureOffset;
   }
