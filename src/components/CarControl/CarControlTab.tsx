@@ -5,7 +5,6 @@ import { CarControlPanel } from "./CarControlPanel";
 import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
 import { useCarState } from "../../contexts/CarStateContext";
-import { useCarCommand } from "../../contexts/CarCommandContext";
 import TopStatusBar from "./TopStatusBar";
 
 interface CarControlTabProps {
@@ -23,7 +22,6 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
 }) => {
   // 从 Context 获取状态和函数
   const { mergedCarStates, scene3DStatus, radarDistances } = useCarState();
-  const { sendCarCommand } = useCarCommand();
 
   const handleSteeringChange = (angle: number) => {
     // 通知3D场景更新前轮转向和车身旋转
@@ -85,7 +83,6 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
           <CarControlPanel
             isConnected={isConnected}
             carStates={mergedCarStates}
-            onSendCommand={sendCarCommand}
             onSteeringChange={handleSteeringChange}
           />
         </div>
