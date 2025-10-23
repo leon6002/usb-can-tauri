@@ -6,7 +6,6 @@ import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
 import { useCarState } from "../../contexts/CarStateContext";
 import { useCarCommand } from "../../contexts/CarCommandContext";
-import { useDebug } from "../../contexts/DebugContext";
 import TopStatusBar from "./TopStatusBar";
 
 interface CarControlTabProps {
@@ -25,7 +24,7 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
   // 从 Context 获取状态和函数
   const { mergedCarStates, scene3DStatus, radarDistances } = useCarState();
   const { sendCarCommand } = useCarCommand();
-  const { logs, isDebugVisible, toggleDebugPanel, clearLogs } = useDebug();
+
   const handleSteeringChange = (angle: number) => {
     // 通知3D场景更新前轮转向和车身旋转
     const renderer = (window as any).car3DRenderer;
@@ -38,8 +37,6 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
     isConnected,
     mergedCarStatesKeys: Object.keys(mergedCarStates),
     scene3DStatusKeys: Object.keys(scene3DStatus),
-    debugLogsLength: logs.length,
-    isDebugVisible,
     radarDistancesRadar1: radarDistances?.radar1?.distance,
     isDemoMode,
   });
@@ -95,13 +92,7 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
       </div>
 
       {/* Debug Panel */}
-      <DebugPanel
-        isVisible={isDebugVisible}
-        onToggle={toggleDebugPanel}
-        logs={logs}
-        onClearLogs={clearLogs}
-        showToggleButton={!isDemoMode}
-      />
+      <DebugPanel showToggleButton={!isDemoMode} />
     </div>
   );
 };

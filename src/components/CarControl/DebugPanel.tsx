@@ -8,53 +8,42 @@ import {
   ArrowUpFromLine,
   ArrowDownToLine,
 } from "lucide-react";
-
-interface DebugLog {
-  id: string;
-  timestamp: string;
-  action: string;
-  commandId: string;
-  canId: string;
-  data: string;
-  description: string;
-}
+import { DebugLog, useDebugStore } from "@/store/useDebugStore";
 
 interface DebugPanelProps {
-  isVisible: boolean;
-  onToggle: () => void;
-  logs: DebugLog[];
-  onClearLogs: () => void;
   showToggleButton?: boolean;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({
-  isVisible,
-  onToggle,
-  logs,
-  onClearLogs,
   showToggleButton = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+
+  const { logs, isDebugVisible, toggleDebugPanel, clearLogs } = useDebugStore();
 
   return (
     <>
       {/* 调试按钮 - 固定在右下角 */}
       {showToggleButton && (
         <button
-          onClick={onToggle}
+          onClick={toggleDebugPanel}
           className={`fixed bottom-4 right-4 z-50 p-3 rounded-full shadow-lg transition-all duration-300 ${
-            isVisible
+            isDebugVisible
               ? "bg-red-500 hover:bg-red-600 text-white"
               : "bg-blue-500 hover:bg-blue-600 text-white"
           }`}
-          title={isVisible ? "隐藏调试面板" : "显示调试面板"}
+          title={isDebugVisible ? "隐藏调试面板" : "显示调试面板"}
         >
-          {isVisible ? <X className="w-5 h-5" /> : <Bug className="w-5 h-5" />}
+          {isDebugVisible ? (
+            <X className="w-5 h-5" />
+          ) : (
+            <Bug className="w-5 h-5" />
+          )}
         </button>
       )}
 
       {/* 调试面板 */}
-      {isVisible && (
+      {isDebugVisible && (
         <div className="fixed bottom-4 right-80 z-40 w-[400px] bg-white border border-gray-300 rounded-lg shadow-xl">
           {/* 面板头部 */}
           <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
@@ -78,7 +67,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                 )}
               </button>
               <button
-                onClick={onClearLogs}
+                onClick={clearLogs}
                 className="p-1 hover:bg-gray-200 rounded"
                 title="清空日志"
               >
@@ -96,7 +85,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
                 </div>
               ) : (
                 <div className="p-2 space-y-2">
-                  {logs.map((log) => {
+                  {logs.map((log: DebugLog) => {
                     const isReceived = log.action === "接收CAN消息";
                     return (
                       <div

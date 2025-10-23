@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Toaster, toast } from "sonner";
 import { listen } from "@tauri-apps/api/event";
-// 测试Three.js导入
-import "./test-threejs";
 
 // Types
 import { ActiveTab } from "./types";
@@ -16,19 +14,18 @@ import { useSerial } from "./hooks/useSerial";
 import { useCanMessages } from "./hooks/useCanMessages";
 import { useCarControl } from "./hooks/useCarControl";
 import { use3DScene } from "./hooks/use3DScene";
-import { useDebugLogs } from "./hooks/useDebugLogs";
 import { useRadarDistance } from "./hooks/useRadarDistance";
 
 // Contexts
 import { CarCommandProvider } from "./contexts/CarCommandContext";
 import { CarStateProvider } from "./contexts/CarStateContext";
-import { DebugProvider } from "./contexts/DebugContext";
 
 // Components
 import { Sidebar } from "./components/Layout/Sidebar";
 import { CarControlTab } from "./components/CarControl/CarControlTab";
 import { CanConfigTab } from "./components/CanConfig/CanConfigTab";
 import { ButtonConfigTab } from "./components/ButtonConfig/ButtonConfigTab";
+import { useDebugStore } from "./store/useDebugStore";
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("car");
@@ -86,10 +83,9 @@ function App() {
       canMessageCarStates.steeringAngleDegrees,
     ]
   );
-  const { logs, isDebugVisible, addDebugLog, clearLogs, toggleDebugPanel } =
-    useDebugLogs();
-  const { radarDistances, startListening, stopListening } = useRadarDistance();
 
+  const { radarDistances, startListening, stopListening } = useRadarDistance();
+  const { logs, isDebugVisible, addDebugLog } = useDebugStore();
   // 发送车辆控制命令
   const sendCarCommand = useCallback(
     async (commandId: string) => {
@@ -642,65 +638,57 @@ function App() {
           updateCarState={updateCarState}
           updateVehicleControl={updateVehicleControl}
         >
-          <DebugProvider
-            logs={logs}
-            isDebugVisible={isDebugVisible}
-            addDebugLog={addDebugLog}
-            clearLogs={clearLogs}
-            toggleDebugPanel={toggleDebugPanel}
-          >
-            {/* 演示模式：只显示车辆控制界面 */}
-            {demoMode ? (
-              <div className="w-full h-full overflow-hidden">
-                <CarControlTab
-                  isConnected={isConnected}
-                  isDemoMode={true}
-                  onDemoConnect={handleDemoConnect}
-                  onDemoDisconnect={handleDisconnect}
-                />
+          {/* 演示模式：只显示车辆控制界面 */}
+          {demoMode ? (
+            <div className="w-full h-full overflow-hidden">
+              <CarControlTab
+                isConnected={isConnected}
+                isDemoMode={true}
+                onDemoConnect={handleDemoConnect}
+                onDemoDisconnect={handleDisconnect}
+              />
+            </div>
+          ) : (
+            /* 调试模式：显示完整界面 */
+            <>
+              {/* Left Sidebar */}
+              <Sidebar
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                isConnected={isConnected}
+                config={config}
+                onConnect={handleConnect}
+              />
+
+              {/* Main Content */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Tab Content */}
+                {activeTab === "car" && (
+                  <CarControlTab isConnected={isConnected} />
+                )}
+
+                {activeTab === "config" && (
+                  <CanConfigTab
+                    isConnected={isConnected}
+                    config={config}
+                    availablePorts={availablePorts}
+                    messages={messages}
+                    sendId={sendId}
+                    sendData={sendData}
+                    onConnect={handleConnect}
+                    onDisconnect={handleDisconnect}
+                    onConfigChange={setConfig}
+                    onSendMessage={() => handleSendMessage(config)}
+                    onClearMessages={clearMessages}
+                    onSendIdChange={setSendId}
+                    onSendDataChange={setSendData}
+                  />
+                )}
+
+                {activeTab === "buttons" && <ButtonConfigTab />}
               </div>
-            ) : (
-              /* 调试模式：显示完整界面 */
-              <>
-                {/* Left Sidebar */}
-                <Sidebar
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  isConnected={isConnected}
-                  config={config}
-                  onConnect={handleConnect}
-                />
-
-                {/* Main Content */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  {/* Tab Content */}
-                  {activeTab === "car" && (
-                    <CarControlTab isConnected={isConnected} />
-                  )}
-
-                  {activeTab === "config" && (
-                    <CanConfigTab
-                      isConnected={isConnected}
-                      config={config}
-                      availablePorts={availablePorts}
-                      messages={messages}
-                      sendId={sendId}
-                      sendData={sendData}
-                      onConnect={handleConnect}
-                      onDisconnect={handleDisconnect}
-                      onConfigChange={setConfig}
-                      onSendMessage={() => handleSendMessage(config)}
-                      onClearMessages={clearMessages}
-                      onSendIdChange={setSendId}
-                      onSendDataChange={setSendData}
-                    />
-                  )}
-
-                  {activeTab === "buttons" && <ButtonConfigTab />}
-                </div>
-              </>
-            )}
-          </DebugProvider>
+            </>
+          )}
         </CarStateProvider>
       </CarCommandProvider>
     </div>
