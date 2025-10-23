@@ -2,19 +2,20 @@ import React from "react";
 import { Play, Square, CircleArrowUp, CircleArrowDown } from "lucide-react";
 import { CarStates } from "../../types";
 import { isShowFanControl } from "../../config/appConfig";
+import { useCarCommand } from "@/contexts/CarCommandContext";
+import LightControl from "./LightControl";
 
 interface CarControlPanelProps {
   isConnected: boolean;
   carStates: CarStates;
-  onSendCommand: (commandId: string) => void;
   onSteeringChange?: (angle: number) => void;
 }
 
 export const CarControlPanel: React.FC<CarControlPanelProps> = ({
   isConnected,
   carStates,
-  onSendCommand,
 }) => {
+  const { sendCarCommand } = useCarCommand();
   // 根据 carStates.suspensionStatus 判断当前状态
   const suspensionControlling =
     carStates.suspensionStatus === "升高"
@@ -30,7 +31,7 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
         <h4 className="text-sm font-semibold text-gray-700 mb-3">主要控制</h4>
         <button
           onClick={() =>
-            onSendCommand(
+            sendCarCommand(
               carStates.isDriving ? "stop_driving" : "start_driving"
             )
           }
@@ -69,7 +70,7 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => {
-              onSendCommand("suspension_up");
+              sendCarCommand("suspension_up");
             }}
             disabled={!isConnected || suspensionControlling !== null}
             className={`px-3 py-2 text-sm rounded-lg font-medium ${
@@ -89,7 +90,7 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
           </button>
           <button
             onClick={() => {
-              onSendCommand("suspension_down");
+              sendCarCommand("suspension_down");
             }}
             disabled={!isConnected || suspensionControlling !== null}
             className={`px-3 py-2 text-sm rounded-lg font-medium ${
@@ -118,7 +119,7 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
             {[0, 1, 2, 3].map((level) => (
               <button
                 key={level}
-                onClick={() => onSendCommand(`fan_level_${level}`)}
+                onClick={() => sendCarCommand(`fan_level_${level}`)}
                 disabled={!isConnected}
                 className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
                   carStates.fanLevel === level
@@ -134,25 +135,11 @@ export const CarControlPanel: React.FC<CarControlPanelProps> = ({
       )}
 
       {/* Light Controls */}
-      <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">灯带控制</h4>
-        <div className="grid grid-cols-2 gap-2">
-          {[1, 2, 3, 4].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => onSendCommand(`light_mode_${mode}`)}
-              disabled={!isConnected}
-              className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
-                carStates.lightMode === mode
-                  ? "bg-white border-2 border-amber-500 text-amber-600 shadow-lg transform scale-105"
-                  : "bg-white border border-gray-300 text-gray-700 hover:bg-amber-50 hover:border-amber-300"
-              } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
-            >
-              模式{mode}
-            </button>
-          ))}
-        </div>
-      </div>
+      <LightControl
+        isConnected={isConnected}
+        carStates={carStates}
+        sendCarCommand={sendCarCommand}
+      />
     </div>
   );
 };
