@@ -4,7 +4,7 @@ export interface CanMessage {
   rawData?: string; // 原始十六进制数据
   timestamp: string;
   direction: "sent" | "received";
-  frameType: "standard" | "extended" | "unknown";
+  frameType: "standard" | "extended";
 }
 
 export interface CanCommand {

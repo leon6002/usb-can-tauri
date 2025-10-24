@@ -43,7 +43,7 @@ const APP_CONFIG: AppConfig = {
 
   // 演示模式下的快速连接配置（仅在 mode === "DEMO" 时使用）
   demoQuickConnect: {
-    port: "/dev/tty.usbserial-2110",
+    port: "COM23",
     baudRate: 2000000,
   },
 

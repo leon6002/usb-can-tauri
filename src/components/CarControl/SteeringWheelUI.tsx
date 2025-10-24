@@ -1,31 +1,32 @@
+import { useCarControlStore } from "@/store/carControlStore";
 import React, { useRef, useEffect, useState } from "react";
 
-interface SteeringWheelUIProps {
-  onSteeringChange?: (angle: number) => void;
-  /** 外部设置的方向盘转向角（用于显示CSV数据中的转向角） */
-  externalSteeringAngle?: number;
-}
-
-export const SteeringWheelUI: React.FC<SteeringWheelUIProps> = ({
-  onSteeringChange,
-  externalSteeringAngle,
-}) => {
+export const SteeringWheelUI: React.FC = () => {
+  const carStates = useCarControlStore((state) => state.carStates);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rotation, setRotation] = useState(0);
   const [isControlling, setIsControlling] = useState(false);
   const [lastMouseX, setLastMouseX] = useState(0);
   const maxRotation = Math.PI * 0.85; // ±135°
 
+  const onSteeringChange = (angle: number) => {
+    // 通知3D场景更新前轮转向和车身旋转
+    const renderer = (window as any).car3DRenderer;
+    if (renderer) {
+      renderer.updateSteeringAngle(angle);
+    }
+  };
+
   // 当外部转向角变化时，更新方向盘显示
   // 只在用户没有手动控制时更新
   useEffect(() => {
-    if (externalSteeringAngle !== undefined && !isControlling) {
+    if (carStates.currentSteeringAngle !== undefined && !isControlling) {
       // 只有当外部角度不为0时才更新（避免CSV停止时重置为0）
-      if (externalSteeringAngle !== 0 || rotation === 0) {
-        setRotation(externalSteeringAngle);
+      if (carStates.currentSteeringAngle !== 0 || rotation === 0) {
+        setRotation(carStates.currentSteeringAngle);
       }
     }
-  }, [externalSteeringAngle, isControlling]);
+  }, [carStates.currentSteeringAngle, isControlling]);
 
   // 绘制方向盘
   useEffect(() => {

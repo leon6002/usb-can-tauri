@@ -4,40 +4,14 @@ import { CarStatusPanel } from "./CarStatusPanel";
 import { CarControlPanel } from "./CarControlPanel";
 import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
-import { useCarState } from "../../contexts/CarStateContext";
 import TopStatusBar from "./TopStatusBar";
+import { isDemoMode } from "@/config/appConfig";
 
-interface CarControlTabProps {
-  isConnected: boolean;
-  isDemoMode?: boolean;
-  onDemoConnect?: (port: string) => void;
-  onDemoDisconnect?: () => void;
-}
-
-const CarControlTabComponent: React.FC<CarControlTabProps> = ({
-  isConnected,
-  isDemoMode = false,
-  onDemoConnect,
-  onDemoDisconnect,
-}) => {
+const CarControlTabComponent: React.FC = () => {
   // 从 Context 获取状态和函数
-  const { mergedCarStates, scene3DStatus, radarDistances } = useCarState();
+  const demoMode = isDemoMode();
 
-  const handleSteeringChange = (angle: number) => {
-    // 通知3D场景更新前轮转向和车身旋转
-    const renderer = (window as any).car3DRenderer;
-    if (renderer) {
-      renderer.updateSteeringAngle(angle);
-    }
-  };
-
-  console.log("car control tab rendering", {
-    isConnected,
-    mergedCarStatesKeys: Object.keys(mergedCarStates),
-    scene3DStatusKeys: Object.keys(scene3DStatus),
-    radarDistancesRadar1: radarDistances?.radar1?.distance,
-    isDemoMode,
-  });
+  console.log("car control tab rendering");
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
@@ -49,42 +23,27 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
         {/* Left Panel - 3D Model and Video */}
         <div className="flex-1 flex flex-col bg-white border-r border-gray-200">
           {/* 3D Model Display */}
-          <Car3DViewer scene3DStatus={scene3DStatus} />
+          <Car3DViewer />
         </div>
 
         {/* Right Panel - Controls */}
         <div
           className={`${
-            isDemoMode ? "w-96" : "w-80"
+            demoMode ? "w-96" : "w-80"
           } bg-white flex flex-col overflow-y-auto`}
         >
           {/* Demo Mode: Quick Connect at Top */}
-          {isDemoMode && onDemoConnect && onDemoDisconnect && (
+          {demoMode && (
             <div className="p-3 border-b border-gray-200">
-              <DemoQuickConnect
-                isConnected={isConnected}
-                onConnect={onDemoConnect}
-                onDisconnect={onDemoDisconnect}
-              />
+              <DemoQuickConnect />
             </div>
           )}
 
           {/* Status Panel */}
-          <CarStatusPanel
-            carStates={mergedCarStates}
-            scene3DStatus={scene3DStatus}
-            gear={mergedCarStates.gear}
-            steeringAngleDegrees={mergedCarStates.steeringAngleDegrees}
-            radarDistances={radarDistances}
-            isConnected={isConnected}
-          />
+          <CarStatusPanel />
 
           {/* Control Panels */}
-          <CarControlPanel
-            isConnected={isConnected}
-            carStates={mergedCarStates}
-            onSteeringChange={handleSteeringChange}
-          />
+          <CarControlPanel />
         </div>
       </div>
 
@@ -94,22 +53,5 @@ const CarControlTabComponent: React.FC<CarControlTabProps> = ({
   );
 };
 
-// 自定义比较函数来追踪哪个 prop 改变了
-const arePropsEqual = (
-  prevProps: CarControlTabProps,
-  nextProps: CarControlTabProps
-): boolean => {
-  const keys = Object.keys(prevProps) as (keyof CarControlTabProps)[];
-
-  for (const key of keys) {
-    if (prevProps[key] !== nextProps[key]) {
-      console.log(`❌ CarControlTab prop changed: ${String(key)}`);
-      return false;
-    }
-  }
-
-  return true;
-};
-
 // 使用 memo 包装，避免不必要的重新渲染
-export const CarControlTab = memo(CarControlTabComponent, arePropsEqual);
+export const CarControlTab = memo(CarControlTabComponent);

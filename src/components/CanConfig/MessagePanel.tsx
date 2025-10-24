@@ -1,28 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSerialStore } from "@/store/serialStore";
+import { useCanMessageStore } from "@/store/canMessageStore";
 
-interface MessagePanelProps {
-  isConnected: boolean;
-  sendId: string;
-  sendData: string;
-  onSendIdChange: (id: string) => void;
-  onSendDataChange: (data: string) => void;
-  onSendMessage: () => void;
-  onClearMessages: () => void;
-}
-
-export const MessagePanel: React.FC<MessagePanelProps> = ({
-  isConnected,
-  sendId,
-  sendData,
-  onSendIdChange,
-  onSendDataChange,
-  onSendMessage,
-  onClearMessages,
-}) => {
+export const MessagePanel: React.FC = () => {
+  const isConnected = useSerialStore((state) => state.isConnected);
+  const [sendId, setSendId] = useState("123");
+  const [sendData, setSendData] = useState("01 FF FF FF 00 00 00 00");
+  const { clearMessages, handleSendMessage } = useCanMessageStore();
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-800 mb-3">测试发送消息</h3>
@@ -37,7 +25,7 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
               id="can-id"
               type="text"
               value={sendId}
-              onChange={(e) => onSendIdChange(e.target.value)}
+              onChange={(e) => setSendId(e.target.value)}
               placeholder="123"
               disabled={!isConnected}
               className="h-8 text-xs font-mono"
@@ -55,7 +43,7 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
               id="can-data"
               type="text"
               value={sendData}
-              onChange={(e) => onSendDataChange(e.target.value)}
+              onChange={(e) => setSendData(e.target.value)}
               placeholder="01 02 03 04"
               disabled={!isConnected}
               className="h-8 text-xs font-mono"
@@ -66,7 +54,7 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
             <Button
               onClick={() => {
                 console.log("📤 Send button clicked");
-                onSendMessage();
+                handleSendMessage(sendId, sendData);
               }}
               disabled={!isConnected}
               size="sm"
@@ -77,7 +65,7 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
             </Button>
 
             <Button
-              onClick={onClearMessages}
+              onClick={clearMessages}
               variant="outline"
               size="sm"
               className="h-8 text-xs"

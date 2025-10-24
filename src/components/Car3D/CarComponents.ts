@@ -79,12 +79,12 @@ export class CarComponents implements ICarComponents {
     console.log("✓ 车身引用已保存");
 
     // 调试：打印所有对象名称
-    console.log("📋 模型中的所有对象：");
-    car.traverse((child) => {
-      if (child.name) {
-        console.log(`  - ${child.name}`);
-      }
-    });
+    // console.log("📋 模型中的所有对象：");
+    // car.traverse((child) => {
+    //   if (child.name) {
+    //     console.log(`  - ${child.name}`);
+    //   }
+    // });
 
     // 定义确切的轮子名称
     const wheelNames = {

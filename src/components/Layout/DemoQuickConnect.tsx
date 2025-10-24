@@ -10,18 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { useSerialStore } from "@/store/serialStore";
 
-interface DemoQuickConnectProps {
-  isConnected: boolean;
-  onConnect: (port: string) => void;
-  onDisconnect: () => void;
-}
-
-export const DemoQuickConnect: React.FC<DemoQuickConnectProps> = ({
-  isConnected,
-  onConnect,
-  onDisconnect,
-}) => {
+export const DemoQuickConnect: React.FC = () => {
+  const isConnected = useSerialStore((state) => state.isConnected);
+  const connectToPort = useSerialStore((state) => state.connectToPort);
+  const handleDisconnect = useSerialStore((state) => state.handleDisconnect);
   const demoConfig = getDemoQuickConnect();
   const [port, setPort] = useState(
     demoConfig?.port || "/dev/tty.usbserial-2110"
@@ -29,6 +23,19 @@ export const DemoQuickConnect: React.FC<DemoQuickConnectProps> = ({
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPorts, setIsLoadingPorts] = useState(false);
+
+  // 演示模式下的快速连接处理
+  const onConnect = async (port: string) => {
+    try {
+      await connectToPort(port);
+      toast.success(`已连接到 ${port}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast.error(`连接失败: ${errorMessage}`);
+      console.error("Demo connect error:", error);
+    }
+  };
 
   // 获取可用串口
   useEffect(() => {
@@ -73,10 +80,6 @@ export const DemoQuickConnect: React.FC<DemoQuickConnectProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDisconnect = () => {
-    onDisconnect();
   };
 
   return (

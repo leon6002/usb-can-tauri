@@ -2,8 +2,8 @@ export interface SerialConfig {
   port: string;
   baudRate: number;
   canBaudRate: number;
-  frameType: string;
-  protocolLength: string;
+  frameType: "standard" | "extended";
+  protocolLength: "fixed" | "variable";
   canMode: string;
   csvFilePath?: string;
   csvContent?: string;
@@ -11,4 +11,11 @@ export interface SerialConfig {
   canIdColumnIndex?: number;
   canDataColumnIndex?: number;
   csvStartRowIndex?: number;
+}
+
+// 示例CSV数据行（用于 loadDefaultCsv 内部）
+export interface CsvRow {
+  can_id: string;
+  can_data: string;
+  interval_ms: number;
 }

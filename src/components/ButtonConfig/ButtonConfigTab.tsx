@@ -1,10 +1,11 @@
 import React from "react";
-import { useCarCommand } from "../../contexts/CarCommandContext";
+import { useCarControlStore } from "@/store/carControlStore";
 
-interface ButtonConfigTabProps {}
-
-export const ButtonConfigTab: React.FC<ButtonConfigTabProps> = () => {
-  const { canCommands, updateCanCommand } = useCarCommand();
+export const ButtonConfigTab: React.FC = () => {
+  const canCommands = useCarControlStore((state) => state.canCommands);
+  const updateCanCommand = useCarControlStore(
+    (state) => state.updateCanCommand
+  );
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Status Bar */}

@@ -2,7 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Car3DRenderer } from "../components/Car3DRenderer";
 import { Scene3DStatus, ActiveTab } from "../types";
 
-export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: string) => void) => {
+export const use3DScene = (
+  activeTab: ActiveTab,
+  onSendCommand?: (commandId: string) => void
+) => {
   const [scene3DStatus, setScene3DStatus] = useState<Scene3DStatus>("loading");
   const car3DRendererRef = useRef<Car3DRenderer | null>(null);
 
@@ -11,7 +14,10 @@ export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: str
     // 只在车辆控制tab激活时初始化3D场景
     if (activeTab !== "car") {
       // 如果切换到其他tab，暂停渲染循环以节省资源
-      if (car3DRendererRef.current && (car3DRendererRef.current as any).pauseAnimation) {
+      if (
+        car3DRendererRef.current &&
+        (car3DRendererRef.current as any).pauseAnimation
+      ) {
         console.log("Pausing 3D animation for inactive tab");
         (car3DRendererRef.current as any).pauseAnimation();
       }
@@ -30,7 +36,10 @@ export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: str
         const currentRenderer = car3DRendererRef.current;
 
         // 如果渲染器存在且连接到正确的容器
-        if (currentRenderer.isActive && (currentRenderer as any).container === container) {
+        if (
+          currentRenderer.isActive &&
+          (currentRenderer as any).container === container
+        ) {
           // 检查是否需要恢复动画
           if (!currentRenderer.isActive()) {
             console.log("3D scene exists but paused, resuming animation...");
@@ -38,20 +47,24 @@ export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: str
               (currentRenderer as any).resumeAnimation();
             }
           } else {
-            console.log("3D scene already initialized and active, updating UI...");
+            console.log(
+              "3D scene already initialized and active, updating UI..."
+            );
           }
 
           setScene3DStatus("ready");
 
           // 隐藏加载提示
-          const loadingElement = container.querySelector('.loading-3d');
+          const loadingElement = container.querySelector(".loading-3d");
           if (loadingElement) {
-            (loadingElement as HTMLElement).style.display = 'none';
+            (loadingElement as HTMLElement).style.display = "none";
           }
           return;
         } else {
           // 如果容器不匹配或渲染器已停止，清理旧的渲染器
-          console.log("3D renderer inactive or container mismatch, reinitializing...");
+          console.log(
+            "3D renderer inactive or container mismatch, reinitializing..."
+          );
           if (currentRenderer.dispose) {
             currentRenderer.dispose();
           }
@@ -68,36 +81,38 @@ export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: str
         setScene3DStatus("loading");
 
         // 创建3D渲染器实例
-        const renderer = new Car3DRenderer('car-3d-container', onSendCommand);
+        const renderer = new Car3DRenderer("car-3d-container", onSendCommand);
         car3DRendererRef.current = renderer;
 
         // 将渲染器实例保存到全局，供按钮控制使用
         (window as any).car3DRenderer = renderer;
 
         // 隐藏加载提示
-        const loadingElement = container.querySelector('.loading-3d');
+        const loadingElement = container.querySelector(".loading-3d");
         if (loadingElement) {
           setTimeout(() => {
-            (loadingElement as HTMLElement).style.opacity = '0';
+            (loadingElement as HTMLElement).style.opacity = "0";
             setTimeout(() => {
-              (loadingElement as HTMLElement).style.display = 'none';
+              (loadingElement as HTMLElement).style.display = "none";
             }, 500);
           }, 2000); // 2秒后开始淡出
         }
 
         console.log("✅ 3D scene initialized successfully with npm packages");
         console.log("🎮 Car3DRenderer instance:", renderer);
-        console.log("📦 Available methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(renderer)));
+        console.log(
+          "📦 Available methods:",
+          Object.getOwnPropertyNames(Object.getPrototypeOf(renderer))
+        );
 
         // 更新状态
         setScene3DStatus("ready");
-
       } catch (error) {
         console.error("Failed to initialize 3D scene:", error);
         setScene3DStatus("error");
 
         // 显示错误信息
-        const loadingElement = container.querySelector('.loading-3d');
+        const loadingElement = container.querySelector(".loading-3d");
         if (loadingElement) {
           loadingElement.innerHTML = `
             <div class="text-center">
@@ -126,7 +141,6 @@ export const use3DScene = (activeTab: ActiveTab, onSendCommand?: (commandId: str
       }, 100);
       return () => clearTimeout(timer);
     }
-
   }, [activeTab]); // 监听activeTab变化
 
   // 组件卸载时清理3D场景

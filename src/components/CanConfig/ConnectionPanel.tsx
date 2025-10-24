@@ -1,25 +1,19 @@
 import React, { useRef, useMemo } from "react";
 import { FileUp, Zap, ZapOff, Download } from "lucide-react";
-import { SerialConfig } from "../../types";
 import { extractVehicleStatus } from "../../types/vehicleControl";
 import { loadDefaultCsv } from "../../utils/csvLoader";
+import { useSerialStore } from "@/store/serialStore";
+import { toast } from "sonner";
 
-interface ConnectionPanelProps {
-  isConnected: boolean;
-  config: SerialConfig;
-  availablePorts: string[];
-  onConfigChange: (config: SerialConfig) => void;
-  onConnect: () => void;
-}
-
-export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
-  isConnected,
-  config,
-  // availablePorts,
-  onConfigChange,
-  onConnect,
-}) => {
+export const ConnectionPanel: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    handleConnect,
+    updateConfig: onConfigChange,
+    config,
+    isConnected,
+    updateDriveData,
+  } = useSerialStore();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,11 +26,11 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
         onConfigChange({
           ...config,
           csvFilePath: file.name,
-          csvContent: content,
         });
+        updateDriveData(content);
       } catch (error) {
         console.error("Failed to read CSV file:", error);
-        alert("读取 CSV 文件失败");
+        toast.error("读取 CSV 文件失败");
       }
     }
   };
@@ -53,11 +47,11 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
       onConfigChange({
         ...config,
         csvFilePath: "sample-trajectory.csv (预置)",
-        csvContent: csvText,
       });
+      updateDriveData(csvText);
     } catch (error) {
       console.error("Failed to load preset CSV:", error);
-      alert("加载预置数据失败");
+      toast.error("加载预置数据失败");
     }
   };
 
@@ -236,7 +230,12 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
             <select
               value={config.protocolLength}
               onChange={(e) =>
-                onConfigChange({ ...config, protocolLength: e.target.value })
+                onConfigChange({
+                  ...config,
+                  protocolLength: (e.target.value || "fixed") as
+                    | "fixed"
+                    | "variable",
+                })
               }
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isConnected}
@@ -252,7 +251,10 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
             <select
               value={config.frameType}
               onChange={(e) =>
-                onConfigChange({ ...config, frameType: e.target.value })
+                onConfigChange({
+                  ...config,
+                  frameType: e.target.value as "standard" | "extended",
+                })
               }
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isConnected}
@@ -474,7 +476,7 @@ export const ConnectionPanel: React.FC<ConnectionPanelProps> = ({
         </div>
 
         <button
-          onClick={onConnect}
+          onClick={handleConnect}
           className={`w-full px-3 py-3 rounded text-xs font-medium transition-colors ${
             isConnected
               ? "bg-red-600 hover:bg-red-700 text-white"

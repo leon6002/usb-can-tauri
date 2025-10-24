@@ -1,13 +1,6 @@
 import React from "react";
-import { Scene3DStatus } from "../../types";
 
-interface Car3DViewerProps {
-  scene3DStatus: Scene3DStatus;
-}
-
-export const Car3DViewer: React.FC<Car3DViewerProps> = ({
-  scene3DStatus: _scene3DStatus,
-}) => {
+export const Car3DViewer: React.FC = () => {
   return (
     <div className="flex-1 relative min-h-0">
       <div

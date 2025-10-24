@@ -1,31 +1,27 @@
 import React from "react";
 import {
   Settings,
-  // Wifi,
-  // WifiOff,
   Car,
   Wrench,
   Gamepad2,
   RefreshCwOff,
   RefreshCw,
 } from "lucide-react";
-import { ActiveTab, SerialConfig } from "../../types";
+import { ActiveTab } from "../../types";
+import { useSerialStore } from "@/store/serialStore";
 
 interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
-  isConnected: boolean;
-  config: SerialConfig;
-  onConnect: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
-  isConnected,
-  config,
-  onConnect,
 }) => {
+  const isConnected = useSerialStore((state) => state.isConnected);
+  const config = useSerialStore((state) => state.config);
+  const handleConnect = useSerialStore((state) => state.handleConnect);
   return (
     <div className="w-64 bg-white shadow-lg flex flex-col">
       {/* Header */}
@@ -101,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </div>
           <button
-            onClick={onConnect}
+            onClick={handleConnect}
             className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
               isConnected
                 ? "bg-red-100 text-red-700 hover:bg-red-200"

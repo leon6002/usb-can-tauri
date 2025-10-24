@@ -1,21 +1,9 @@
 import React from "react";
 import { MessageSquare } from "lucide-react";
-import { CanMessage } from "../../types";
+import { useCanMessageStore } from "@/store/canMessageStore";
 
-interface MessageListProps {
-  messages: CanMessage[];
-}
-
-export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
-  React.useEffect(() => {
-    console.log("📋 [MessageList] Rendering with", messages.length, "messages");
-    messages.forEach((msg, idx) => {
-      console.log(
-        `  [${idx}] ID: ${msg.id}, Data: ${msg.data}, Timestamp: ${msg.timestamp}`
-      );
-    });
-  }, [messages]);
-
+export const MessageList: React.FC = () => {
+  const messages = useCanMessageStore((state) => state.messages);
   return (
     <div className="flex-1 bg-white flex flex-col">
       {/* Messages Header */}
@@ -64,13 +52,10 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
                       >
                         {message.direction === "sent" ? "📤 发送" : "📥 接收"}
                       </span>
-                      {message.frameType !== "unknown" && (
-                        <span className="text-xs text-gray-500">
-                          {message.frameType === "extended"
-                            ? "扩展帧"
-                            : "标准帧"}
-                        </span>
-                      )}
+
+                      <span className="text-xs text-gray-500">
+                        {message.frameType === "extended" ? "扩展帧" : "标准帧"}
+                      </span>
                     </div>
                     <span className="text-xs text-gray-400 font-mono">
                       {message.timestamp}

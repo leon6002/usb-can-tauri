@@ -2,38 +2,14 @@ import React from "react";
 import { ConnectionPanel } from "./ConnectionPanel";
 import { MessagePanel } from "./MessagePanel";
 import { MessageList } from "./MessageList";
-import { SerialConfig, CanMessage } from "../../types";
+import { useSerialStore } from "@/store/serialStore";
 
-interface CanConfigTabProps {
-  isConnected: boolean;
-  config: SerialConfig;
-  availablePorts: string[];
-  messages: CanMessage[];
-  sendId: string;
-  sendData: string;
-  onConnect: () => void;
-  onDisconnect: () => Promise<void>;
-  onConfigChange: (config: SerialConfig) => void;
-  onSendMessage: () => void;
-  onClearMessages: () => void;
-  onSendIdChange: (id: string) => void;
-  onSendDataChange: (data: string) => void;
-}
+export const CanConfigTab: React.FC = () => {
+  console.log("CanConfigTab rendered");
+  //写法二
+  const port = useSerialStore((state) => state.config.port);
+  const canBaudRate = useSerialStore((state) => state.config.canBaudRate);
 
-export const CanConfigTab: React.FC<CanConfigTabProps> = ({
-  isConnected,
-  config,
-  availablePorts,
-  messages,
-  sendId,
-  sendData,
-  onConnect,
-  onConfigChange,
-  onSendMessage,
-  onClearMessages,
-  onSendIdChange,
-  onSendDataChange,
-}) => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Status Bar */}
@@ -44,13 +20,13 @@ export const CanConfigTab: React.FC<CanConfigTabProps> = ({
             <div className="text-sm text-gray-600">
               端口:{" "}
               <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                {config.port}
+                {port}
               </span>
             </div>
             <div className="text-sm text-gray-600">
               波特率:{" "}
               <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                {config.canBaudRate}
+                {canBaudRate}
               </span>
             </div>
           </div>
@@ -61,32 +37,18 @@ export const CanConfigTab: React.FC<CanConfigTabProps> = ({
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Configuration */}
         <div className="w-96 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
-          <ConnectionPanel
-            isConnected={isConnected}
-            config={config}
-            availablePorts={availablePorts}
-            onConfigChange={onConfigChange}
-            onConnect={onConnect}
-          />
+          <ConnectionPanel />
         </div>
 
         {/* Right Panel - Send Message & Messages Display */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Send Panel */}
           <div className="bg-white border-b border-gray-200 p-4">
-            <MessagePanel
-              isConnected={isConnected}
-              sendId={sendId}
-              sendData={sendData}
-              onSendIdChange={onSendIdChange}
-              onSendDataChange={onSendDataChange}
-              onSendMessage={onSendMessage}
-              onClearMessages={onClearMessages}
-            />
+            <MessagePanel />
           </div>
 
           {/* Messages Display */}
-          <MessageList messages={messages} />
+          <MessageList />
         </div>
       </div>
     </div>

@@ -1,16 +1,10 @@
-import { CarStates } from "@/types";
+import { useCarControlStore } from "@/store/carControlStore";
+import { useSerialStore } from "@/store/serialStore";
 
-interface LightControlProps {
-  isConnected: boolean;
-  carStates: CarStates;
-  sendCarCommand: (commandId: string) => Promise<void>;
-}
-
-const LightControl: React.FC<LightControlProps> = ({
-  isConnected,
-  carStates,
-  sendCarCommand,
-}) => {
+const LightControl: React.FC = () => {
+  const isConnected = useSerialStore((state) => state.isConnected);
+  const sendCarCommand = useCarControlStore((state) => state.sendCarCommand);
+  const carStates = useCarControlStore((state) => state.carStates);
   return (
     <div>
       <h4 className="text-sm font-semibold text-gray-700 mb-3">灯带控制</h4>
