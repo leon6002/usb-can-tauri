@@ -2,6 +2,7 @@ const TopStatusBar: React.FC = () => {
   return (
     <div className="bg-white border-b border-t border-gray-200 px-6 py-5">
       <div className="flex items-center justify-center">
+        {/* Logo - Center */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 366.09 118.04"

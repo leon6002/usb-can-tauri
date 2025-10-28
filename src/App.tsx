@@ -19,6 +19,7 @@ import { useSerialStore } from "./store/serialStore";
 import { useCarControlStore } from "./store/carControlStore";
 import { use3DStore } from "./store/car3DStore";
 import { useRadarStore } from "./store/radarStore";
+import { APP_VERSION } from "./config/version";
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("car");
@@ -70,8 +71,13 @@ function App() {
   const demoMode = isDemoMode();
 
   return (
-    <div className="h-screen bg-gray-100 flex overflow-hidden">
+    <div className="h-screen bg-gray-100 flex overflow-hidden relative">
       <Toaster position="top-right" theme="light" richColors />
+
+      {/* Version Badge - Top Right Corner */}
+      <div className="absolute top-4 right-4 text-xs text-gray-500 font-medium bg-white px-3 py-1 rounded-md shadow-sm z-50">
+        {APP_VERSION}
+      </div>
 
       {/* 演示模式：只显示车辆控制界面 */}
       {demoMode ? (
