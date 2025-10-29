@@ -57,15 +57,13 @@ const parseSystemMonitorData = (data: string): SystemMonitorData | null => {
     for (let i = 0; i < 8; i++) {
       bytes.push(parseInt(cleanData.substring(i * 2, i * 2 + 2), 16));
     }
-    const formatTimeSegment = (segment: number): string => {
-      return segment.toString().padStart(2, "0");
+    const getTimeString = (): string => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, "0");
+      const minutes = now.getMinutes().toString().padStart(2, "0");
+      const seconds = now.getSeconds().toString().padStart(2, "0");
+      return `${hours}:${minutes}:${seconds}`;
     };
-    const now = new Date();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
-    const timeString = `${formatTimeSegment(minutes)}:${formatTimeSegment(
-      seconds
-    )}`;
 
     const monitorData: SystemMonitorData = {
       cpu1: bytes[0], // DATA[0]: CPU1 利用率
@@ -76,7 +74,7 @@ const parseSystemMonitorData = (data: string): SystemMonitorData | null => {
       brakeControl: bytes[5], // DATA[5]: 制动控制状态
       bodyControl: bytes[6], // DATA[6]: 车身控制状态
       acSystem: bytes[7], // DATA[7]: 空气调节系统
-      timestamp: timeString,
+      timestamp: getTimeString(),
     };
 
     console.log("📊 [SystemMonitor] Parsed data:", monitorData);
