@@ -93,7 +93,7 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
   historyData: [],
   isListening: false,
   unlistenFunc: null,
-  maxHistoryPoints: 10, // 保留最近n个数据点
+  maxHistoryPoints: 8, // 保留最近n个数据点
   lastUpdateTime: 0,
   throttleInterval: 300, // 默认节流间隔
 

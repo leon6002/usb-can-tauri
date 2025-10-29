@@ -37,7 +37,9 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, label }) => {
 
   return (
     <div className="flex items-center justify-between bg-slate-600/50 rounded-lg px-3 py-2 backdrop-blur-sm border border-slate-500/30">
-      <p className="font-light text-gray-200 text-sm">{label}</p>
+      <p className="font-light text-gray-200 text-sm whitespace-nowrap text-ellipsis">
+        {label}
+      </p>
       <div className="flex items-center gap-2">
         {/* 外层光晕圆 */}
         <div

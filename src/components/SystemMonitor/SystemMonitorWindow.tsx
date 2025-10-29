@@ -74,7 +74,7 @@ const SystemMonitorWindow: React.FC = () => {
       ></div>
 
       {/* 内容容器 - 垂直居中 */}
-      <div className="relative z-10 flex flex-col h-full p-4 overflow-hidden justify-center mx-auto w-[90%]">
+      <div className="relative z-10 flex flex-col h-full p-4 overflow-hidden justify-center mx-auto w-[96%]">
         {/* 标题 */}
         <div className="flex-shrink-0 mb-6 p-4 rounded-lg bg-gray-800/60 backdrop-blur-sm shadow-2xl border-l-4 border-cyan-500">
           <div className="flex items-center justify-between">
