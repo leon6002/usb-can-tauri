@@ -2,7 +2,7 @@
  * 应用版本配置
  */
 
-export const APP_VERSION = "v1.0.0";
+export const APP_VERSION = "v2.0.0";
 
 export const getVersionInfo = () => {
   return {
@@ -11,4 +11,3 @@ export const getVersionInfo = () => {
     buildDate: new Date().toLocaleDateString("zh-CN"),
   };
 };
-

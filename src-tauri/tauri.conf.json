@@ -15,6 +15,14 @@
         "title": "osyx-car-controller",
         "width": 1440,
         "height": 900
+      },
+      {
+        "label": "system-monitor",
+        "title": "系统性能监控",
+        "url": "system-monitor.html",
+        "width": 1440,
+        "height": 900,
+        "visible": false
       }
     ],
     "security": {

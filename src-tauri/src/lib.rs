@@ -16,6 +16,7 @@ mod commands;
 use commands::{
     get_available_ports, connect_serial, disconnect_serial, send_can_message,
     start_csv_loop, stop_csv_loop, preload_csv_data, start_csv_loop_with_preloaded_data,
+    open_system_monitor_window, close_system_monitor_window,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,7 +94,9 @@ pub fn run() {
             start_csv_loop,
             stop_csv_loop,
             preload_csv_data,
-            start_csv_loop_with_preloaded_data
+            start_csv_loop_with_preloaded_data,
+            open_system_monitor_window,
+            close_system_monitor_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

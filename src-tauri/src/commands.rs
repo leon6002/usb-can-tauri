@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use serialport::available_ports;
-use tauri::State;
+use tauri::{State, Manager};
 use anyhow::{Result, anyhow};
 use log::{info, error, warn};
 use csv::ReaderBuilder;
@@ -380,5 +380,36 @@ pub async fn start_csv_loop_with_preloaded_data(
     });
 
     Ok("CSV loop started".to_string())
+}
+
+/// 打开系统监控窗口
+#[tauri::command]
+pub async fn open_system_monitor_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    match app_handle.get_webview_window("system-monitor") {
+        Some(window) => {
+            // 窗口已存在，显示并置于前面
+            let _ = window.show();
+            let _ = window.set_focus();
+            Ok(())
+        }
+        None => {
+            // 窗口不存在，创建新窗口
+            tauri::WebviewWindowBuilder::new(&app_handle, "system-monitor", tauri::WebviewUrl::App("system-monitor.html".into()))
+                .title("系统性能监控")
+                .inner_size(1600.0, 1000.0)
+                .build()
+                .map_err(|e| format!("Failed to create system monitor window: {}", e))?;
+            Ok(())
+        }
+    }
+}
+
+/// 关闭系统监控窗口
+#[tauri::command]
+pub async fn close_system_monitor_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("system-monitor") {
+        window.close().map_err(|e| format!("Failed to close system monitor window: {}", e))?;
+    }
+    Ok(())
 }
 
