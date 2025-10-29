@@ -86,7 +86,7 @@ const MemoryChart: React.FC<MemoryChartProps> = ({
             stroke={getFillColor(chartData[0].memory)}
             fill={getFillColor(chartData[0].memory)}
             isAnimationActive={true}
-            animationDuration={50}
+            animationDuration={300}
             animationEasing="linear"
           />
         </AreaChart>

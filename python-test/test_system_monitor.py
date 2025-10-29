@@ -14,39 +14,22 @@
 - DATA[7]: 空气调节系统 (0=红, 1=黄, 2=绿)
 """
 
+import threading
 import serial
 import time
 import random
-from generator import SmoothDataGenerator
-
+from generator import DataGenerator, RadarDataGenerator, SmoothDataGenerator
+import queue
 
 def calculate_checksum(data):
     checksum = sum(data[2:])
     return checksum & 0xff
-def generate_test_data():
-    """生成测试数据"""
-    # CPU 利用率 (0-100)
-    cpu1 = random.randint(10, 80)
-    cpu2 = random.randint(10, 80)
-    cpu3 = random.randint(10, 80)
-    
-    # 内存利用率 (0-100)
-    memory = random.randint(30, 90)
-    
-    # 系统状态 (0=红, 1=黄, 2=绿)
-    steering = random.randint(0, 2)
-    brake = random.randint(0, 2)
-    body = random.randint(0, 2)
-    ac = random.randint(0, 2)
-    return [cpu1, cpu2, cpu3, memory, 2, 2, 2, 2]
-    # return [cpu1, cpu2, cpu3, memory, steering, brake, body, ac]
 
 def format_can_message(data):
     """格式化 CAN 消息"""
     # 转换为十六进制字符串
     hex_data = " ".join(f"{byte:02X}" for byte in data)
     return hex_data
-
 def send_test_message(port_name="/dev/tty.usbserial-140", baud_rate=2000000):
     """发送测试消息"""
     try:
@@ -102,42 +85,146 @@ def send_test_message(port_name="/dev/tty.usbserial-140", baud_rate=2000000):
         if 'ser' in locals() and ser.is_open:
             ser.close()
             print("✅ 串口已关闭")
+# 定义全局变量和线程安全的队列
+stop_event = threading.Event()
+# 线程安全的队列，用于存储待发送的完整数据包
+SEND_QUEUE = queue.Queue() 
 
-if __name__ == "__main__":
-    # 获取可用的串口
-    # import serial.tools.list_ports
-    
-    # ports = serial.tools.list_ports.comports()
-    # if not ports:
-    #     print("❌ 未找到可用的串口")
-    #     exit(1)
-    
-    # print("📋 可用的串口:")
-    # for i, port in enumerate(ports):
-    #     print(f"  {i}: {port.device} - {port.description}")
-    
-    # while True:
-    #     input_index_str = input("请选择串口序号: ")
-    #     try:
-    #         # 1. 尝试将输入字符串转换为整数
-    #         input_index = int(input_index_str)
-            
-    #         # 2. 检查索引是否在有效范围内
-    #         if 0 <= input_index < len(ports):
-    #             # 找到选定的端口设备名
-    #             port_name = ports[input_index].device
-    #             print(f"✅ 已选择串口: {port_name}")
-    #             break  # 退出循环
-    #         else:
-    #             print(f"❌ 序号 '{input_index}' 超出范围，请重新输入 0 到 {len(ports) - 1} 之间的数字。")
+# --- 线程 1: 串口写入器 (Serial Writer) ---
+# 负责打开串口，从队列中取出数据并发送
+def serial_writer_thread(port_name: str, baud_rate: int):
+    """专用的串口写入线程"""
+    ser = None
+    try:
+        ser = serial.Serial(port_name, baud_rate, timeout=0.1)
+        print(f"[Writer] ✅ 串口连接已建立到 {port_name}")
+        
+        while not stop_event.is_set():
+            try:
+                # 尝试从队列中获取数据包，等待 0.1 秒
+                # timeout 避免线程在队列为空时被永久阻塞
+                packet = SEND_QUEUE.get(timeout=0.1) 
                 
-    #     except ValueError:
-    #         # 3. 捕获非数字输入
-    #         print("❌ 输入无效，请输入数字序号。")
+                # 发送数据
+                ser.write(bytes(packet))
+                
+                # 可选：打印发送信息
+                # print(f"[Writer] 📤 发送数据包: {format_can_message(packet[:8])}...")
+                
+                # 通知队列任务完成
+                SEND_QUEUE.task_done()
+                
+            except queue.Empty:
+                # 队列为空时，继续循环检查 stop_event
+                continue
+
+    except serial.SerialException as e:
+        print(f"[Writer] ❌ 致命串口错误: {e}")
+    except Exception as e:
+        print(f"[Writer] ❌ 发生未知错误: {e}")
+        
+    finally:
+        if ser and ser.is_open:
+            ser.close()
+            print("[Writer] ✅ 串口已关闭")
+
+
+# --- 线程 2 & 3: 数据生成器 (Data Generator) ---
+# 负责生成数据并放入队列
+def data_generator_thread(can_id: list, generator:DataGenerator, delay: float, message_name: str):
+    """生成数据并将其放入发送队列"""
     
-    send_test_message("/dev/tty.usbserial-2110")
+    # 构建 CAN 消息的固定部分
+    packet_header = [0xaa, 0x55, 0x01, 0x01, 0x01] # 头部
+    reserved = [0x00]
+
+    try:
+        while not stop_event.is_set():
+            # 1. 生成 13 字节原始数据(CAN ID(4 byte) + data length(1 byte) + data(8 byte))
+            raw_data = generator.generate_data()
+            
+            # 2. 构建完整数据包
+            data_to_checksum = packet_header + raw_data + reserved
+            packet_checksum = calculate_checksum(data_to_checksum)
+            full_packet = data_to_checksum + [packet_checksum]
+            
+            # 3. 将完整数据包放入发送队列
+            SEND_QUEUE.put(full_packet)
+            
+            # 4. 打印生成信息
+            print(f"[{message_name}] ➕ 准备发送: CAN ID={format_can_message(can_id)}, Data={format_can_message(raw_data)}")
+            
+            # 5. 等待
+            time.sleep(delay)
+            
+    except Exception as e:
+        print(f"[{message_name}] ❌ 数据生成线程发生错误: {e}")
+
+
+# --- 主控制函数 ---
+
+def start_single_port_multi_sender(port_name="/dev/tty.usbserial-140", baud_rate=2000000):
     
-    result: list = generate_test_data()
-    for r in result:
-        print(r, end=" ")
+    # 1. 串口写入线程 (SerialWriter) - 只有一个
+    writer_thread = threading.Thread(
+        target=serial_writer_thread, 
+        args=(port_name, baud_rate),
+        name="SerialWriter"
+    )
+    
+    # 2. 数据生成线程 A: 系统监控 (CAN ID: 0x209)
+    generatorA = SmoothDataGenerator()
+    threadA = threading.Thread(
+        target=data_generator_thread, 
+        args=(
+            [0x09, 0x02, 0x00, 0x00], # CAN ID 0x209
+            generatorA, 
+            0.05,                     # 100ms 频率
+            "SYSTEM_MONITOR"
+        ),
+        name="GeneratorA"
+    )
+    
+    # 3. 数据生成线程 B: 传感器数据 (CAN ID: 0x400)
+    generatorB = RadarDataGenerator()
+    threadB = threading.Thread(
+        target=data_generator_thread, 
+        args=(
+            [0x00, 0x04, 0x00, 0x00], # CAN ID 0x400
+            generatorB, 
+            0.25,                     # 500ms 频率 (可以不同)
+            "SENSOR_DATA"
+        ),
+        name="GeneratorB"
+    )
+
+    try:
+        print("📊 启动单串口多数据源发送器...")
+        
+        # 启动所有线程
+        writer_thread.start()
+        threadA.start()
+        threadB.start()
+
+        print("按 Ctrl+C 停止所有线程\n")
+        
+        # 主线程等待
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\n⏹️  正在请求所有线程安全停止...")
+        stop_event.set() # 设置停止事件
+        
+    # 等待所有线程结束
+    writer_thread.join()
+    threadA.join()
+    threadB.join()
+
+    print("✅ 所有线程已安全退出。")
+    
+if __name__ == "__main__":
+    
+    start_single_port_multi_sender("/dev/tty.usbserial-2110")
+
 

@@ -30,13 +30,15 @@ interface SystemMonitorState {
   isListening: boolean;
   unlistenFunc: (() => void) | null;
   maxHistoryPoints: number;
+  // 增加节流相关的状态
+  lastUpdateTime: number; // 上次更新 UI 的时间戳
+  throttleInterval: number; // 节流间隔，例如 100ms
 
   // Actions
   setMonitorData: (data: SystemMonitorData) => void;
   startListening: () => Promise<void>;
   stopListening: () => void;
   clearHistory: () => void;
-  addHistoryPoint: (point: HistoryDataPoint) => void;
 }
 
 // CAN ID 0x209 的数据解析函数
@@ -91,32 +93,31 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
   historyData: [],
   isListening: false,
   unlistenFunc: null,
-  maxHistoryPoints: 10, // 保留最近 20 个数据点
+  maxHistoryPoints: 10, // 保留最近n个数据点
+  lastUpdateTime: 0,
+  throttleInterval: 300, // 默认节流间隔
 
   // Action: 设置监控数据
   setMonitorData: (data: SystemMonitorData) => {
-    set({ currentData: data });
-
-    // 同时添加到历史数据
-    const historyPoint: HistoryDataPoint = {
-      timestamp: data.timestamp,
-      cpu1: data.cpu1,
-      cpu2: data.cpu2,
-      cpu3: data.cpu3,
-      memory: data.memory,
-    };
-    get().addHistoryPoint(historyPoint);
-  },
-
-  // Action: 添加历史数据点
-  addHistoryPoint: (point: HistoryDataPoint) => {
     set((state) => {
-      const newHistory = [...state.historyData, point];
+      // 同时添加到历史数据
+      const historyPoint: HistoryDataPoint = {
+        timestamp: data.timestamp,
+        cpu1: data.cpu1,
+        cpu2: data.cpu2,
+        cpu3: data.cpu3,
+        memory: data.memory,
+      };
+      const newHistory = [...state.historyData, historyPoint];
       // 保持最多 maxHistoryPoints 个数据点
       if (newHistory.length > state.maxHistoryPoints) {
         newHistory.shift();
       }
-      return { historyData: newHistory };
+      return {
+        currentData: data,
+        historyData: newHistory,
+        lastUpdateTime: Date.now(), // 更新时间戳用于节流
+      };
     });
   },
 
@@ -126,14 +127,23 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
       if (get().unlistenFunc) return; // 避免重复监听
 
       const unlisten = await listen<any>("can-message-received", (event) => {
+        const now = Date.now();
+        const state = get();
+        // 1. 节流检查
+        // 如果距离上次 UI/状态更新的时间小于节流间隔，则直接返回，丢弃此消息
+        if (now - state.lastUpdateTime < state.throttleInterval) {
+          return;
+        }
         // 检查是否是 CAN ID 0x209 的消息
         const canId = event.payload.id;
         const canIdNum = parseInt(canId.replace("0x", ""), 16);
 
         if (canIdNum === 0x209) {
+          // 如果不需要更新历史数据，可以 early return
+          // 但如果需要即使不更新 UI 也记录最新值，则需要继续
           const parsedData = parseSystemMonitorData(event.payload.data);
           if (parsedData) {
-            get().setMonitorData(parsedData);
+            state.setMonitorData(parsedData);
           }
         }
       });
