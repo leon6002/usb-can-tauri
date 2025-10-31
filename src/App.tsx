@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Toaster } from "sonner";
 
 // Types
@@ -15,36 +15,18 @@ import { Sidebar } from "./components/Layout/Sidebar";
 import { CarControlTab } from "./components/CarControl/CarControlTab";
 import { CanConfigTab } from "./components/CanConfig/CanConfigTab";
 import { ButtonConfigTab } from "./components/ButtonConfig/ButtonConfigTab";
-import { useSerialStore } from "./store/serialStore";
-import { useRadarStore } from "./store/radarStore";
+
 import { useTauriEvents } from "./hooks/useTauriEvents";
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("car");
-  const isConnected = useSerialStore((state) => state.isConnected);
 
   console.log("app rendered");
-
-  // 查询可用串口，加载内置csv行驶数据
-  const initializeSerial = useSerialStore((state) => state.initializeSerial);
-  useEffect(() => {
-    initializeSerial();
-  }, []);
-
-  // 监听 CSV 数据循环完成事件
-  useTauriEvents();
-
   // 初始化 R3F 3D 场景
   useR3FScene(activeTab);
 
-  // 定时发送雷达信号并监听雷达数据
-  const manageRadar = useRadarStore((state) => state.manageRadar);
-  useEffect(() => {
-    manageRadar(isConnected);
-    return () => {
-      manageRadar(false);
-    };
-  }, [isConnected, manageRadar]);
+  // 初始化连接和监听
+  useTauriEvents();
 
   //是否演示模式
   const demoMode = isDemoMode();

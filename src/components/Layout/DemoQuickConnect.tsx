@@ -28,7 +28,6 @@ export const DemoQuickConnect: React.FC = () => {
   const onConnect = async (port: string) => {
     try {
       await connectToPort(port);
-      toast.success(`已连接到 ${port}`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

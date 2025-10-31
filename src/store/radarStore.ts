@@ -164,7 +164,7 @@ export const useRadarStore = create<RadarState>((set, get) => ({
     try {
       for (const radar of RADAR_QUERIES) {
         await sendCanCommand(radar.id, radar.data);
-        console.log(`📡 [Radar] Sent radar query: ${radar.id} ${radar.data}`);
+        // console.log(`📡 [Radar] Sent radar query: ${radar.id} ${radar.data}`);
       }
     } catch (error) {
       console.error("❌ Failed to send radar query:", error);

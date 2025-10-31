@@ -280,6 +280,9 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
             }
             currentIndex++;
           } else {
+            console.log(
+              "✅ currentIndex >= preloadedData.length => CSV loop completed"
+            );
             stopCsvLoop();
           }
         }, intervalMs);

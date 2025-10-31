@@ -23,9 +23,9 @@ export const Environments: React.FC = () => {
   // 加载草地贴图
   //
   const [groundDiffuse, groundNormal, groundRoughness] = useTexture([
-    "/textures/asphalt_pit_lane_diff_1k.jpg",
-    "/textures/asphalt_pit_lane_nor_gl_1k.jpg",
-    "/textures/asphalt_pit_lane_rough_1k.jpg",
+    "/textures/aerial_beach_01_diff_1k.jpg",
+    "/textures/aerial_beach_01_nor_gl_1k.jpg",
+    "/textures/aerial_beach_01_rough_1k.jpg",
   ]);
 
   // 配置草地贴图
@@ -35,7 +35,7 @@ export const Environments: React.FC = () => {
     [groundDiffuse, groundNormal, groundRoughness].forEach((texture, index) => {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(60, 60);
+      texture.repeat.set(30, 30);
       texture.anisotropy = maxAnisotropy; // 启用各向异性过滤，提高清晰度
       texture.minFilter = THREE.LinearMipmapLinearFilter;
       texture.magFilter = THREE.LinearFilter;
@@ -55,16 +55,16 @@ export const Environments: React.FC = () => {
     const ctx = canvas.getContext("2d")!;
 
     // 填充浅灰色道路背景（更接近真实沥青颜色）
-    ctx.fillStyle = "#4a4a4a";
+    ctx.fillStyle = "#6a6a6a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // 添加左右边缘渐变（从道路颜色渐变到透明）
-    const edgeWidth = 40; // 渐变宽度
+    const edgeWidth = 50; // 渐变宽度
 
     // 左边缘渐变
     const leftGradient = ctx.createLinearGradient(0, 0, edgeWidth, 0);
-    leftGradient.addColorStop(0, "rgba(74, 74, 74, 0)"); // 完全透明
-    leftGradient.addColorStop(1, "rgba(74, 74, 74, 1)"); // 道路颜色
+    leftGradient.addColorStop(0, "rgba(88, 88, 88, 0)"); // 完全透明
+    leftGradient.addColorStop(1, "rgba(88, 88, 88, 1)"); // 道路颜色
     ctx.fillStyle = leftGradient;
     ctx.fillRect(0, 0, edgeWidth, canvas.height);
 
