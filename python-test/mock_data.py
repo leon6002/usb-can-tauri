@@ -7,13 +7,13 @@ import math
 def start_mock(output_filename='driving_data_final_version_speed_to_zero.csv'):
 
     # --- 参数设定 ---
-    DATA_POINTS = 4000  # 总数据量
+    DATA_POINTS = 5000  # 总数据量
     MAX_ANGLE = 32      # 最大转向角范围
     MIN_SPEED_TARGET = 0 # 【关键修正】: 目标最低速度设置为 0
     DISPLAY_MIN_SPEED = 1000 # 仅用于打印显示的速度最小值，不参与计算
     MAX_SPEED = 5000    # 最大速度 (必须是 SPEED_STEP 的倍数)
     SPEED_STEP = 100    # 速度的步长设置
-    
+
     # 控制转弯稀疏度和缓慢度的关键参数
     BASE_ANCHOR_COUNT = 10 # 减少总转弯次数
     SMOOTHING_WINDOW = 401 # 增大每次转弯耗时，窗口越大，转弯越慢
@@ -23,9 +23,14 @@ def start_mock(output_filename='driving_data_final_version_speed_to_zero.csv'):
     # 确保 MAX_SPEED 是 SPEED_STEP 的有效倍数
     if MAX_SPEED % SPEED_STEP != 0:
         print("警告：MAX_SPEED 应是 SPEED_STEP 的倍数。")
-        
+
+    # --- 起步区设定 ---
+    START_PERCENTAGE = 0.10             # 前 10% 的数据用于起步加速
+    START_POINTS = int(DATA_POINTS * START_PERCENTAGE)
+    START_END_INDEX = START_POINTS
+
     # --- 停止区设定 ---
-    STOP_PERCENTAGE = 0.30             # 最后 10% 的数据用于缓慢停止
+    STOP_PERCENTAGE = 0.30             # 最后 30% 的数据用于缓慢停止
     STOP_POINTS = int(DATA_POINTS * STOP_PERCENTAGE)
     STOP_START_INDEX = DATA_POINTS - STOP_POINTS
 
@@ -75,34 +80,46 @@ def start_mock(output_filename='driving_data_final_version_speed_to_zero.csv'):
     ).mean().values
     
     
-    # --- 4. 停止区：角度平稳归零 ---
+    # --- 4a. 起步区：角度从0开始逐渐增加 ---
+    if START_POINTS > 0:
+        angle_start_factor = np.linspace(0.0, 1.0, START_POINTS)
+        final_angle_data[:START_POINTS] = final_angle_data[:START_POINTS] * angle_start_factor
+
+    # --- 4b. 停止区：角度平稳归零 ---
     angle_decay_factor = np.linspace(1.0, 0.0, STOP_POINTS)
     final_angle_data[STOP_START_INDEX:] = final_angle_data[STOP_START_INDEX:] * angle_decay_factor
 
 
     # --- 5. 生成速度数据 (与角度关联，并应用步长) ---
-    
+
     # 5.1 基础速度计算（浮点数）
     normalized_angle_abs = np.abs(final_angle_data) / MAX_ANGLE
     straightness_factor = (1 - normalized_angle_abs)
-    
+
     # 速度范围现在是从 MIN_SPEED_TARGET (0) 到 MAX_SPEED
     speed_range = MAX_SPEED - MIN_SPEED_TARGET
     raw_speed_data = MIN_SPEED_TARGET + speed_range * straightness_factor
-    speed_noise = np.random.normal(0, 50, DATA_POINTS) 
+    speed_noise = np.random.normal(0, 50, DATA_POINTS)
     speed_data_float = raw_speed_data + speed_noise
 
-    # 5.2 处理停止区：速度平稳下降到 MIN_SPEED_TARGET (0)
+    # 5.2 处理起步区：速度从 0 平稳上升
+    if START_POINTS > 0:
+        first_speed_after_start = speed_data_float[START_POINTS] if START_POINTS < DATA_POINTS else MAX_SPEED
+        # 使用平滑的加速曲线（二次函数，模拟真实车辆加速）
+        speed_start_factor = np.linspace(0, 1, START_POINTS) ** 1.5  # 指数 1.5 使加速更平滑
+        speed_data_float[:START_POINTS] = MIN_SPEED_TARGET + (first_speed_after_start - MIN_SPEED_TARGET) * speed_start_factor
+
+    # 5.3 处理停止区：速度平稳下降到 MIN_SPEED_TARGET (0)
     last_speed_before_stop = speed_data_float[STOP_START_INDEX - 1] if STOP_START_INDEX > 0 else MAX_SPEED
-    
+
     # 【关键修正】：确保目标速度为 0
     speed_decay_factor = np.linspace(last_speed_before_stop, MIN_SPEED_TARGET, STOP_POINTS)
     speed_data_float[STOP_START_INDEX:] = speed_decay_factor
 
-    # 5.3 应用步长
+    # 5.4 应用步长
     final_speed_data = np.round(speed_data_float / SPEED_STEP) * SPEED_STEP
-    
-    # 5.4 最终限制速度范围并转换为整数，确保速度不低于 0
+
+    # 5.5 最终限制速度范围并转换为整数，确保速度不低于 0
     final_speed_data = np.clip(final_speed_data, MIN_SPEED_TARGET, MAX_SPEED).astype(int)
     
     # --- 6. 整合数据并输出到CSV文件 ---
@@ -117,10 +134,16 @@ def start_mock(output_filename='driving_data_final_version_speed_to_zero.csv'):
     print(f"成功生成 {DATA_POINTS} 行模拟行车数据并保存到 {output_filename}")
     print(f"总转弯次数由 {BASE_ANCHOR_COUNT} 个关键点控制")
     print(f"每次转弯耗时由 {window_len} 的全局平滑窗口控制")
-    print("-" * 30)
+    print("-" * 50)
+    print(f"起步区: 前 {START_POINTS} 行 ({START_PERCENTAGE*100:.0f}%) - 速度从 0 平滑加速")
+    print(f"停止区: 后 {STOP_POINTS} 行 ({STOP_PERCENTAGE*100:.0f}%) - 速度平滑减速到 0")
+    print("-" * 50)
     print(f"实际速度值的唯一列表: {np.sort(output_df['speed'].unique())}")
+    print(f"速度范围: {output_df['speed'].min()} - {output_df['speed'].max()} mm/s")
+    print(f"起步区速度: {output_df['speed'][:START_POINTS].min()} - {output_df['speed'][:START_POINTS].max()} mm/s")
     zero_angle_count = (output_df['angle'] == 0).sum()
     print(f"角度为 0.00 的数量: {zero_angle_count} (占总数的 {zero_angle_count / DATA_POINTS * 100:.2f}%)")
+    print(f"角度范围: {output_df['angle'].min():.2f} - {output_df['angle'].max():.2f} 度")
 
 if __name__ == "__main__":
     start_mock()
