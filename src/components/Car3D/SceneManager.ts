@@ -334,7 +334,7 @@ export class SceneManager implements ISceneManager {
     const ctx = canvas.getContext("2d")!;
 
     // 绘制道路背景
-    ctx.fillStyle = "#2c2c2c";
+    ctx.fillStyle = "#414141";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // 绘制道路标线

@@ -589,21 +589,57 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
       // 更新道路纹理偏移
       const scene = _state.scene;
       const roadTexture = (scene as any).roadTexture;
+
       if (roadTexture) {
         roadTexture.offset.y += state_ref.roadMovement.speed * delta;
-
-        // 当偏移超过1时重置，创建无缝循环
         if (roadTexture.offset.y >= 1) {
           roadTexture.offset.y = 0;
+        }
+      }
+
+      // 更新草地贴图偏移
+      const groundTexture = (scene as any).groundTexture;
+      const groundNormalMap = (scene as any).groundNormalMap;
+      const groundRoughnessMap = (scene as any).groundRoughnessMap;
+      if (groundTexture) {
+        groundTexture.offset.y += state_ref.roadMovement.speed * delta;
+        if (groundTexture.offset.y >= 1) {
+          groundTexture.offset.y = 0;
+        }
+      }
+      if (groundNormalMap) {
+        groundNormalMap.offset.y += state_ref.roadMovement.speed * delta;
+        if (groundNormalMap.offset.y >= 1) {
+          groundNormalMap.offset.y = 0;
+        }
+      }
+      if (groundRoughnessMap) {
+        groundRoughnessMap.offset.y += state_ref.roadMovement.speed * delta;
+        if (groundRoughnessMap.offset.y >= 1) {
+          groundRoughnessMap.offset.y = 0;
         }
       }
     } else if (state_ref.roadMovement.offset === 0) {
       // 当停止移动且偏移为0时，重置纹理偏移
       const scene = _state.scene;
       const roadTexture = (scene as any).roadTexture;
+
       if (roadTexture && roadTexture.offset.y !== 0) {
         roadTexture.offset.y = 0;
-        console.log("[AnimationSystem] Road texture offset reset in useFrame");
+      }
+
+      // 重置草地贴图偏移
+      const groundTexture = (scene as any).groundTexture;
+      const groundNormalMap = (scene as any).groundNormalMap;
+      const groundRoughnessMap = (scene as any).groundRoughnessMap;
+      if (groundTexture && groundTexture.offset.y !== 0) {
+        groundTexture.offset.y = 0;
+      }
+      if (groundNormalMap && groundNormalMap.offset.y !== 0) {
+        groundNormalMap.offset.y = 0;
+      }
+      if (groundRoughnessMap && groundRoughnessMap.offset.y !== 0) {
+        groundRoughnessMap.offset.y = 0;
       }
     }
 

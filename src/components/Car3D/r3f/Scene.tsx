@@ -5,13 +5,13 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Lights } from "./Lights";
-import { Environment } from "./Environment";
 import { CameraControls, CameraAnimationState } from "./CameraControls";
 import { Car } from "./Car";
 import { AnimationSystem, AnimationSystemHandle } from "./AnimationSystem";
 import { InteractionSystem } from "./InteractionSystem";
 import { use3DStore } from "../../../store/car3DStore";
 import { useCarControlStore } from "../../../store/carControlStore";
+import { Environments } from "./Environments";
 
 export interface SceneProps {
   onSceneReady?: (scene: SceneHandle) => void;
@@ -120,7 +120,7 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
       <Lights />
 
       {/* 环境 */}
-      <Environment />
+      <Environments />
 
       {/* 相机控制 */}
       <CameraControls

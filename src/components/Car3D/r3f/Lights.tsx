@@ -9,71 +9,39 @@ export const Lights: React.FC = () => {
 
   return (
     <>
-      {/* 大幅增强环境光 - 提供强烈的基础照明 */}
-      <ambientLight intensity={1.5} color={0xffffff} />
+      {/* 环境光 - 模拟天空散射光，提供柔和的基础照明 */}
+      <ambientLight intensity={0.4} color={0xb0c4de} />
 
-      {/* 主光源 - 从右上方照射，产生阴影 */}
+      {/* 主光源 - 模拟太阳光，从右前上方照射 */}
       <directionalLight
         ref={directionalLightRef}
-        position={[-8, 15, 12]}
-        intensity={2.0}
+        position={[10, 20, 8]}
+        intensity={1.5}
+        color={0xfff5e6}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={5}
-        shadow-camera-far={40}
-        shadow-camera-left={15}
-        shadow-camera-right={-15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+        shadow-camera-far={50}
+        shadow-camera-left={-20}
+        shadow-camera-right={20}
+        shadow-camera-top={20}
+        shadow-camera-bottom={-20}
+        shadow-bias={-0.0001}
       />
 
-      {/* 背光补充光源 - 从左后方照射，照亮背光面 */}
+      {/* 补光 - 从车辆前方提供柔和的填充光 */}
       <directionalLight
-        position={[-12, 8, -10]}
-        intensity={1.2}
+        position={[0, 5, 15]}
+        intensity={0.3}
         color={0xffffff}
       />
 
-      {/* 侧面补充光源 - 从右侧照射 */}
+      {/* 背光 - 从后方提供轮廓光 */}
       <directionalLight
-        position={[20, 6, 0]}
-        intensity={1.0}
-        color={0xffffff}
-      />
-
-      {/* 左侧补充光源 - 从左侧照射，平衡光照 */}
-      <directionalLight
-        position={[-20, 6, 0]}
-        intensity={0.8}
-        color={0xffffff}
-      />
-
-      {/* 前方补充光源 - 从前方照射车头 */}
-      <directionalLight
-        position={[0, 8, 15]}
-        intensity={0.6}
-        color={0xffffff}
-      />
-
-      {/* 底部补充光源 - 从下方照射，减少过暗的阴影 */}
-      <directionalLight
-        position={[0, -3, 0]}
-        intensity={0.8}
-        color={0xffffff}
-      />
-
-      {/* 添加点光源 - 在车辆周围提供额外照明 */}
-      <pointLight position={[5, 5, 5]} intensity={1.0} distance={30} />
-      <pointLight position={[-5, 5, -5]} intensity={1.0} distance={30} />
-
-      {/* 顶部聚光灯 - 模拟摄影棚效果 */}
-      <spotLight
-        position={[0, 20, 0]}
-        intensity={1.5}
-        distance={50}
-        angle={Math.PI / 6}
-        penumbra={0.1}
+        position={[-5, 8, -10]}
+        intensity={0.4}
+        color={0xe6f2ff}
       />
     </>
   );

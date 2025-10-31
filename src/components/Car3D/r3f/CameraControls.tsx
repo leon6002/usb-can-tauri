@@ -267,17 +267,17 @@ function applyCameraRotationCompensation(
   const lateralOffset = Math.sin(steeringAngle) * maxCameraLateralOffset * 0.8;
 
   // 调试日志
-  if (Math.abs(steeringAngle) > 0.01) {
-    console.log(
-      `[CameraControls] steeringAngle=${(
-        (steeringAngle * 180) /
-        Math.PI
-      ).toFixed(2)}°, lateralOffset=${lateralOffset.toFixed(2)}, bodyYaw=${(
-        (bodyYaw * 180) /
-        Math.PI
-      ).toFixed(2)}°`
-    );
-  }
+  // if (Math.abs(steeringAngle) > 0.01) {
+  //   console.log(
+  //     `[CameraControls] steeringAngle=${(
+  //       (steeringAngle * 180) /
+  //       Math.PI
+  //     ).toFixed(2)}°, lateralOffset=${lateralOffset.toFixed(2)}, bodyYaw=${(
+  //       (bodyYaw * 180) /
+  //       Math.PI
+  //     ).toFixed(2)}°`
+  //   );
+  // }
 
   // 相机位置：始终在车后方，只有横向偏移
   // 不跟随车身旋转，始终保持在世界坐标系的后方（+Z 方向）

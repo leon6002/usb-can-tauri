@@ -116,11 +116,16 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
    * 更新车辆状态
    */
   updateCarState: (commandId) => {
+    console.log(`🔄 updateCarState called with commandId: ${commandId}`);
     set((state) => {
       const newState = { ...state.carStates };
       const stateUpdate = commandStateMap[commandId];
       if (stateUpdate) {
+        console.log(`📝 Applying state update for ${commandId}:`, stateUpdate);
         Object.assign(newState, stateUpdate);
+        console.log(`✅ New state after update:`, newState);
+      } else {
+        console.warn(`⚠️ No state update found for commandId: ${commandId}`);
       }
 
       return { carStates: newState };
@@ -413,15 +418,42 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
   },
 
   csvLoopFinishListener: async () => {
+    console.log("🔧 csvLoopFinishListener: Starting to setup listener");
     const { unlistenCsvLoopFunc } = get();
 
     if (unlistenCsvLoopFunc) {
+      console.log("🔧 csvLoopFinishListener: Cleaning up old listener");
       unlistenCsvLoopFunc();
     }
+
+    console.log(
+      "🔧 csvLoopFinishListener: Calling listen() for 'csv-loop-completed'"
+    );
     const unlisten = await listen<any>("csv-loop-completed", (event) => {
       console.log("🎉 CSV loop completed event received.", event);
-      get().sendCarCommand("stop_driving");
+      console.log(
+        "📍 Current isDriving state before stop:",
+        get().carStates.isDriving
+      );
+
+      // 调用 stop_driving 命令
+      get()
+        .sendCarCommand("stop_driving")
+        .then(() => {
+          console.log("✅ Stop driving command completed");
+          console.log(
+            "📍 Current isDriving state after stop:",
+            get().carStates.isDriving
+          );
+        })
+        .catch((error) => {
+          console.error("❌ Failed to stop driving:", error);
+        });
     });
+
+    console.log(
+      "✅ csvLoopFinishListener: Listener setup complete, storing unlisten function"
+    );
     set({ unlistenCsvLoopFunc: unlisten });
     return unlisten;
   },
