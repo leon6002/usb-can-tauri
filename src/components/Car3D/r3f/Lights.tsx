@@ -10,13 +10,13 @@ export const Lights: React.FC = () => {
   return (
     <>
       {/* 环境光 - 模拟天空散射光，提供柔和的基础照明 */}
-      <ambientLight intensity={0.4} color={0xb0c4de} />
+      <ambientLight intensity={1.8} color={0x7a8faf} />
 
       {/* 主光源 - 模拟太阳光，从右前上方照射 */}
       <directionalLight
         ref={directionalLightRef}
-        position={[10, 20, 8]}
-        intensity={1.5}
+        position={[5, 20, 8]}
+        intensity={1}
         color={0xfff5e6}
         castShadow
         shadow-mapSize-width={2048}
@@ -39,9 +39,10 @@ export const Lights: React.FC = () => {
 
       {/* 背光 - 从后方提供轮廓光 */}
       <directionalLight
-        position={[-5, 8, -10]}
-        intensity={0.4}
-        color={0xe6f2ff}
+        position={[-5, 0, 0]}
+        intensity={0.5}
+        color={0xffffff}
+        castShadow={false}
       />
     </>
   );

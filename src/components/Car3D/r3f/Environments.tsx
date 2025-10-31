@@ -113,8 +113,11 @@ export const Environments: React.FC = () => {
 
   useEffect(() => {
     // 设置场景背景和雾
-    scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.Fog(0xe0f6ff, 10, 1000);
+    scene.background = new THREE.Color(0x7a8faf);
+
+    // 使用指数雾（FogExp2）替代线性雾，让过渡更自然
+    // 密度值越小，雾效越淡，过渡越平滑
+    scene.fog = new THREE.FogExp2(0x7a8faf, 0.0085);
 
     // 暴露纹理给 R3FSceneManager 和 AnimationSystem
     roadTextureRef.current = roadLinesTexture;
