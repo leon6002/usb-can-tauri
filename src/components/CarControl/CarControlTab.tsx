@@ -6,10 +6,21 @@ import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
 import TopStatusBar from "./TopStatusBar";
 import { isDemoMode } from "@/config/appConfig";
+import { useCarControlStore } from "@/store/carControlStore";
+import { useEngineSound } from "@/hooks/useEngineSound";
 
 const CarControlTabComponent: React.FC = () => {
   // 从 Context 获取状态和函数
   const demoMode = isDemoMode();
+
+  // 获取行驶状态和速度
+  const isDriving = useCarControlStore((state) => state.carStates.isDriving);
+  const currentSpeed = useCarControlStore(
+    (state) => state.carStates.currentSpeed
+  );
+
+  // 使用引擎声音 hook
+  useEngineSound(isDriving, currentSpeed);
 
   console.log("car control tab rendering");
 

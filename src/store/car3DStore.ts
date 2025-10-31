@@ -129,7 +129,7 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
       });
       // 先启动相机动画 - 从行驶视角过渡到侧面视角（在 setIsDriving 之前）
       if (sceneHandle.animationSystem.startCameraAnimation) {
-        sceneHandle.animationSystem.startCameraAnimation("side", 1000, true);
+        sceneHandle.animationSystem.startCameraAnimation("side", 3000, true);
       }
       // 然后重新启用 OrbitControls（在相机动画之后）
       sceneHandle.animationSystem.setIsDriving?.(false);
