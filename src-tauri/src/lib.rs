@@ -131,6 +131,10 @@ pub fn run() {
 
                         info!("✅ Serial connection cleanup completed");
                     }
+
+                    // 清理完成后，退出应用
+                    info!("🚪 Exiting application...");
+                    app_handle.exit(0);
                 }
             });
 
