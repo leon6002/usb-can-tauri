@@ -258,7 +258,7 @@ function applyCameraRotationCompensation(
   if (!isDriving) return;
 
   const { vehicleDynamics } = use3DStore.getState();
-  const { steeringAngle, bodyYaw } = vehicleDynamics;
+  const { steeringAngle } = vehicleDynamics;
 
   // 根据转向角计算相机的横向偏移
   // 转向角为正时（向右转），相机向右移动（转弯内角）
