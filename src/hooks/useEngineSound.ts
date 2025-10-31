@@ -59,10 +59,11 @@ export const useEngineSound = (
       // 在结束前 0.1 秒启动第二个音频
       if (timeLeft <= 0.1 && timeLeft > 0.05 && currentAudioRef.current === 1) {
         if (audio2.paused && isDrivingRef.current) {
+          console.log("🔄 Audio1 ending, starting Audio2");
           audio2.currentTime = 0;
           audio2.volume = audio1.volume; // 同步音量
           audio2.play().catch((error) => {
-            console.error("Failed to play audio2:", error);
+            console.error("❌ Failed to play audio2:", error);
           });
           currentAudioRef.current = 2;
         }
@@ -77,25 +78,44 @@ export const useEngineSound = (
       // 在结束前 0.1 秒启动第一个音频
       if (timeLeft <= 0.1 && timeLeft > 0.05 && currentAudioRef.current === 2) {
         if (audio1.paused && isDrivingRef.current) {
+          console.log("🔄 Audio2 ending, starting Audio1");
           audio1.currentTime = 0;
           audio1.volume = audio2.volume; // 同步音量
           audio1.play().catch((error) => {
-            console.error("Failed to play audio1:", error);
+            console.error("❌ Failed to play audio1:", error);
           });
           currentAudioRef.current = 1;
         }
       }
     };
 
-    // 当音频结束时停止播放
+    // 当音频自然结束时的处理（作为备用机制）
     const handleEnded1 = () => {
-      audio1.pause();
-      audio1.currentTime = 0;
+      console.log("⚠️ Audio1 ended naturally");
+      // 如果还在行驶中，尝试启动另一个音频
+      if (isDrivingRef.current && audio2.paused) {
+        console.log("🔄 Audio1 ended, trying to start Audio2 as backup");
+        audio2.currentTime = 0;
+        audio2.volume = audio1.volume;
+        audio2.play().catch((error) => {
+          console.error("❌ Failed to play audio2 in ended handler:", error);
+        });
+        currentAudioRef.current = 2;
+      }
     };
 
     const handleEnded2 = () => {
-      audio2.pause();
-      audio2.currentTime = 0;
+      console.log("⚠️ Audio2 ended naturally");
+      // 如果还在行驶中，尝试启动另一个音频
+      if (isDrivingRef.current && audio1.paused) {
+        console.log("🔄 Audio2 ended, trying to start Audio1 as backup");
+        audio1.currentTime = 0;
+        audio1.volume = audio2.volume;
+        audio1.play().catch((error) => {
+          console.error("❌ Failed to play audio1 in ended handler:", error);
+        });
+        currentAudioRef.current = 1;
+      }
     };
 
     audio1.addEventListener("timeupdate", handleTimeUpdate1);
@@ -107,6 +127,8 @@ export const useEngineSound = (
     console.log("✅ Engine sound system initialized");
 
     return () => {
+      console.log("🧹 Cleaning up engine sound system");
+
       // 清理：停止播放并释放资源
       [audio1, audio2].forEach((audio) => {
         audio.pause();
