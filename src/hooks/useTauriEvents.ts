@@ -69,7 +69,6 @@ export const useTauriEvents = () => {
 
       // 执行其他状态清理
       useCarControlStore.getState().stopCsvLoop();
-      useSerialStore.getState().handleDisconnect();
     };
   }, []);
 

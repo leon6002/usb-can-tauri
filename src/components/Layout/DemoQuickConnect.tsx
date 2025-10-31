@@ -126,7 +126,7 @@ export const DemoQuickConnect: React.FC = () => {
 
       {/* Connect/Disconnect Button */}
       <button
-        onClick={isConnected ? handleDisconnect : handleConnect}
+        onClick={isConnected ? () => handleDisconnect() : handleConnect}
         disabled={isLoading}
         className={`w-full px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
           isConnected

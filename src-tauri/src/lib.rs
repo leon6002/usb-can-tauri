@@ -98,6 +98,44 @@ pub fn run() {
             open_system_monitor_window,
             close_system_monitor_window
         ])
+        .setup(|app| {
+            use log::info;
+            use std::sync::atomic::Ordering;
+            use tauri::Manager;
+
+            // 获取主窗口
+            let window = app.get_webview_window("main").unwrap();
+            let app_handle = app.handle().clone();
+
+            // 监听窗口关闭事件
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    info!("🚪 Window close requested - cleaning up serial connection...");
+
+                    // 获取 AppState
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        // 停止所有线程
+                        state.csv_loop_running.store(false, Ordering::SeqCst);
+                        state.receive_thread_running.store(false, Ordering::SeqCst);
+                        state.write_thread_running.store(false, Ordering::SeqCst);
+
+                        // 清理发送通道
+                        if let Ok(mut tx_send) = state.tx_send.lock() {
+                            *tx_send = None;
+                        }
+
+                        // 更新连接状态
+                        if let Ok(mut is_connected) = state.is_connected.lock() {
+                            *is_connected = false;
+                        }
+
+                        info!("✅ Serial connection cleanup completed");
+                    }
+                }
+            });
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

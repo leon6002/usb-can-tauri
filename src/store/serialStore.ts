@@ -18,7 +18,7 @@ interface SerialState {
   updateDriveData: (driveData: string) => void;
   initializeSerial: () => Promise<void>;
   handleConnect: () => Promise<void>;
-  handleDisconnect: () => Promise<void>;
+  handleDisconnect: (silent?: boolean) => Promise<void>;
   connectToPort: (port: string) => Promise<void>;
 }
 
@@ -131,17 +131,22 @@ export const useSerialStore = create<SerialState>((set, get) => ({
 
   /**
    * 仅断开连接
+   * @param silent - 是否静默断开（不显示 toast）
    */
-  handleDisconnect: async () => {
+  handleDisconnect: async (silent = false) => {
     try {
       await invoke("disconnect_serial");
       set({ isConnected: false });
-      toast.success("已断开连接");
+      if (!silent) {
+        toast.success("已断开连接");
+      }
     } catch (error) {
       console.error("Disconnect error:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      toast.error(`断开连接错误: ${errorMessage}`);
+      if (!silent) {
+        toast.error(`断开连接错误: ${errorMessage}`);
+      }
     }
   },
 
