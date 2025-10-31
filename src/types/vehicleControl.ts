@@ -9,7 +9,7 @@ export interface VehicleControl {
   /** 车体行进速度，单位 mm/s (Signed Int16) */
   linear_velocity_mms: number;
   /** 转向角度，单位 rad (Signed Int16, 0.001rad/count) */
-  steering_angle_rad: number;
+  steering_angle: number;
 }
 
 /** 新协议：8字节数据格式 */
@@ -172,14 +172,11 @@ export function parseControlData4Byte(data: number[]): VehicleControl {
   // 组合成16位有符号整数 (Big-Endian)
   const angleRaw = (highByte << 8) | lowByte;
   const steeringAngleRawSigned = angleRaw > 32767 ? angleRaw - 65536 : angleRaw;
-
-  // 3. 转换转向角单位: 从 0.01度 计数转换为 rad
-  // 0.01度 = 0.01 * π/180 rad ≈ 0.0001745 rad
-  const steeringAngleRad = (steeringAngleRawSigned * 0.01 * Math.PI) / 180.0;
+  console.log("steeringAngleRawSigned", angleRaw);
 
   return {
     linear_velocity_mms: linearVelocityMmsSigned,
-    steering_angle_rad: steeringAngleRad,
+    steering_angle: steeringAngleRawSigned * 0.01,
   };
 }
 
@@ -231,15 +228,15 @@ export function generateRoadSegments(
     const data = csvData[i];
     if (!data.vehicle_control) continue;
 
-    const { linear_velocity_mms, steering_angle_rad } = data.vehicle_control;
+    const { linear_velocity_mms, steering_angle } = data.vehicle_control;
 
     // 判断路段类型
-    const type = Math.abs(steering_angle_rad) > 0.01 ? "turn" : "straight";
+    const type = Math.abs(steering_angle) > 0.01 ? "turn" : "straight";
 
     segments.push({
       index: i,
       distance: segmentDistance,
-      steering_angle: steering_angle_rad,
+      steering_angle: steering_angle,
       speed: linear_velocity_mms,
       type,
     });

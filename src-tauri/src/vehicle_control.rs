@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 pub struct VehicleControl {
     /// 车体行进速度，单位 mm/s (Signed Int16)
     pub linear_velocity_mms: i16,
-    /// 转向角度，单位 rad (Signed Int16, 0.001rad/count)
-    pub steering_angle_rad: f32,
+    /// 转向角度
+    pub steering_angle: f32,
     /// 档位 (0=disable, 1=P, 2=R, 3=N, 4=D)
     pub gear: u8,
     /// 档位名称 (disable/P/R/N/D)
@@ -65,12 +65,12 @@ pub fn parse_control_data_4byte(data: &[u8]) -> Result<VehicleControl, &'static 
 
     // 3. 转换转向角单位: 从 0.01度 计数转换为 rad
     // 0.01度 = 0.01 * π/180 rad ≈ 0.0001745 rad
-    let steering_angle_rad = steering_angle_raw as f32 * 0.01 * std::f32::consts::PI / 180.0;
+    let steering_angle = steering_angle_raw as f32 * 0.01;
 
     // 4. 返回解析结果
     Ok(VehicleControl {
         linear_velocity_mms,
-        steering_angle_rad,
+        steering_angle,
         gear,
         gear_name,
     })
@@ -122,14 +122,13 @@ mod tests {
                 println!("成功解析 8 字节控制数据:");
                 println!("  原始十六进制数据: {:02X?}", hex_data);
                 println!("  线速度 (mm/s): {}", control.linear_velocity_mms);
-                println!("  转向角 (rad):   {:.6}", control.steering_angle_rad);
-                println!("  转向角 (度):   {:.2}", control.steering_angle_rad * 180.0 / std::f32::consts::PI);
+                println!("  转向角 (度):   {:.2}", control.steering_angle);
 
                 // 验证速度: 0x004B04 >> 4 = 0x004B0 = 1200
                 assert_eq!(control.linear_velocity_mms, 1200);
                 // 验证转向角: -1600 * 0.01度 = -16度 ≈ -0.279253 rad
                 let expected_angle_rad = -16.0 * std::f32::consts::PI / 180.0;
-                assert!((control.steering_angle_rad - expected_angle_rad).abs() < 0.0001);
+                assert!((control.steering_angle - expected_angle_rad).abs() < 0.0001);
             }
             Err(e) => {
                 panic!("解析失败: {}", e);

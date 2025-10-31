@@ -190,12 +190,12 @@ export class InteractionHandler implements IInteractionHandler {
   ): THREE.Object3D | null {
     let foundDoor: THREE.Object3D | null = null;
 
-    console.log(`🔍 查找车门对象: ${doorName}`);
+    // console.log(`🔍 查找车门对象: ${doorName}`);
 
     car.traverse((child) => {
       if (child.name === doorName) {
         foundDoor = child;
-        console.log(`✓ 找到车门对象: ${doorName}`, child);
+        // console.log(`✓ 找到车门对象: ${doorName}`, child);
       }
     });
 

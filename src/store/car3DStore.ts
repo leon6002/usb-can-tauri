@@ -1,106 +1,166 @@
 // use3DStore.ts
 import { create } from "zustand";
 
+interface SceneHandle {
+  animationSystem: any | null;
+  camera: any | null;
+  scene: any | null;
+  controls?: any; // OrbitControls 引用
+}
+
+interface VehicleDynamics {
+  steeringAngle: number; // 前轮转向角（弧度）
+  currentSpeed: number; // 当前速度（mm/s）
+  bodyYaw: number; // 车身偏转角（弧度）
+  wheelbase: number; // 轴距（m）
+}
+
 interface ThreeDState {
-  rendererInstance: any | null;
+  sceneHandle: SceneHandle | null;
   scene3DStatus: "loading" | "ready" | "error";
+  vehicleDynamics: VehicleDynamics;
+  isDriving: boolean; // 是否正在行驶
 
-  // Actions defined in the interface
-  setRendererInstance: (renderer: any) => void;
+  // Actions
+  setSceneHandle: (handle: SceneHandle) => void;
   setSceneStatus: (status: ThreeDState["scene3DStatus"]) => void;
+  setIsDriving: (isDriving: boolean) => void;
 
-  // ⚠️ Missing properties that caused the error:
   updateDriveAnimation: (speed: number, steeringAngle: number) => void;
   startDriveAnimation: () => void;
-  stopDriveAnimation: () => void; // Must be implemented!
-  updateSteering: (angle: number, speed: number) => void; // Must be implemented!
+  stopDriveAnimation: () => void;
+  updateSteering: (angle: number, speed: number) => void;
   suspensionAnimation: (action: "up" | "down" | "stop") => void;
 }
 
 export const use3DStore = create<ThreeDState>((set, get) => ({
-  rendererInstance: null,
+  sceneHandle: null,
   scene3DStatus: "loading",
+  isDriving: false,
+  vehicleDynamics: {
+    steeringAngle: 0,
+    currentSpeed: 0,
+    bodyYaw: 0,
+    wheelbase: 2.7, // 轴距 2.7m
+  },
 
-  setRendererInstance: (renderer) => {
-    set({ rendererInstance: renderer, scene3DStatus: "ready" });
+  setSceneHandle: (handle) => {
+    set({ sceneHandle: handle, scene3DStatus: "ready" });
+    console.log("[car3DStore] Scene handle set:", handle);
   },
 
   setSceneStatus: (status) => set({ scene3DStatus: status }),
 
+  setIsDriving: (isDriving) => {
+    set({ isDriving });
+    console.log(`[car3DStore] isDriving set to: ${isDriving}`);
+  },
+
   updateDriveAnimation: (speed, steeringAngle) => {
-    const { rendererInstance } = get();
-    if (rendererInstance) {
-      //我自己的
-      rendererInstance.updateSteeringAngle(steeringAngle, speed);
+    const { sceneHandle, vehicleDynamics } = get();
+    if (sceneHandle?.animationSystem) {
+      // console.log("[car3DStore] updateDriveAnimation:", {
+      //   speed,
+      //   steeringAngle_deg: steeringAngle,
+      //   steeringAngle_rad: (steeringAngle * Math.PI) / 180,
+      // });
 
       // 根据速度动态更新轮子转速和道路移动速度
-      // speed 单位是 mm/s，需要转换为合适的动画速度
-      // 假设轮子半径约为 0.3m (300mm)，周长约为 1.88m (1880mm)
-      // 轮子转速 (rad/s) = 速度 (mm/s) / 轮子半径 (mm)
       const wheelRadius = 300; // mm
       const wheelRotationSpeed = Math.abs(speed) / wheelRadius;
-      // 道路移动速度与轮子转速成正比 调整系数以获得合适的视觉效果
       const roadMovementSpeed = wheelRotationSpeed * 0.05;
-      // 更新轮子旋转速度
-      rendererInstance.updateWheelRotationSpeed(wheelRotationSpeed);
-      // 更新道路移动速度
-      rendererInstance.updateRoadMovementSpeed(roadMovementSpeed);
+
+      sceneHandle.animationSystem.updateWheelRotationSpeed?.(
+        wheelRotationSpeed
+      );
+      sceneHandle.animationSystem.updateRoadMovementSpeed?.(roadMovementSpeed);
+
+      // 更新转向角度
+      sceneHandle.animationSystem.updateSteeringAngle?.(steeringAngle, speed);
+
+      // 保存到 store 用于道路变形计算
+      const steeringAngleRad = steeringAngle * (Math.PI / 180);
+      set({
+        vehicleDynamics: {
+          ...vehicleDynamics,
+          steeringAngle: steeringAngleRad,
+          currentSpeed: speed,
+        },
+      });
     }
   },
-  //开始行驶动画
+
   startDriveAnimation: () => {
-    const { rendererInstance } = get();
-    if (rendererInstance) {
-      console.log("3D: Starting driving animation.");
-      rendererInstance.setIsDriving(true);
-      rendererInstance.stopRoadMovement(); // Stop any existing movement before starting
-      rendererInstance.startWheelRotation(10, 1);
-      rendererInstance.startRoadMovement(0.8);
-      rendererInstance.startCameraAnimation("driving", 2000, true);
-      rendererInstance.setDoorButtonsVisible(false);
+    const { sceneHandle } = get();
+    console.log("[car3DStore] startDriveAnimation");
+    if (sceneHandle?.animationSystem) {
+      console.log("[car3DStore] Starting wheel rotation");
+      sceneHandle.animationSystem.startWheelRotation?.(10, 1);
+      sceneHandle.animationSystem.startRoadMovement?.(0.8);
+      // 启动相机动画 - 从当前位置过渡到行驶视角（在 setIsDriving 之前）
+      if ((sceneHandle as any).startCameraAnimation) {
+        (sceneHandle as any).startCameraAnimation("driving", 2000, true);
+      }
+      // 禁用 OrbitControls，启用相机跟随（在相机动画之后）
+      sceneHandle.animationSystem.setIsDriving?.(true);
+      // 更新 store 中的 isDriving 状态
+      set({ isDriving: true });
       console.log("🚗 开始行驶动画");
+    } else {
+      console.error("[car3DStore] Animation system not available");
     }
   },
 
-  // ✅ Implementation added for the missing properties:
   stopDriveAnimation: () => {
-    const { rendererInstance } = get();
-    if (rendererInstance) {
-      console.log("3D: Stopping driving animation.");
-      rendererInstance.setIsDriving(false);
-      rendererInstance.stopWheelRotation();
-      rendererInstance.stopRoadMovement();
-      rendererInstance.startCameraAnimation("side", 2000, true);
-      rendererInstance.setDoorButtonsVisible(true);
+    const { sceneHandle, vehicleDynamics } = get();
+    console.log("[car3DStore] stopDriveAnimation");
+    if (sceneHandle?.animationSystem) {
+      sceneHandle.animationSystem.stopWheelRotation?.();
+      sceneHandle.animationSystem.stopRoadMovement?.();
+      // 重置道路纹理
+      sceneHandle.animationSystem.resetRoadTexture?.();
+      // 重置车辆动力学状态
+      set({
+        vehicleDynamics: {
+          ...vehicleDynamics,
+          currentSpeed: 0,
+          steeringAngle: 0,
+        },
+      });
+      // 先启动相机动画 - 从行驶视角过渡到侧面视角（在 setIsDriving 之前）
+      if (sceneHandle.animationSystem.startCameraAnimation) {
+        sceneHandle.animationSystem.startCameraAnimation("side", 2000, true);
+      }
+      // 然后重新启用 OrbitControls（在相机动画之后）
+      sceneHandle.animationSystem.setIsDriving?.(false);
+      // 更新 store 中的 isDriving 状态
+      set({ isDriving: false });
     }
   },
 
-  updateSteering: (angle, speed) => {
-    const { rendererInstance } = get();
-    if (rendererInstance) {
-      // Assume rendererInstance has a method to update steering angle
-      rendererInstance.updateSteeringAngle(angle, speed);
-
-      // Update wheel rotation and road movement speed based on current speed
+  updateSteering: (_angle, speed) => {
+    const { sceneHandle } = get();
+    if (sceneHandle?.animationSystem) {
       const wheelRadius = 300; // mm
       const wheelRotationSpeed = Math.abs(speed) / wheelRadius;
       const roadMovementSpeed = wheelRotationSpeed * 0.05;
 
-      rendererInstance.updateWheelRotationSpeed(wheelRotationSpeed);
-      rendererInstance.updateRoadMovementSpeed(roadMovementSpeed);
+      sceneHandle.animationSystem.updateWheelRotationSpeed?.(
+        wheelRotationSpeed
+      );
+      sceneHandle.animationSystem.updateRoadMovementSpeed?.(roadMovementSpeed);
     }
   },
+
   suspensionAnimation: (direction) => {
-    const { rendererInstance } = get();
-    if (rendererInstance) {
+    const { sceneHandle } = get();
+    if (sceneHandle?.animationSystem) {
       if (direction === "down") {
-        rendererInstance.startSuspensionDown();
-        return;
+        sceneHandle.animationSystem.startSuspensionDown?.();
       } else if (direction === "up") {
-        rendererInstance.startSuspensionUp();
+        sceneHandle.animationSystem.startSuspensionUp?.();
       } else {
-        rendererInstance.stopSuspensionAnimation;
-        return;
+        sceneHandle.animationSystem.stopSuspensionAnimation?.();
       }
     }
   },

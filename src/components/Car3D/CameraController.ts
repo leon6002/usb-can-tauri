@@ -28,7 +28,7 @@ export class CameraController implements ICameraController {
   private cameraDistance: number = 10; // 相机距离车身的距离
   private cameraHeight: number = 2; // 相机高度
   private isDriving: boolean = false; // 是否正在行驶
-  private maxCameraLateralOffset: number = 3; // 相机最大横向偏移（米）
+  private maxCameraLateralOffset: number = 6; // 相机最大横向偏移（米）
 
   // 停止行驶时的平滑过渡状态
   private stoppingTransition = {
@@ -155,7 +155,7 @@ export class CameraController implements ICameraController {
         this.stoppingTransition.startPosition.copy(this.camera.position);
         // 目标位置设置为当前位置（保持不动）
         this.stoppingTransition.targetPosition.copy(this.camera.position);
-        // 暂时保持 OrbitControls 禁用，等过渡完成后再启用
+        //暂时保持 OrbitControls 禁用，等过渡完成后再启用
         this.controls.enabled = false;
       }
     }
@@ -257,7 +257,7 @@ export class CameraController implements ICameraController {
     const relativePos = new THREE.Vector3(
       lateralOffset, // 根据转向角动态调整横向位置
       this.cameraHeight,
-      this.cameraDistance
+      this.cameraDistance + 10 + lateralOffset
     );
 
     // 创建一个旋转矩阵，根据车身偏转角旋转相机位置

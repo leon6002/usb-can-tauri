@@ -55,8 +55,7 @@ fn generate_stop_signal(last_can_data: &str) -> Result<String> {
         bytes_fixed[4], bytes_fixed[5], byte7_new, checksum
     );
 
-    println!("📤 [Rust] Generated stop signal: {} (heartbeat: {:X}, checksum: {:02X})", stop_signal, heartbeat, checksum);
-    info!("Generated stop signal: {} (heartbeat: {:X}, checksum: {:02X})", stop_signal, heartbeat, checksum);
+    info!("📤 [Rust] Generated stop signal: {} (heartbeat: {:X}, checksum: {:02X})", stop_signal, heartbeat, checksum);
 
     Ok(stop_signal)
 }
@@ -71,7 +70,7 @@ pub fn run_csv_loop(
     config: serde_json::Value,
     state: Arc<AppState>,
 ) -> Result<()> {
-    println!("🔄 [Rust] run_csv_loop started - Start row: {}", csv_start_row_index);
+    info!("🔄 [Rust] run_csv_loop started - Start row: {}", csv_start_row_index);
 
     // Extract frame_type and protocol_length from config
     // let frame_type = config.get("frame_type")
@@ -97,17 +96,16 @@ pub fn run_csv_loop(
         records.push(record);
     }
 
-    println!("✅ [Rust] Loaded {} records from CSV", records.len());
-    info!("Loaded {} records from CSV", records.len());
+    info!("✅ [Rust] Loaded {} records from CSV", records.len());
 
     if records.is_empty() {
-        println!("❌ [Rust] CSV file is empty");
+        info!("❌ [Rust] CSV file is empty");
         return Err(anyhow!("CSV file is empty"));
     }
 
     // Check if start row index is valid
     if csv_start_row_index >= records.len() {
-        println!("❌ [Rust] Start row index {} out of range (max: {})", csv_start_row_index, records.len() - 1);
+        info!("❌ [Rust] Start row index {} out of range (max: {})", csv_start_row_index, records.len() - 1);
         return Err(anyhow!("Start row index out of range"));
     }
 
@@ -115,11 +113,11 @@ pub fn run_csv_loop(
     let filtered_records: Vec<_> = records.iter().skip(csv_start_row_index).collect();
 
     if filtered_records.is_empty() {
-        println!("❌ [Rust] No records after start row index");
+        info!("❌ [Rust] No records after start row index");
         return Err(anyhow!("No records after start row index"));
     }
 
-    println!("✅ [Rust] Using {} records starting from row {}", filtered_records.len(), csv_start_row_index);
+    info!("✅ [Rust] Using {} records starting from row {}", filtered_records.len(), csv_start_row_index);
 
     let mut last_can_data: Option<String> = None;
     let mut user_stopped = false;
@@ -128,7 +126,7 @@ pub fn run_csv_loop(
     for (index, record) in filtered_records.iter().enumerate() {
         // Check if loop should stop
         if !state.csv_loop_running.load(Ordering::SeqCst) {
-            println!("🛑 [Rust] CSV loop stopped by user");
+            info!("🛑 [Rust] CSV loop stopped by user");
             user_stopped = true;
             break;
         }
@@ -146,8 +144,7 @@ pub fn run_csv_loop(
 
         // Check if CAN data is empty - if so, stop the loop
         if can_data.trim().is_empty() {
-            println!("🛑 [Rust] Empty CAN data detected - CSV loop ended");
-            info!("Empty CAN data detected - CSV loop ended");
+            info!("🛑 [Rust] Empty CAN data detected - CSV loop ended");
             break;
         }
 
@@ -155,10 +152,8 @@ pub fn run_csv_loop(
         let vehicle_control = extract_vehicle_control(&can_data).ok();
 
         if let Some(ref vc) = vehicle_control {
-            println!("📊 [Rust] Parsed vehicle control - Speed: {} mm/s, Steering: {:.3} rad",
-                     vc.linear_velocity_mms, vc.steering_angle_rad);
             info!("Parsed vehicle control - Speed: {} mm/s, Steering: {:.3} rad",
-                  vc.linear_velocity_mms, vc.steering_angle_rad);
+                  vc.linear_velocity_mms, vc.steering_angle);
         }
 
         // Create and send packet based on protocol_length
@@ -193,7 +188,7 @@ pub fn run_csv_loop(
     // Send stop signal if loop was stopped by user
     if user_stopped {
         if let Some(last_data) = last_can_data {
-            println!("📤 [Rust] Sending stop signal based on last data: {}", last_data);
+            info!("📤 [Rust] Sending stop signal based on last data: {}", last_data);
 
             // Generate stop signal
             if let Ok(stop_signal_data) = generate_stop_signal(&last_data) {
@@ -213,7 +208,6 @@ pub fn run_csv_loop(
                             error!("Failed to send stop signal: {}", e);
                         } else {
                             info!("Sent stop signal - ID: {}, Data: {}", stop_can_id, stop_signal_data);
-                            println!("✅ [Rust] Stop signal sent successfully");
                         }
                     }
                 }
@@ -221,8 +215,7 @@ pub fn run_csv_loop(
         }
     }
 
-    println!("✅ [Rust] CSV loop completed");
-    info!("CSV loop completed");
+    info!("✅ [Rust] CSV loop completed");
 
     // Stop the loop flag
     state.csv_loop_running.store(false, Ordering::SeqCst);
@@ -238,7 +231,7 @@ pub fn run_csv_loop_with_preloaded_data(
     state: Arc<AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<()> {
-    println!("🔄 [Rust] run_csv_loop_with_preloaded_data started - Records: {}", preloaded_data.len());
+    info!("🔄 [Rust] run_csv_loop_with_preloaded_data started - Records: {}", preloaded_data.len());
 
     let protocol_length = config.get("protocol_length")
         .and_then(|v| v.as_str())
@@ -252,7 +245,7 @@ pub fn run_csv_loop_with_preloaded_data(
     for (index, progress) in preloaded_data.iter().enumerate() {
         // Check if loop should stop
         if !state.csv_loop_running.load(Ordering::SeqCst) {
-            println!("🛑 [Rust] CSV loop stopped by user");
+            info!("🛑 [Rust] CSV loop stopped by user");
             user_stopped = true;
             break;
         }
@@ -262,17 +255,14 @@ pub fn run_csv_loop_with_preloaded_data(
 
         // Check if CAN data is empty - if so, stop the loop
         if can_data.trim().is_empty() {
-            println!("🛑 [Rust] Empty CAN data detected - CSV loop ended");
             info!("Empty CAN data detected - CSV loop ended");
             break;
         }
 
         // Log vehicle control data if available
         if let Some(ref vc) = progress.vehicle_control {
-            println!("📊 [Rust] Record {}/{} - Speed: {} mm/s, Steering: {:.3} rad",
-                     index + 1, preloaded_data.len(), vc.linear_velocity_mms, vc.steering_angle_rad);
-            info!("Record {}/{} - Speed: {} mm/s, Steering: {:.3} rad",
-                  index + 1, preloaded_data.len(), vc.linear_velocity_mms, vc.steering_angle_rad);
+            info!("🛞 Record {}/{} - Speed: {} mm/s, Steering: {:.2} degree",
+                  index + 1, preloaded_data.len(), vc.linear_velocity_mms, vc.steering_angle);
         }
 
         let packet = if protocol_length == "variable" {
@@ -305,7 +295,6 @@ pub fn run_csv_loop_with_preloaded_data(
     // Send stop signal if loop was stopped by user
     if user_stopped {
         if let Some(last_data) = last_can_data {
-            println!("📤 [Rust] Sending stop signal based on last data: {}", last_data);
 
             // Generate stop signal
             if let Ok(stop_signal_data) = generate_stop_signal(&last_data) {
@@ -325,7 +314,6 @@ pub fn run_csv_loop_with_preloaded_data(
                             error!("Failed to send stop signal: {}", e);
                         } else {
                             info!("Sent stop signal - ID: {}, Data: {}", stop_can_id, stop_signal_data);
-                            println!("✅ [Rust] Stop signal sent successfully");
                         }
                     }
                 }
@@ -333,7 +321,6 @@ pub fn run_csv_loop_with_preloaded_data(
         }
     }
 
-    println!("✅ [Rust] CSV loop completed");
     info!("CSV loop completed");
 
     // Stop the loop flag
@@ -344,7 +331,7 @@ pub fn run_csv_loop_with_preloaded_data(
         "status": "completed",
         "timestamp": chrono::Local::now().to_rfc3339(),
     }));
-    println!("📤 [Rust] Emitted csv-loop-completed event");
+    info!("📤 [Rust] Emitted csv-loop-completed event");
 
     Ok(())
 }

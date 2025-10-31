@@ -8,7 +8,7 @@ import { ActiveTab } from "./types";
 import { isDemoMode } from "./config/appConfig";
 
 // Hooks
-import { use3DScene } from "./hooks/use3DScene";
+import { useR3FScene } from "./hooks/useR3FScene";
 
 // Components
 import { Sidebar } from "./components/Layout/Sidebar";
@@ -16,9 +16,8 @@ import { CarControlTab } from "./components/CarControl/CarControlTab";
 import { CanConfigTab } from "./components/CanConfig/CanConfigTab";
 import { ButtonConfigTab } from "./components/ButtonConfig/ButtonConfigTab";
 import { useSerialStore } from "./store/serialStore";
-import { useCarControlStore } from "./store/carControlStore";
-import { use3DStore } from "./store/car3DStore";
 import { useRadarStore } from "./store/radarStore";
+import { useTauriEvents } from "./hooks/useTauriEvents";
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("car");
@@ -33,29 +32,10 @@ function App() {
   }, []);
 
   // 监听 CSV 数据循环完成事件
-  const csvLoopFinishListener = useCarControlStore(
-    (state) => state.csvLoopFinishListener
-  );
-  const stopCsvLoopListen = useCarControlStore(
-    (state) => state.stopCsvLoopListen
-  );
-  useEffect(() => {
-    csvLoopFinishListener();
-    return () => {
-      stopCsvLoopListen();
-    };
-  }, [csvLoopFinishListener, stopCsvLoopListen]);
+  useTauriEvents();
 
-  // 注入3D渲染器实例到 Store
-  const sendCarCommand = useCarControlStore((state) => state.sendCarCommand);
-  const { car3DRendererRef } = use3DScene(activeTab, sendCarCommand);
-  const { setRendererInstance } = use3DStore();
-  useEffect(() => {
-    // 当 renderer 实例创建后，设置到 Store 中
-    if (car3DRendererRef.current) {
-      setRendererInstance(car3DRendererRef.current);
-    }
-  }, [car3DRendererRef.current, setRendererInstance]);
+  // 初始化 R3F 3D 场景
+  useR3FScene(activeTab);
 
   // 定时发送雷达信号并监听雷达数据
   const manageRadar = useRadarStore((state) => state.manageRadar);

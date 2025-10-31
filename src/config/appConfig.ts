@@ -32,6 +32,10 @@ interface AppConfig {
     // 雷达查询间隔（毫秒）
     queryIntervalMs?: number;
   };
+  suspension: {
+    animationDuration: number;
+    can_stop_duration: number;
+  };
 }
 
 // ============================================
@@ -56,7 +60,12 @@ const APP_CONFIG: AppConfig = {
   // 雷达配置
   radar: {
     // 雷达查询间隔（毫秒）- 默认 1000ms (1秒)
-    queryIntervalMs: 1000,
+    queryIntervalMs: 100000,
+  },
+  //悬挂升高或者降低之后隔多长时间（毫秒，默认4秒）发送停止升降的can信号
+  suspension: {
+    animationDuration: 4000,
+    can_stop_duration: 4000,
   },
 };
 
@@ -85,3 +94,6 @@ export const getRadarQueryInterval = (): number =>
   APP_CONFIG.radar?.queryIntervalMs ?? 1000;
 
 export default APP_CONFIG;
+
+export const getSuspensionConfig = (): AppConfig["suspension"] =>
+  APP_CONFIG.suspension;

@@ -1,16 +1,130 @@
-# Tauri + React + Typescript
+明白。既然 **帧 ID (Frame ID)** 和 **其他命令** 不是固定的，我就对文档结构进行调整，将协议命令部分更加模块化和通用，并为未列出的命令留出清晰的占位符。
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+以下是优化后的 README 文档：
 
-## Recommended IDE Setup
+-----
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+# ✨ 项目名称 - Tauri 桌面应用程序
 
+一个基于 **Tauri** 框架、结合 **React** 和 **TypeScript** (通过 **Vite** 构建) 的桌面应用程序模板。
 
-# macos
+本项目的核心功能是实现 **[请在此处填写应用的核心功能，例如：自定义硬件控制、CAN 总线调试、设备监控]**。
 
-find port
+## 🚀 技术栈与环境
+
+| 类别         | 技术           | 描述                                                     |
+| :----------- | :------------- | :------------------------------------------------------- |
+| **桌面框架** | **Tauri**      | 使用 Rust 构建的现代化、安全、轻量级跨平台桌面应用框架。 |
+| **前端**     | **React**      | 用于构建用户界面的 JavaScript 库。                       |
+| **语言**     | **TypeScript** | 增强代码质量和可维护性的类型化 JavaScript。              |
+| **构建工具** | **Vite**       | 快速的开发服务器和构建工具。                             |
+
+### 💻 推荐开发环境
+
+  * **[VS Code](https://code.visualstudio.com/)**：强大的代码编辑器。
+      * **[Tauri VS Code Extension](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)**：提供 Tauri 开发的辅助功能。
+      * **[rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)**：提供 Rust 代码的语言支持。
+
+-----
+
+## 🛠️ 硬件通信协议 (CAN Commands)
+
+本应用通过串口/USB 设备进行通信。以下是核心控制命令的协议说明。
+
+### 🔌 端口查找 (macOS)
+
+在 macOS 系统上，使用以下命令来列出所有可用的串口/USB 设备端口：
+
 ```sh
 ls /dev/tty.*
 ```
-/dev/tty.usbserial-140
+
+> **示例端口:** `/dev/tty.usbserial-140`
+
+### 📋 通用协议格式
+
+所有通信均遵循以下格式：
+
+| 字段                 | 描述                       |
+| :------------------- | :------------------------- |
+| **帧类型**           | 数据帧或远程帧。           |
+| **帧格式**           | 标准帧或扩展帧。           |
+| **帧 ID (Frame ID)** | **消息标识符 (非固定)**。  |
+| **数据长度**         | 数据字段的字节长度。       |
+| **数据**             | 实际的控制数据 (Payload)。 |
+
+-----
+
+### ⚙️ 核心控制命令参考
+
+由于帧 ID 会变化，且命令较多，此处只列出部分关键命令及其数据格式。
+
+#### 1\. 悬挂控制 (Suspension Control)
+
+  * **帧 ID:** `0x201`
+  * **帧格式:** 标准帧
+  * **数据长度:** 8 字节
+
+| 操作              | 完整数据 (8 Bytes)        | 关键数据位说明  |
+| :---------------- | :------------------------ | :-------------- |
+| **升高** (`up`)   | `ff ff 01 ff 00 00 00 00` | 对应操作码 `01` |
+| **降低** (`down`) | `ff ff 02 ff 00 00 00 00` | 对应操作码 `02` |
+| **停止** (`stop`) | `ff ff 03 ff 00 00 00 00` | 对应操作码 `03` |
+
+> **📝 自动停止：** 发送升高或降低命令后，系统将在 **N 秒** 后自动发送 `stop` 信号。延迟时间 N 在 `appConfig.ts` 中配置，可通过 `getSuspensionCanStopDuration()` 获取。
+
+#### 2\. 照明模式控制 (Light Mode Control)
+
+  * **帧 ID:** `0x201`
+  * **帧格式:** 标准帧
+  * **数据长度:** 8 字节
+
+| 模式       | 完整数据 (8 Bytes)        |
+| :--------- | :------------------------ |
+| **模式 1** | `ff ff ff 01 00 00 00 00` |
+| **模式 2** | `ff ff ff 02 00 00 00 00` |
+| **模式 3** | `ff ff ff 03 00 00 00 00` |
+| **模式 4** | `ff ff ff 04 00 00 00 00` |
+
+#### 3\. 门控命令 (Door Control)
+
+  * **帧 ID:** *[请在此处补充 ID]*
+  * **帧格式:** *[请在此处补充格式]*
+  * **数据长度:** *[请在此处补充长度]*
+
+| 操作               | 数据 (Payload)       |
+| :----------------- | :------------------- |
+| **开门** (`open`)  | *[请在此处补充数据]* |
+| **关门** (`close`) | *[请在此处补充数据]* |
+| **停止** (`stop`)  | *[请在此处补充数据]* |
+
+-----
+
+### 📚 其他命令 (Other Commands)
+
+  * **[请在此处添加其他命令的 ID、格式和数据说明]**
+
+  * **[例如：电池状态请求]**
+
+      * **帧 ID:** `0x180`
+      * **帧格式:** 远程帧
+      * **数据:** `00 00 00 00 00 00 00 00`
+
+-----
+
+## 💻 如何运行 (How to Run)
+
+*(请根据您的项目实际情况，在此处补充运行和构建的命令。)*
+
+1.  **安装依赖：**
+    ```sh
+    npm install
+    ```
+2.  **开发模式运行：**
+    ```sh
+    npm run tauri dev
+    ```
+3.  **构建发布版本：**
+    ```sh
+    npm run tauri build
+    ```
