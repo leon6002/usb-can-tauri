@@ -1,7 +1,6 @@
 import csv
 import struct
-import math
-from typing import List, Dict
+from typing import Dict
 
 # --- 核心解析函数 (与之前相同) ---
 
@@ -19,7 +18,7 @@ def hex_string_to_bytes(hex_str: str) -> bytes:
 
 def parse_control_data_4byte(hex_data: bytes) -> Dict[str, float]:
     """
-    解析 4 字节的二进制数据，返回速度 (mm/s) 和弧度 (rad) 的字典。
+    解析 4 字节的二进制数据，返回速度 (mm/s) 和转向角 (度) 的字典。
     """
     if len(hex_data) != 4:
         raise ValueError(f"二进制数据长度必须是 4 字节，但收到了 {len(hex_data)} 字节。")
@@ -28,13 +27,16 @@ def parse_control_data_4byte(hex_data: bytes) -> Dict[str, float]:
     linear_velocity_mms, = struct.unpack('>h', hex_data[0:2])
     steering_angle_raw, = struct.unpack('>h', hex_data[2:4])
 
-    # 转换转向角单位: 0.001 rad/count -> rad
-    steering_angle_rad = steering_angle_raw / 1000.0
+    # 转向角本身就是角度值（单位：0.01度），需要除以100转换为度
+    # 同时反转正负号（原始数据的正负与实际转向方向相反）
+    steering_angle_deg = -(steering_angle_raw / 1000.0)
 
     return {
         "linear_velocity_mms": linear_velocity_mms,
-        "steering_angle_rad": steering_angle_rad,
+        "steering_angle_deg": steering_angle_deg,
     }
+
+
 
 
 def read_and_parse_csv_by_index(input_file_path: str, output_file_path: str, hex_column_index: int = 7):
@@ -87,11 +89,11 @@ def read_and_parse_csv_by_index(input_file_path: str, output_file_path: str, hex
                     # 1. 转换为 bytes 并解析
                     data_bytes = hex_string_to_bytes(hex_str)
                     parsed_data = parse_control_data_4byte(data_bytes)
-                    
+
                     velocity_mms = parsed_data['linear_velocity_mms']
-                    
-                    # 2. 弧度转角度: 角度 = 弧度 * (180 / PI)
-                    angle_deg = parsed_data['steering_angle_rad'] * (180 / math.pi)
+
+                    # 2. 直接获取角度（已经是度数，且正负已反转）
+                    angle_deg = parsed_data['steering_angle_deg']
 
                 except ValueError as e:
                     # 解析错误，保留 None/NaN 或打印警告
@@ -116,15 +118,21 @@ def read_and_parse_csv_by_index(input_file_path: str, output_file_path: str, hex
 
 # --- 示例运行 ---
 
-INPUT_FILE = 'test_data_full.csv'
-OUTPUT_FILE = 'output_data_indexed.csv'
-# 原始 CAN 数据在第 8 列，其索引为 7
-CAN_DATA_INDEX = 7 
+# INPUT_FILE = 'test_data_full.csv'
+# OUTPUT_FILE = 'output_data_indexed.csv'
+# # 原始 CAN 数据在第 8 列，其索引为 7
+# CAN_DATA_INDEX = 7 
 
-# 2. 执行处理
-read_and_parse_csv_by_index(INPUT_FILE, OUTPUT_FILE, CAN_DATA_INDEX)
+# # 2. 执行处理
+# read_and_parse_csv_by_index(INPUT_FILE, OUTPUT_FILE, CAN_DATA_INDEX)
 
-# 3. 打印输出文件内容以供验证
-print("\n--- 输出文件内容验证 ---")
-with open(OUTPUT_FILE, 'r', newline='', encoding='utf-8') as f:
-    print(f.read())
+# # 3. 打印输出文件内容以供验证
+# print("\n--- 输出文件内容验证 ---")
+# with open(OUTPUT_FILE, 'r', newline='', encoding='utf-8') as f:
+#     print(f.read())
+
+
+if __name__ == "__main__":
+    hexdata = "0B B8 F1 11"
+    result = parse_control_data_4byte(hex_string_to_bytes(hexdata))
+    print(result)

@@ -79,7 +79,9 @@ def parse_vehicle_control_data(data: bytes) -> dict:
 
 # 待解析数据
 # hex_data = "044B00640000002B"
-hex_data = "84BB10FA0F0000DA"
+# hex_data = "84BB10FA0F0000DA"
+hex_data = "04 00 80 3E 00 00 50 EA"
+hex_data = hex_data.replace(" ", "")    
 data_bytes = bytes.fromhex(hex_data)
 
 # 解析
