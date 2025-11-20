@@ -395,7 +395,7 @@ pub async fn open_system_monitor_window(app_handle: tauri::AppHandle) -> Result<
         None => {
             // 窗口不存在，创建新窗口
             tauri::WebviewWindowBuilder::new(&app_handle, "system-monitor", tauri::WebviewUrl::App("system-monitor.html".into()))
-                .title("系统性能监控")
+                .title("System Monitor")
                 .inner_size(1600.0, 1000.0)
                 .build()
                 .map_err(|e| format!("Failed to create system monitor window: {}", e))?;

@@ -1,4 +1,5 @@
 import { SerialConfig } from "@/types";
+import { toast } from "sonner";
 
 interface DriveCommandParams {
   config: SerialConfig;
@@ -65,57 +66,60 @@ export const handleStartDriving = async ({
     }
     if (!config.sendIntervalMs || config.sendIntervalMs < 1) {
       console.error("❌ Invalid send interval");
-      alert("请设置有效的发送间隔（>= 1ms）");
+      toast.error("Please set a valid sending interval (>= 1ms)");
       return;
     }
 
     console.log("✅ All validations passed, starting CSV loop");
     addDebugLog(
-      "开始CSV循环发送",
+      "Start CSV loop sending",
       commandId,
       "CSV",
       config.csvFilePath,
-      `间隔: ${config.sendIntervalMs}ms, 开始行: ${
+      `Interval: ${config.sendIntervalMs}ms, Start row: ${
         config.csvStartRowIndex || 0
       }`
     );
 
-    // 定义进度更新回调
+    // Define progress update callback
     const onProgressUpdate = (
       speed: number,
       steeringAngle: number,
       gear?: string
     ) => {
-      // steeringAngle 已经是轮胎转向角（从新的8字节数据格式解析），单位是弧度
-      // 不需要再进行转向比转换
+      // steeringAngle is already the tire steering angle (parsed from new 8-byte data format), unit is radian
+      // No need for steering ratio conversion anymore
 
-      // todo 计算方向盘转向角用于显示（方向盘转向角 = 轮胎转向角 * 转向比）
+      // todo Calculate steering wheel angle for display (steering wheel angle = tire steering angle * steering ratio)
       // const steeringWheelAngle = steeringAngle * STEERING_RATIO;
 
-      // 更新状态面板显示方向盘转向角和档位
+      // Update status panel to show steering wheel angle and gear
       updateVehicleControl(speed, steeringAngle, gear);
 
-      // 同时更新3D场景中的车身旋转（基于自行车模型） 使用轮胎转向角来计算车身旋转
+      // Update car body rotation in 3D scene simultaneously (based on bicycle model) Use tire steering angle to calculate car body rotation
       updateDriveAnimation(speed, steeringAngle);
     };
 
     await startCsvLoop(onProgressUpdate);
     updateCarState(commandId);
 
-    // 触发3D动画
+    // Trigger 3D animation
     console.log("starting drive animation");
     startDriveAnimation();
   } catch (error) {
-    console.error(`❌ 启动驾驶命令执行失败 (${commandId}):`, error);
-    // 记录失败日志
+    console.error(
+      `❌ Start driving command execution failed (${commandId}):`,
+      error
+    );
+    // Record failure log
     addDebugLog(
-      "启动驾驶命令执行失败",
+      "Start driving command execution failed",
       commandId,
       "CSV",
       config.csvFilePath || "N/A",
-      `错误: ${error instanceof Error ? error.message : String(error)}`
+      `Error: ${error instanceof Error ? error.message : String(error)}`
     );
-    // 重新抛出错误，让调用者知道命令失败
+    // Rethrow error to let caller know command failed
     throw error;
   }
 };
@@ -130,23 +134,32 @@ export const handleStopDriving = async ({
   const commandId = "stop_driving";
 
   try {
-    // 停止循环发送
-    addDebugLog("停止CSV循环发送", commandId, "CSV", "停止", "停止循环发送");
+    // Stop loop sending
+    addDebugLog(
+      "Stop CSV loop sending",
+      commandId,
+      "CSV",
+      "Stop",
+      "Stop loop sending"
+    );
 
     await stopCsvLoop();
-    // 更新状态面板显示方向盘转向角
+    // Update status panel to show steering wheel angle
     updateVehicleControl(0, 0);
     updateCarState(commandId);
     stopDriveAnimation();
   } catch (error) {
-    console.error(`❌ 停止驾驶命令执行失败 (${commandId}):`, error);
-    // 记录失败日志
+    console.error(
+      `❌ Stop driving command execution failed (${commandId}):`,
+      error
+    );
+    // Record failure log
     addDebugLog(
-      "停止驾驶命令执行失败",
+      "Stop driving command execution failed",
       commandId,
       "CSV",
       "N/A",
-      `错误: ${error instanceof Error ? error.message : String(error)}`
+      `Error: ${error instanceof Error ? error.message : String(error)}`
     );
     throw error;
   }

@@ -17,26 +17,24 @@ export const DemoQuickConnect: React.FC = () => {
   const connectToPort = useSerialStore((state) => state.connectToPort);
   const handleDisconnect = useSerialStore((state) => state.handleDisconnect);
   const demoConfig = getDemoQuickConnect();
-  const [port, setPort] = useState(
-    demoConfig?.port || "/dev/tty.usbserial-2110"
-  );
+  const [port, setPort] = useState(demoConfig?.port || undefined);
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPorts, setIsLoadingPorts] = useState(false);
 
-  // 演示模式下的快速连接处理
+  // connect to port
   const onConnect = async (port: string) => {
     try {
       await connectToPort(port);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      toast.error(`连接失败: ${errorMessage}`);
+      toast.error(`Connection failed: ${errorMessage}`);
       console.error("Demo connect error:", error);
     }
   };
 
-  // 获取可用串口
+  // fetch ports
   useEffect(() => {
     const fetchPorts = async () => {
       setIsLoadingPorts(true);
@@ -53,7 +51,7 @@ export const DemoQuickConnect: React.FC = () => {
     fetchPorts();
   }, []);
 
-  // 刷新串口列表
+  // refresh ports
   const handleRefreshPorts = async () => {
     setIsLoadingPorts(true);
     try {
@@ -67,14 +65,18 @@ export const DemoQuickConnect: React.FC = () => {
   };
 
   const handleConnect = async () => {
+    if (!port) {
+      toast.error("Please select a port");
+      return;
+    }
     setIsLoading(true);
     try {
       onConnect(port);
-      toast.success(`已连接到 ${port}`);
+      toast.success(`Connected to port: ${port}`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      toast.error(`连接失败: ${errorMessage}`);
+      toast.error(`Connect failed: ${errorMessage}`);
       console.error("Connection error:", error);
     } finally {
       setIsLoading(false);
@@ -83,28 +85,23 @@ export const DemoQuickConnect: React.FC = () => {
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-md border border-gray-200">
-      {/* <h3 className="text-sm font-bold text-gray-900 mb-3">快速连接</h3> */}
-
       {/* Port Select */}
       <div className="mb-3">
-        {/* <label className="block text-xs font-medium text-gray-700 mb-1">
-          端口快速连接:
-        </label> */}
         <div className="flex gap-2">
           <Select value={port} onValueChange={setPort} disabled={isConnected}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="选择串口..." />
+            <SelectTrigger className="flex-1 cursor-pointer">
+              <SelectValue placeholder="Select a port to connect..." />
             </SelectTrigger>
             <SelectContent>
               {availablePorts.length > 0 ? (
                 availablePorts.map((p) => (
-                  <SelectItem key={p} value={p}>
+                  <SelectItem key={p} value={p} className="cursor-pointer">
                     {p}
                   </SelectItem>
                 ))
               ) : (
                 <SelectItem value="no-ports" disabled>
-                  未检测到串口
+                  No ports detected
                 </SelectItem>
               )}
             </SelectContent>
@@ -115,7 +112,7 @@ export const DemoQuickConnect: React.FC = () => {
             onClick={handleRefreshPorts}
             disabled={isConnected || isLoadingPorts}
             className="px-3 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="刷新串口列表"
+            title="refresh ports"
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoadingPorts ? "animate-spin" : ""}`}
@@ -137,12 +134,12 @@ export const DemoQuickConnect: React.FC = () => {
         {isConnected ? (
           <>
             <ZapOff className={`w-4 h-4 ${isLoading ? "animate-pulse" : ""}`} />
-            {"断开连接"}
+            {"Disconnect"}
           </>
         ) : (
           <>
             <Zap className={`w-4 h-4 ${!isLoading ? "animate-pulse" : ""}`} />
-            {"连接"}
+            {"Connect"}
           </>
         )}
       </button>

@@ -23,35 +23,35 @@ const SystemMonitorWindow: React.FC = () => {
     };
   }, [startListening, stopListening]);
 
-  // 准备图表数据 - 提取内存数据数组
+  // prepare chart data - extract memory data array
   const memoryData = historyData.map((point) => point.memory);
 
-  // 准备时间标签 - 显示秒数
+  // prepare time labels - display seconds
   const timeLabels = historyData.map((point) => {
     return point.timestamp;
   });
 
-  // VM1 状态指示器
+  // VM1 status indicator
   const vm1StatusIndicators = [
     {
       status: currentData?.steeringControl || 0,
-      label: "转向控制 (CAN1)",
+      label: "Steering control (CAN1)",
     },
     {
       status: currentData?.brakeControl || 0,
-      label: "制动控制 (CAN2)",
+      label: "Brake control (CAN2)",
     },
   ];
 
-  // VM2 状态指示器
+  // VM2 status indicator
   const vm2StatusIndicators = [
     {
       status: currentData?.bodyControl || 0,
-      label: "车身控制 (PWM, SPI)",
+      label: "Body control (PWM, SPI)",
     },
     {
       status: currentData?.acSystem || 0,
-      label: "空气调节系统 (PWM, 高低驱动)",
+      label: "Air conditioning system (PWM, high-low drive)",
     },
   ];
 
@@ -65,7 +65,7 @@ const SystemMonitorWindow: React.FC = () => {
         backgroundAttachment: "fixed",
       }}
     >
-      {/* 背景遮罩层 - 添加 blur 效果 */}
+      {/* backdropfilter*/}
       <div
         className="absolute inset-0 bg-black/40 pointer-events-none"
         style={{
@@ -73,26 +73,27 @@ const SystemMonitorWindow: React.FC = () => {
         }}
       ></div>
 
-      {/* 内容容器 - 垂直居中 */}
+      {/* content container */}
       <div className="relative z-10 flex flex-col h-full p-4 overflow-hidden justify-center mx-auto w-[96%]">
-        {/* 标题 */}
+        {/* title */}
         <div className="flex-shrink-0 mb-6 p-4 rounded-lg bg-gray-800/60 backdrop-blur-sm shadow-2xl border-l-4 border-cyan-500">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Cpu className="w-6 h-6 mr-3 text-cyan-400" />
               <h1 className="text-xl font-bold text-white tracking-wide">
-                EE架构 <span className="text-cyan-400">性能监控系统</span>
+                EE Arch <span className="text-cyan-400">System monitor</span>
               </h1>
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2 ml-9">
-            实时高可用域 (ASIL D/B) 核心性能数据概览
+            Real-time high-availability domain (ASIL D/B) core performance data
+            overview
           </p>
         </div>
 
-        {/* 主容器 - VM1 和 VM2 占高度的 60-70% */}
+        {/* main container */}
         <div className="grid grid-cols-7 gap-4 h-[65%] overflow-hidden flex-shrink-0">
-          {/* 左侧：VM1 - ASIL D */}
+          {/* left side：VM1 - ASIL D */}
           <VMPanel
             className="col-span-4"
             title="VM1 - ASIL D"
@@ -107,7 +108,7 @@ const SystemMonitorWindow: React.FC = () => {
             statusIndicators={vm1StatusIndicators}
           />
 
-          {/* 右侧：VM2 - ASIL B */}
+          {/* right side：VM2 - ASIL B */}
           <VMPanel
             className="col-span-3"
             title="VM2 - ASIL B"

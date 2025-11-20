@@ -19,7 +19,7 @@ interface AppConfig {
   mode: AppMode;
   // 演示模式下的快速连接配置
   demoQuickConnect?: {
-    port: string;
+    port: string | undefined;
     baudRate: number;
   };
   // UI 功能开关
@@ -47,7 +47,7 @@ const APP_CONFIG: AppConfig = {
 
   // 演示模式下的快速连接配置（仅在 mode === "DEMO" 时使用）
   demoQuickConnect: {
-    port: "COM23",
+    port: undefined,
     baudRate: 2000000,
   },
 

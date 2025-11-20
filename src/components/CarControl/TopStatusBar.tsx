@@ -121,14 +121,14 @@ const TopStatusBar: React.FC = () => {
           </svg>
         </div>
 
-        {/* 左侧：性能监控按钮 */}
+        {/* system monitor button */}
         <Button
           onClick={handleOpenSystemMonitor}
           variant={"link"}
-          title="打开系统性能监控窗口"
+          title="Open system monitor window"
         >
           <Activity size={18} />
-          <span className="text-sm font-medium">性能监控</span>
+          <span className="text-sm font-medium">System monitor</span>
         </Button>
         {/* Version Badge */}
         <div className="absolute top-1 left-1 text-xs text-gray-500 font-medium bg-white px-3 py-1 rounded-md shadow-sm z-50">

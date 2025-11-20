@@ -24,13 +24,13 @@ interface SerialState {
 
 // 默认配置
 const initialConfig: SerialConfig = {
-  port: "COM23",
+  port: undefined,
   baudRate: 2000000,
   canBaudRate: 500000,
   frameType: "standard",
   protocolLength: "fixed",
   canMode: "normal",
-  sendIntervalMs: 30,
+  sendIntervalMs: 20,
   canIdColumnIndex: 0,
   canDataColumnIndex: 1,
   csvStartRowIndex: 1,

@@ -1,5 +1,5 @@
 export interface SerialConfig {
-  port: string;
+  port: string | undefined;
   baudRate: number;
   canBaudRate: number;
   frameType: "standard" | "extended";
