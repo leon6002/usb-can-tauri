@@ -5,6 +5,7 @@ import { SteeringWheelUI } from "./SteeringWheelUI";
 import SuspensionControl from "./SuspensionControl";
 import FanControl from "./FanControl";
 import DriveControl from "./DriveControl";
+import { isShowSteeringWheel } from "@/config/appConfig";
 
 export const CarControlPanel: React.FC = () => {
   return (
@@ -12,7 +13,7 @@ export const CarControlPanel: React.FC = () => {
       {/* Main Controls */}
       <DriveControl />
       {/* todo 方向盘UI - 暂时隐藏 */}
-      {!isDemoMode() && (
+      {isShowSteeringWheel() && (
         <div className="mt-4 flex justify-center">
           <SteeringWheelUI />
         </div>

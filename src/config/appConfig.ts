@@ -26,6 +26,7 @@ interface AppConfig {
   features?: {
     // 是否显示风扇档位控制
     showFanControl?: boolean;
+    showSteeringWheel?: boolean;
   };
   // 雷达配置
   radar?: {
@@ -55,6 +56,7 @@ const APP_CONFIG: AppConfig = {
   features: {
     // 是否显示风扇档位控制（0-3档）
     showFanControl: false,
+    showSteeringWheel: true,
   },
 
   // 雷达配置
@@ -86,6 +88,9 @@ export const getDemoQuickConnect = () => APP_CONFIG.demoQuickConnect;
  */
 export const isShowFanControl = (): boolean =>
   APP_CONFIG.features?.showFanControl ?? false;
+
+export const isShowSteeringWheel = (): boolean =>
+  APP_CONFIG.features?.showSteeringWheel ?? false;
 
 /**
  * 获取雷达查询间隔（毫秒）
