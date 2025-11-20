@@ -7,7 +7,7 @@ const LightControl: React.FC = () => {
   const carStates = useCarControlStore((state) => state.carStates);
   return (
     <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">灯带控制</h4>
+      <h4 className="text-sm font-semibold text-gray-700 mb-3">Light Mode</h4>
       <div className="grid grid-cols-2 gap-2">
         {[1, 2, 3, 4].map((mode) => (
           <button
@@ -20,7 +20,7 @@ const LightControl: React.FC = () => {
                 : "bg-white border border-gray-300 text-gray-700 hover:bg-amber-50 hover:border-amber-300"
             } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
           >
-            模式{mode}
+            mode {mode}
           </button>
         ))}
       </div>

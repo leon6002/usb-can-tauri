@@ -23,10 +23,10 @@ const CarStatusPanelComponent: React.FC = () => {
   const radarDistances = useRadarStore((state) => state.radarDistances);
   const radarList = radarDistances
     ? [
-        { name: "雷达1", data: radarDistances.radar1, id: "0x00000521" },
-        { name: "雷达2", data: radarDistances.radar2, id: "0x00000522" },
-        { name: "雷达3", data: radarDistances.radar3, id: "0x00000523" },
-        { name: "雷达4", data: radarDistances.radar4, id: "0x00000524" },
+        { name: "Radar1", data: radarDistances.radar1, id: "0x00000521" },
+        { name: "Radar2", data: radarDistances.radar2, id: "0x00000522" },
+        { name: "Radar3", data: radarDistances.radar3, id: "0x00000523" },
+        { name: "Radar4", data: radarDistances.radar4, id: "0x00000524" },
       ]
     : [];
 
@@ -36,7 +36,7 @@ const CarStatusPanelComponent: React.FC = () => {
       <div className="grid grid-cols-2 gap-2 mb-2">
         {/* Gear - Highlighted */}
         <div className="bg-orange-50 p-2 rounded border border-orange-200">
-          <div className="text-orange-600 text-xs font-medium mb-1">档位</div>
+          <div className="text-orange-600 text-xs font-medium mb-1">Gear</div>
           <div className="text-base font-bold text-orange-900">
             {carStates.gear || "P"}
           </div>
@@ -49,7 +49,7 @@ const CarStatusPanelComponent: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span className="text-cyan-600 text-xs font-bold flex gap-1">
                 <Radar className="w-4 h-4" />
-                雷达
+                Radar
               </span>
               <div className="flex-1 h-px bg-gradient-to-r from-cyan-300 to-transparent"></div>
             </div>
@@ -66,8 +66,8 @@ const CarStatusPanelComponent: React.FC = () => {
                   radar.data?.distance !== undefined
                     ? `${radar.data.distance}mm`
                     : isConnected
-                    ? "已连"
-                    : "未连"}
+                    ? "Connected"
+                    : "off"}
                 </div>
               ))}
             </div>
@@ -84,8 +84,8 @@ const CarStatusPanelComponent: React.FC = () => {
                   radar.data?.distance !== undefined
                     ? `${radar.data.distance}mm`
                     : isConnected
-                    ? "已连"
-                    : "未连"}
+                    ? "Connected"
+                    : "off"}
                 </div>
               ))}
             </div>
@@ -97,7 +97,7 @@ const CarStatusPanelComponent: React.FC = () => {
       <div className="grid grid-cols-2 gap-2">
         {/* Real-time Speed - Highlighted */}
         <div className="bg-blue-50 p-2 rounded border border-blue-200">
-          <div className="text-blue-600 text-xs font-medium mb-1">实时速度</div>
+          <div className="text-blue-600 text-xs font-medium mb-1">Speed</div>
           <div className="text-base font-bold text-blue-900">
             {((carStates.currentSpeed / 1000) * 3.6).toFixed(1)} km/h
           </div>
@@ -105,7 +105,9 @@ const CarStatusPanelComponent: React.FC = () => {
 
         {/* Steering Angle - Highlighted */}
         <div className="bg-purple-50 p-2 rounded border border-purple-200">
-          <div className="text-purple-600 text-xs font-medium mb-1">转向角</div>
+          <div className="text-purple-600 text-xs font-medium mb-1">
+            Steering Angle
+          </div>
           <div className="text-base font-bold text-purple-900">
             {carStates.currentSteeringAngle !== undefined
               ? carStates.currentSteeringAngle.toFixed(1)

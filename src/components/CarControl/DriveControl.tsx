@@ -8,7 +8,7 @@ const DriveControl: React.FC = () => {
   const carStates = useCarControlStore((state) => state.carStates);
   return (
     <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">主要控制</h4>
+      <h4 className="text-sm font-semibold text-gray-700 mb-3">Driving</h4>
       <button
         onClick={() =>
           sendCarCommand(carStates.isDriving ? "stop_driving" : "start_driving")
@@ -23,12 +23,12 @@ const DriveControl: React.FC = () => {
         {carStates.isDriving ? (
           <>
             <Square className="w-5 h-5 inline mr-2" />
-            停止行驶
+            Stop Drive
           </>
         ) : (
           <>
             <Play className="w-5 h-5 inline mr-2" />
-            开始行驶
+            Start Auto Drive
           </>
         )}
       </button>

@@ -11,7 +11,7 @@ const SuspensionControl: React.FC = ({}) => {
   console.log("suspension component rendered");
   return (
     <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">悬架控制</h4>
+      <h4 className="text-sm font-semibold text-gray-700 mb-3">Suspension</h4>
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => {
@@ -19,20 +19,20 @@ const SuspensionControl: React.FC = ({}) => {
           }}
           disabled={
             !isConnected ||
-            suspensionStatus === "升高" ||
-            suspensionStatus === "降低"
+            suspensionStatus === "Raising" ||
+            suspensionStatus === "Lowering"
           }
           className={`px-3 py-2 text-sm rounded-lg font-medium ${
-            suspensionStatus === "升高"
+            suspensionStatus === "Raising"
               ? "bg-green-500 text-white border border-green-600"
               : "bg-white border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300"
           } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
         >
           <span
-            className={`${suspensionStatus === "升高" ? "animate-pulse" : ""}`}
+            className={`${suspensionStatus === "Raising" ? "animate-pulse" : ""}`}
           >
             <CircleArrowUp className="w-4 h-4 inline mr-1" />
-            {suspensionStatus === "升高" ? "升高中" : "升高"}
+            {suspensionStatus === "Raising" ? "Raising..." : "Raise"}
           </span>
         </button>
         <button
@@ -41,20 +41,20 @@ const SuspensionControl: React.FC = ({}) => {
           }}
           disabled={
             !isConnected ||
-            suspensionStatus === "升高" ||
-            suspensionStatus === "降低"
+            suspensionStatus === "Raising" ||
+            suspensionStatus === "Lowering"
           }
           className={`px-3 py-2 text-sm rounded-lg font-medium ${
-            suspensionStatus === "降低"
+            suspensionStatus === "Lowering"
               ? "bg-orange-500 text-white border border-orange-600"
               : "bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300"
           } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
         >
           <span
-            className={`${suspensionStatus === "降低" ? "animate-pulse" : ""}`}
+            className={`${suspensionStatus === "Lowering" ? "animate-pulse" : ""}`}
           >
             <CircleArrowDown className="w-4 h-4 inline mr-1" />
-            {suspensionStatus === "降低" ? "降低中" : "降低"}
+            {suspensionStatus === "Lowering" ? "Lowering..." : "Lower"}
           </span>
         </button>
       </div>
