@@ -9,7 +9,7 @@ const FanControl: React.FC = ({}) => {
   const carStates = useCarControlStore((state) => state.carStates);
   return (
     <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">风扇控制</h4>
+      <h4 className="text-sm font-semibold text-gray-700 mb-3">Fan Control</h4>
       <div className="grid grid-cols-4 gap-2">
         {[0, 1, 2, 3].map((level) => (
           <button
@@ -22,7 +22,7 @@ const FanControl: React.FC = ({}) => {
                 : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
             } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
           >
-            {level}档
+            Level {level}
           </button>
         ))}
       </div>

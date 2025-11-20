@@ -38,7 +38,7 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
       <div className="px-3 py-2 border-b border-gray-200">
         <div className="flex items-center gap-2 text-xs">
           <span className="font-semibold text-gray-800 whitespace-nowrap">
-            雷达:
+            Radar:
           </span>
           <div className="flex gap-1">
             {radarList.map((radar) => (
@@ -52,8 +52,8 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
                 radar.data?.distance !== undefined
                   ? `${radar.data.distance}mm`
                   : isConnected
-                  ? "已连"
-                  : "未连"}
+                  ? "on"
+                  : "off"}
               </div>
             ))}
           </div>
@@ -83,8 +83,8 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
               radar.data?.distance !== undefined
                 ? `${radar.data.distance} mm`
                 : isConnected
-                ? "已连接"
-                : "未连接"}
+                ? "on"
+                : "off"}
             </div>
           </div>
         ))}

@@ -31,16 +31,16 @@ export const Car3DViewer: React.FC = () => {
         {isLoading && (
           <div className="loading-3d flex items-center justify-center h-full absolute inset-0 z-10 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
             <div className="text-center relative">
-              {/* 背景光晕效果 */}
+              {/* background glow effect */}
               <div className="absolute inset-0 -m-20">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/30 rounded-full blur-3xl animate-pulse"></div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-indigo-500/30 rounded-full blur-2xl animate-pulse delay-75"></div>
               </div>
 
-              {/* 3D 旋转立方体 */}
+              {/* 3D rotating cube */}
               <div className="relative mb-8 perspective-1000">
                 <div className="w-24 h-24 mx-auto relative preserve-3d animate-spin-3d">
-                  {/* 立方体的6个面 */}
+                  {/* cube's six faces */}
                   <div className="absolute w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-blue-300/50 backdrop-blur-sm flex items-center justify-center transform translate-z-12 shadow-lg shadow-blue-500/50">
                     <svg
                       className="w-12 h-12 text-white"
@@ -134,20 +134,22 @@ export const Car3DViewer: React.FC = () => {
                 </div>
               </div>
 
-              {/* 加载文字 */}
+              {/* loading text */}
               <div className="relative z-10">
                 <h2 className="text-3xl font-bold text-white mb-3 animate-pulse">
-                  3D 模型加载中
+                  3D Model Loading ...
                 </h2>
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce delay-100"></div>
                   <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-200"></div>
                 </div>
-                <p className="text-blue-200 text-sm">正在初始化渲染引擎...</p>
+                <p className="text-blue-200 text-sm">
+                  Initializing rendering engine...
+                </p>
               </div>
 
-              {/* 进度条 */}
+              {/* progress bar */}
               <div className="relative z-10 mt-8 w-64 mx-auto">
                 <div className="h-1 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
                   <div className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full animate-loading-bar"></div>
@@ -161,7 +163,7 @@ export const Car3DViewer: React.FC = () => {
         {error && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-black bg-opacity-50">
             <div className="bg-white p-6 rounded-lg shadow-lg">
-              <p className="text-red-600 font-bold">加载失败</p>
+              <p className="text-red-600 font-bold">Loading Failed</p>
               <p className="text-gray-600 text-sm mt-2">{error}</p>
             </div>
           </div>
