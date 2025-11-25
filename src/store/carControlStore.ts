@@ -16,6 +16,7 @@ import { validateCanId } from "@/utils/validation";
 interface CarControlStore {
   canCommands: CanCommand[];
   carStates: CarStates;
+  driveCommandAliveCounter: number;
 
   progressIntervalId: NodeJS.Timeout | null;
 
@@ -42,8 +43,10 @@ interface CarControlStore {
   stopCsvLoop: () => Promise<void>;
   sendCarCommand: (commandId: string) => Promise<void>;
   sendCanCommand: (canId: string, data: string) => Promise<void>;
+  sendDriveCanCommand: (commandId: string) => Promise<void>;
   csvLoopFinishListener: () => Promise<() => void>;
   unlistenCsvLoopFunc: (() => void) | null;
+  getAndIncrementAliveCounter: () => number;
 }
 
 const initialCarStates: CarStates = {
@@ -100,6 +103,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
   // --- 状态 (State) ---
   canCommands: CAN_COMMANDS,
   carStates: initialCarStates,
+  driveCommandAliveCounter: 0x00,
   progressIntervalId: null,
 
   /**
@@ -127,7 +131,6 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       } else {
         console.warn(`⚠️ No state update found for commandId: ${commandId}`);
       }
-
       return { carStates: newState };
     });
   },
@@ -174,6 +177,22 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     } catch (error) {
       console.error("Send car command error:", error);
       toast.error(`发送车辆命令错误: ${error}`);
+      throw error; // 抛出错误以便上层调用者（如 sendCarCommand 的其他分支）捕获
+    }
+  },
+
+  sendDriveCanCommand: async (data) => {
+    try {
+      const params = {
+        id: '18C4D2D0',
+        data: data,
+        frameType: "extended",
+        protocolLength: "fixed",
+      };
+      await invoke("send_can_message", params);
+    } catch (error) {
+      console.error("Send car command error:", error);
+      toast.error(`Send car command error: ${error}`);
       throw error; // 抛出错误以便上层调用者（如 sendCarCommand 的其他分支）捕获
     }
   },
@@ -459,5 +478,11 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     );
     set({ unlistenCsvLoopFunc: unlisten });
     return unlisten;
+  },
+  getAndIncrementAliveCounter: () => {
+    const currentCounter = get().driveCommandAliveCounter;
+    const newCounter = (currentCounter + 1) % 0x10;
+    set({ driveCommandAliveCounter: newCounter });
+    return currentCounter;
   },
 }));

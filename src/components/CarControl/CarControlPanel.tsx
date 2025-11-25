@@ -1,7 +1,6 @@
 import React from "react";
 import { isDemoMode } from "../../config/appConfig";
 import LightControl from "./LightControl";
-import { SteeringWheelUI } from "./SteeringWheelUI";
 import SuspensionControl from "./SuspensionControl";
 import FanControl from "./FanControl";
 import DriveControl from "./DriveControl";

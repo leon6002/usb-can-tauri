@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { useSteeringControl } from "@/hooks/useSteeringControl";
 
 // --- 常量定义 ---
 const TWO_PI = Math.PI * 2;
@@ -8,8 +9,11 @@ const toRad = (deg: number) => (deg * Math.PI) / 180;
 const toDeg = (rad: number) => (rad * 180) / Math.PI;
 
 // 最大旋转角度限制：正负 240 度
-const MAX_ROTATION_DEG = 240;
+const MAX_ROTATION_DEG = 200;
 const MAX_ROTATION_RAD = toRad(MAX_ROTATION_DEG);
+
+// 转向比：方向盘转8度，轮胎转1度
+const STEERING_RATIO = 8;
 
 const SteeringWheelContinued = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,6 +26,12 @@ const SteeringWheelContinued = () => {
   // 使用 useRef 来记录上一次鼠标移动时的角度位置
   // 使用 ref 而不是 state，因为我们不需要它的变化来触发重新渲染
   const lastMouseAngleRef = useRef(0);
+
+  // 计算当前方向盘角度（度数）
+  const steeringWheelAngleDeg = toDeg(rotation);
+
+  // 使用方向盘控制 Hook（转向比 8:1）
+  useSteeringControl(steeringWheelAngleDeg, STEERING_RATIO);
 
   // 画布尺寸配置
   const size = 250;
@@ -149,9 +159,11 @@ const SteeringWheelContinued = () => {
   };
 
   // 计算显示的当前角度（整数）
-  const displayDegree = toDeg(rotation).toFixed(0);
+  const displayDegree = steeringWheelAngleDeg.toFixed(0);
+  // 计算轮胎转向角
+  const tireAngleDeg = (steeringWheelAngleDeg / STEERING_RATIO).toFixed(1);
   // 根据角度判断颜色，接近极限时变红
-  const isNearLimit = Math.abs(toDeg(rotation)) > MAX_ROTATION_DEG - 10;
+  const isNearLimit = Math.abs(steeringWheelAngleDeg) > MAX_ROTATION_DEG - 10;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4 select-none">
@@ -172,16 +184,19 @@ const SteeringWheelContinued = () => {
           style={{ width: size, height: size }}
         />
 
-        <div className="mt-4 text-center">
+        <div className="mt-4 text-center space-y-2">
           <p
             className={`text-lg font-mono transition-colors ${
               isNearLimit ? "text-red-600 font-bold" : "text-gray-700"
             }`}
           >
-            当前角度: {displayDegree}°
+            steering angle: {displayDegree}°
+          </p>
+          <p className="text-md font-mono text-blue-600">
+            turning angle: {tireAngleDeg}°
           </p>
           <p className="text-sm text-gray-400">
-            最大限制: ±{MAX_ROTATION_DEG}°
+            max: ±{MAX_ROTATION_DEG}° (turning ratio {STEERING_RATIO}:1)
           </p>
         </div>
       </div>
