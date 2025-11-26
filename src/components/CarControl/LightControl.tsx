@@ -6,24 +6,20 @@ const LightControl: React.FC = () => {
   const sendCarCommand = useCarControlStore((state) => state.sendCarCommand);
   const carStates = useCarControlStore((state) => state.carStates);
   return (
-    <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">Light Mode</h4>
-      <div className="grid grid-cols-2 gap-2">
-        {[1, 2, 3, 4].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => sendCarCommand(`light_mode_${mode}`)}
-            disabled={!isConnected}
-            className={`px-3 py-2 text-sm rounded-lg font-medium transition-all duration-200 ${
-              carStates.lightMode === mode
-                ? "bg-white border-2 border-amber-500 text-amber-600 shadow-lg transform scale-105"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-amber-50 hover:border-amber-300"
-            } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
-          >
-            mode {mode}
-          </button>
-        ))}
-      </div>
+    <div className="grid grid-cols-4 gap-2 w-full">
+      {[1, 2, 3, 4].map((mode) => (
+        <button
+          key={mode}
+          onClick={() => sendCarCommand(`light_mode_${mode}`)}
+          disabled={!isConnected}
+          className={`px-2 py-2 text-[10px] rounded-lg font-bold transition-all duration-200 backdrop-blur-sm border ${carStates.lightMode === mode
+              ? "bg-amber-500/80 border-amber-400/50 text-white shadow-[0_0_10px_rgba(245,158,11,0.4)]"
+              : "bg-white/10 border-white/20 text-white/60 hover:bg-white/20 hover:text-white"
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          M{mode}
+        </button>
+      ))}
     </div>
   );
 };

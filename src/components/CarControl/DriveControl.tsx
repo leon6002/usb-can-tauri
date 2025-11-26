@@ -7,29 +7,27 @@ const DriveControl: React.FC = () => {
   const sendCarCommand = useCarControlStore((state) => state.sendCarCommand);
   const carStates = useCarControlStore((state) => state.carStates);
   return (
-    <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">Driving</h4>
+    <div className="w-full">
       <button
         onClick={() =>
           sendCarCommand(carStates.isDriving ? "stop_driving" : "start_driving")
         }
         disabled={!isConnected}
-        className={`w-full px-5 py-3 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg ${
-          carStates.isDriving
-            ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-200 disabled:from-gray-300 disabled:to-gray-400"
-            : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-200 disabled:from-gray-300 disabled:to-gray-400"
-        }`}
+        className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 backdrop-blur-md border ${carStates.isDriving
+            ? "bg-red-500/80 border-red-400/50 text-white hover:bg-red-600/90 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+            : "bg-emerald-500/80 border-emerald-400/50 text-white hover:bg-emerald-600/90 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {carStates.isDriving ? (
-          <>
-            <Square className="w-5 h-5 inline mr-2" />
-            Stop Drive
-          </>
+          <div className="flex items-center justify-center gap-2">
+            <Square className="w-4 h-4 fill-current" />
+            <span>STOP AUTO DRIVE</span>
+          </div>
         ) : (
-          <>
-            <Play className="w-5 h-5 inline mr-2" />
-            Start Auto Drive
-          </>
+          <div className="flex items-center justify-center gap-2">
+            <Play className="w-4 h-4 fill-current" />
+            <span>START AUTO DRIVE</span>
+          </div>
         )}
       </button>
     </div>

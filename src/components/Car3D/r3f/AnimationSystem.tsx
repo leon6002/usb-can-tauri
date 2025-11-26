@@ -212,7 +212,7 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
       setLightState: (lightType: string, state: boolean) => {
         const lights =
           stateRef.current.lights[
-            lightType as keyof typeof stateRef.current.lights
+          lightType as keyof typeof stateRef.current.lights
           ];
         if (lights && Array.isArray(lights)) {
           lights.forEach((light) => {
@@ -253,8 +253,7 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
 
         action.play();
         console.log(
-          `[AnimationSystem] Playing door animation: ${animationName}, reverse=${reverse}, duration=${
-            action.getClip().duration
+          `[AnimationSystem] Playing door animation: ${animationName}, reverse=${reverse}, duration=${action.getClip().duration
           }s`
         );
       },
@@ -488,14 +487,17 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
     };
 
     // 直接设置到 store，而不是通过 callback
-    use3DStore.setState({
+    // 直接设置到 store，而不是通过 callback
+    use3DStore.setState((state) => ({
       sceneHandle: {
+        ...state.sceneHandle,
         animationSystem: handle,
-        camera: null,
-        scene: null,
+        camera: state.sceneHandle?.camera || null,
+        scene: state.sceneHandle?.scene || null,
+        controls: state.sceneHandle?.controls || undefined,
       },
-    });
-    console.log("[AnimationSystem] Scene handle set to store");
+    }));
+    console.log("[AnimationSystem] Scene handle updated in store");
   }, [car]);
 
   // 动画循环

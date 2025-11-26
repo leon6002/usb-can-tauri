@@ -22,7 +22,7 @@ export const Car3DViewer: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 relative min-h-0">
+    <div className="w-full h-full absolute inset-0">
       <div className="w-full h-full relative bg-gradient-to-br from-blue-50 to-indigo-100">
         {/* 3D Scene */}
         <Scene onSceneReady={handleSceneReady} onError={handleError} />

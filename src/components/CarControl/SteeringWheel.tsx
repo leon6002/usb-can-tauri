@@ -1,7 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useSteeringControl } from "@/hooks/useSteeringControl";
 import { Pedals } from "./Pedals";
-import { Disc } from "lucide-react";
+import { CarControlPanel } from "./CarControlPanel";
+import { Settings2 } from "lucide-react";
+
 
 // --- 常量定义 ---
 const TWO_PI = Math.PI * 2;
@@ -183,63 +185,60 @@ const SteeringWheelContinued = () => {
   const isNearLimit = Math.abs(steeringWheelAngleDeg) > MAX_ROTATION_DEG - 10;
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden flex flex-col h-full">
-        {/* Compact Header */}
-        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-600 rounded-md text-white">
-              <Disc className="w-3 h-3" />
-            </div>
-            <h2 className="text-sm font-bold text-gray-900">Control</h2>
-          </div>
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+    <div className="flex flex-col items-center">
+      {/* Steering Wheel Container - Transparent */}
+      <div className="flex flex-col items-center justify-center relative">
+        <div className="relative mb-2">
+          {/* Angle Indicator Ring - Subtle */}
+          <div className="absolute inset-0 rounded-full border border-dashed border-white/30 opacity-50 pointer-events-none" />
+
+          <canvas
+            ref={canvasRef}
+            width={size}
+            height={size}
+            className="cursor-pointer touch-none block relative z-10 drop-shadow-2xl"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{ width: size, height: size }}
+          />
         </div>
 
-        <div className="p-4 flex flex-col items-center justify-between flex-1 overflow-y-auto">
-          {/* Top: Steering Wheel */}
-          <div className="flex flex-col items-center justify-center w-full">
-            <div className="relative mb-2">
-              {/* Angle Indicator Ring */}
-              <div className="absolute inset-0 rounded-full border border-dashed border-gray-300 opacity-50 pointer-events-none" />
-
-              <canvas
-                ref={canvasRef}
-                width={size}
-                height={size}
-                className="cursor-pointer touch-none block relative z-10"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                style={{ width: size, height: size }}
-              />
-            </div>
-
-            <div className="flex gap-4 w-full justify-center">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-medium text-gray-400 uppercase">Wheel</span>
-                <span
-                  className={`font-mono font-bold text-sm ${isNearLimit ? "text-red-600" : "text-gray-800"
-                    }`}
-                >
-                  {displayDegree}°
-                </span>
-              </div>
-
-              <div className="w-px h-8 bg-gray-200" />
-
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-medium text-blue-400 uppercase">Tire</span>
-                <span className="font-mono font-bold text-sm text-blue-600">
-                  {tireAngleDeg}°
-                </span>
-              </div>
-            </div>
+        {/* Data Display - Floating Text */}
+        <div className="flex gap-4 w-full justify-center bg-black/20 backdrop-blur-sm px-4 py-1 rounded-full border border-white/10">
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Wheel</span>
+            <span
+              className={`font-mono font-bold text-xs ${isNearLimit ? "text-red-400" : "text-white"
+                }`}
+            >
+              {displayDegree}°
+            </span>
           </div>
 
-          {/* Bottom: Pedals */}
-          <Pedals currentSteeringAngle={tireAngleDegNumber} />
+          <div className="w-px h-6 bg-white/20" />
+
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] font-bold text-blue-300/80 uppercase tracking-wider">Tire</span>
+            <span className="font-mono font-bold text-xs text-blue-300">
+              {tireAngleDeg}°
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Pedals - Passed down */}
+      <Pedals currentSteeringAngle={tireAngleDegNumber} />
+
+      {/* Vehicle Controls - Integrated below pedals */}
+      <div className="mt-6 w-full flex justify-center">
+        <div className="bg-black/20 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-full max-w-[320px]">
+          <div className="flex items-center gap-2 mb-3 text-white/60">
+            <Settings2 className="w-3 h-3" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Vehicle Controls</span>
+          </div>
+          <CarControlPanel />
         </div>
       </div>
     </div>

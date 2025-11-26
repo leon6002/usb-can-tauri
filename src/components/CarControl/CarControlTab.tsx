@@ -1,13 +1,13 @@
 import React, { memo } from "react";
 import { Car3DViewer } from "./Car3DViewer";
 import { CarStatusPanel } from "./CarStatusPanel";
-import { CarControlPanel } from "./CarControlPanel";
 import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
-import TopStatusBar from "./TopStatusBar";
-import { isDemoMode } from "@/config/appConfig";
+import { isDemoMode, isShowSteeringWheel } from "@/config/appConfig";
 import { useCarControlStore } from "@/store/carControlStore";
 import { useEngineSound } from "@/hooks/useEngineSound";
+import SteeringWheel from "./SteeringWheel";
+import { DraggableContainer } from "../common/DraggableContainer";
 
 const CarControlTabComponent: React.FC = () => {
   // 从 Context 获取状态和函数
@@ -25,41 +25,48 @@ const CarControlTabComponent: React.FC = () => {
   console.log("car control tab rendering");
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden h-full">
-      {/* Top Status Bar */}
-      <TopStatusBar />
+    <div className="flex-1 flex flex-col overflow-hidden h-full relative bg-gray-100">
+      {/* Top Status Bar - Optional, maybe hide in HUD mode or make transparent */}
+      {/* <TopStatusBar /> */}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - 3D Model and Video */}
-        <div className="flex-1 flex flex-col bg-white border-r border-gray-200">
-          {/* 3D Model Display */}
-          <Car3DViewer />
-        </div>
-
-        {/* Right Panel - Controls */}
-        <div
-          className={`${
-            demoMode ? "w-96" : "w-80"
-          } bg-white flex flex-col overflow-y-auto`}
-        >
-          {/* Demo Mode: Quick Connect at Top */}
-          {demoMode && (
-            <div className="p-3 border-b border-gray-200">
-              <DemoQuickConnect />
-            </div>
-          )}
-
-          {/* Status Panel */}
-          <CarStatusPanel />
-
-          {/* Control Panels */}
-          <CarControlPanel />
-        </div>
+      {/* Main Content Area - Full Screen 3D */}
+      <div className="absolute inset-0 z-0">
+        <Car3DViewer />
       </div>
 
-      {/* Debug Panel */}
-      <DebugPanel showToggleButton={!isDemoMode} />
+      {/* HUD Overlay Layer */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
+
+        {/* Top Left: Connection Status */}
+        <div className="absolute top-4 left-4 pointer-events-auto">
+          {demoMode && <DemoQuickConnect />}
+        </div>
+
+        {/* Top Right: Car Status Panel */}
+        <div className="absolute top-4 right-4 pointer-events-auto">
+          <CarStatusPanel />
+        </div>
+
+        {/* Bottom Right: Steering Wheel & Pedals (Draggable) */}
+        {isShowSteeringWheel() && (
+          <DraggableContainer
+            initialPosition={{ x: window.innerWidth - 350, y: window.innerHeight - 700 }}
+            className="pointer-events-auto"
+          >
+            <div className="p-2">
+              <SteeringWheel />
+            </div>
+          </DraggableContainer>
+        )}
+
+
+
+      </div>
+
+      {/* Debug Panel - Keep as is or adjust z-index */}
+      <div className="absolute bottom-0 left-0 z-20 pointer-events-auto">
+        <DebugPanel showToggleButton={!isDemoMode} />
+      </div>
     </div>
   );
 };

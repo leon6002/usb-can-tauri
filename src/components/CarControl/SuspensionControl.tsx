@@ -2,62 +2,42 @@ import { useCarControlStore } from "@/store/carControlStore";
 import { useSerialStore } from "@/store/serialStore";
 import { CircleArrowDown, CircleArrowUp } from "lucide-react";
 
-const SuspensionControl: React.FC = ({}) => {
+const SuspensionControl: React.FC = ({ }) => {
   const isConnected = useSerialStore((state) => state.isConnected);
   const suspensionStatus = useCarControlStore(
     (state) => state.carStates.suspensionStatus
   );
   const sendCarCommand = useCarControlStore((state) => state.sendCarCommand);
-  console.log("suspension component rendered");
+
   return (
-    <div>
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">Suspension</h4>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={() => {
-            sendCarCommand("suspension_up");
-          }}
-          disabled={
-            !isConnected ||
-            suspensionStatus === "Raising" ||
-            suspensionStatus === "Lowering"
-          }
-          className={`px-3 py-2 text-sm rounded-lg font-medium ${
-            suspensionStatus === "Raising"
-              ? "bg-green-500 text-white border border-green-600"
-              : "bg-white border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300"
-          } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
-        >
-          <span
-            className={`${suspensionStatus === "Raising" ? "animate-pulse" : ""}`}
-          >
-            <CircleArrowUp className="w-4 h-4 inline mr-1" />
-            {suspensionStatus === "Raising" ? "Raising..." : "Raise"}
-          </span>
-        </button>
-        <button
-          onClick={() => {
-            sendCarCommand("suspension_down");
-          }}
-          disabled={
-            !isConnected ||
-            suspensionStatus === "Raising" ||
-            suspensionStatus === "Lowering"
-          }
-          className={`px-3 py-2 text-sm rounded-lg font-medium ${
-            suspensionStatus === "Lowering"
-              ? "bg-orange-500 text-white border border-orange-600"
-              : "bg-white border border-gray-300 text-gray-700 hover:bg-orange-50 hover:border-orange-300"
-          } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
-        >
-          <span
-            className={`${suspensionStatus === "Lowering" ? "animate-pulse" : ""}`}
-          >
-            <CircleArrowDown className="w-4 h-4 inline mr-1" />
-            {suspensionStatus === "Lowering" ? "Lowering..." : "Lower"}
-          </span>
-        </button>
-      </div>
+    <div className="flex gap-2 w-full">
+      <button
+        onClick={() => sendCarCommand("suspension_up")}
+        disabled={!isConnected || suspensionStatus === "升高" || suspensionStatus === "降低"}
+        className={`flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-all duration-200 backdrop-blur-sm border ${suspensionStatus === "升高"
+            ? "bg-blue-500/80 border-blue-400/50 text-white shadow-[0_0_10px_rgba(59,130,246,0.4)]"
+            : "bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        <div className="flex flex-col items-center gap-1">
+          <CircleArrowUp className={`w-4 h-4 ${suspensionStatus === "升高" ? "animate-bounce" : ""}`} />
+          <span>{suspensionStatus === "升高" ? "RAISING..." : "RAISE"}</span>
+        </div>
+      </button>
+
+      <button
+        onClick={() => sendCarCommand("suspension_down")}
+        disabled={!isConnected || suspensionStatus === "升高" || suspensionStatus === "降低"}
+        className={`flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-all duration-200 backdrop-blur-sm border ${suspensionStatus === "降低"
+            ? "bg-blue-500/80 border-blue-400/50 text-white shadow-[0_0_10px_rgba(59,130,246,0.4)]"
+            : "bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        <div className="flex flex-col items-center gap-1">
+          <CircleArrowDown className={`w-4 h-4 ${suspensionStatus === "降低" ? "animate-bounce" : ""}`} />
+          <span>{suspensionStatus === "降低" ? "LOWERING..." : "LOWER"}</span>
+        </div>
+      </button>
     </div>
   );
 };

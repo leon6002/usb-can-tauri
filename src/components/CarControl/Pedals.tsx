@@ -117,8 +117,8 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   }, []);
 
   return (
-    <div className="w-full p-4 bg-white rounded-2xl shadow-sm border border-gray-100 mt-4">
-      {/* Pedals Container - Compact */}
+    <div className="w-full p-4 mt-2">
+      {/* Pedals Container - Compact & Transparent */}
       <div className="flex justify-center items-end gap-8">
         {/* Brake Pedal */}
         <div className="flex flex-col items-center gap-2 group">
@@ -130,25 +130,25 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
             onTouchEnd={handleBrakeEnd}
             className={`
               relative w-20 h-16 rounded-lg transform transition-all duration-100 ease-out
-              border-b-[4px] active:border-b-0 active:translate-y-[4px]
+              border-b-[4px] active:border-b-0 active:translate-y-[4px] backdrop-blur-sm
               ${isBraking
-                ? 'bg-gradient-to-b from-red-500 to-red-600 border-red-800 shadow-md shadow-red-200'
-                : 'bg-gradient-to-b from-gray-100 to-gray-200 border-gray-300 hover:from-gray-50 hover:to-gray-100 shadow-sm'
+                ? 'bg-red-500/80 border-red-700 shadow-[0_0_15px_rgba(239,68,68,0.5)]'
+                : 'bg-white/20 border-white/30 hover:bg-white/30 shadow-lg'
               }
             `}
           >
             {/* Pedal Texture */}
-            <div className="absolute inset-0 flex flex-col justify-between p-2 opacity-10">
+            <div className="absolute inset-0 flex flex-col justify-between p-2 opacity-20">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="w-full h-1 bg-black rounded-full" />
               ))}
             </div>
 
             <div className="absolute inset-0 flex items-center justify-center">
-              <Octagon className={`w-6 h-6 ${isBraking ? 'text-white' : 'text-gray-400'}`} />
+              <Octagon className={`w-6 h-6 ${isBraking ? 'text-white' : 'text-white/80'}`} />
             </div>
           </button>
-          <span className={`text-[10px] font-bold tracking-widest uppercase transition-colors ${isBraking ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
+          <span className={`text-[9px] font-bold tracking-widest uppercase transition-colors ${isBraking ? 'text-red-400' : 'text-white/60 group-hover:text-white/80'
             }`}>
             Brake
           </span>
@@ -164,25 +164,25 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
             onTouchEnd={handleAccelerateEnd}
             className={`
               relative w-14 h-24 rounded-lg transform transition-all duration-100 ease-out
-              border-b-[4px] active:border-b-0 active:translate-y-[4px]
+              border-b-[4px] active:border-b-0 active:translate-y-[4px] backdrop-blur-sm
               ${isAccelerating
-                ? 'bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-700 shadow-md shadow-emerald-200'
-                : 'bg-gradient-to-b from-gray-100 to-gray-200 border-gray-300 hover:from-gray-50 hover:to-gray-100 shadow-sm'
+                ? 'bg-emerald-500/80 border-emerald-700 shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                : 'bg-white/20 border-white/30 hover:bg-white/30 shadow-lg'
               }
             `}
           >
             {/* Pedal Texture */}
-            <div className="absolute inset-0 flex flex-col gap-2 p-2 opacity-10">
+            <div className="absolute inset-0 flex flex-col gap-2 p-2 opacity-20">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="w-full h-1 bg-black rounded-full" />
               ))}
             </div>
 
             <div className="absolute inset-0 flex items-center justify-center">
-              <Zap className={`w-6 h-6 ${isAccelerating ? 'text-white' : 'text-gray-400'}`} />
+              <Zap className={`w-6 h-6 ${isAccelerating ? 'text-white' : 'text-white/80'}`} />
             </div>
           </button>
-          <span className={`text-[10px] font-bold tracking-widest uppercase transition-colors ${isAccelerating ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-500'
+          <span className={`text-[9px] font-bold tracking-widest uppercase transition-colors ${isAccelerating ? 'text-emerald-400' : 'text-white/60 group-hover:text-white/80'
             }`}>
             Accel
           </span>
