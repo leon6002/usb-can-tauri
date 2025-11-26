@@ -27,8 +27,8 @@ pub fn start_io_thread(
         let mut buffer = vec![0u8; 1024];
         let mut message_buffer = Vec::new();  // 消息缓冲区，用于组装完整的消息
 
-        println!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
-        info!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
+        // println!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
+        // info!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
 
         while state.write_thread_running.load(Ordering::SeqCst) {
             // 尝试接收写入请求（非阻塞）
@@ -51,12 +51,12 @@ pub fn start_io_thread(
                     match serial_port.read(&mut buffer) {
                         Ok(n) if n > 0 => {
                             let received_data = &buffer[..n];
-                            println!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
-                            info!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
+                            // println!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
+                            // info!("📥 [I/O Thread] Received {} bytes: {:02X?}", n, received_data);
 
                             // 将接收到的数据添加到消息缓冲区
                             message_buffer.extend_from_slice(received_data);
-                            println!("📦 [I/O Thread] Message buffer size: {} bytes, content: {:02X?}", message_buffer.len(), message_buffer);
+                            // println!("📦 [I/O Thread] Message buffer size: {} bytes, content: {:02X?}", message_buffer.len(), message_buffer);
 
                             // 处理缓冲区中的完整消息
                             process_message_buffer(&mut message_buffer, &app_handle);
@@ -108,7 +108,7 @@ fn verify_checksum(message: &[u8]) -> bool {
         return false;
     }
 
-    println!("✅ [Checksum] Valid - 0x{:02X}", checksum_calculated);
+    // println!("✅ [Checksum] Valid - 0x{:02X}", checksum_calculated);
     true
 }
 
@@ -116,7 +116,7 @@ fn verify_checksum(message: &[u8]) -> bool {
 /// 返回消息头的位置，如果找到则清理前面的数据
 fn find_and_align_message_header(message_buffer: &mut Vec<u8>) -> bool {
     if let Some(header_pos) = message_buffer.windows(2).position(|w| w == [0xAA, 0x55]) {
-        println!("🎯 [I/O Thread] Found message header at position {}", header_pos);
+        // println!("🎯 [I/O Thread] Found message header at position {}", header_pos);
 
         if header_pos > 0 {
             println!("⚠️  [I/O Thread] Discarding {} bytes before message header", header_pos);
@@ -126,7 +126,7 @@ fn find_and_align_message_header(message_buffer: &mut Vec<u8>) -> bool {
     } else {
         // 没有找到完整的消息头，清理无效的字节
         if message_buffer.len() < 2 {
-            println!("⏳ [I/O Thread] Buffer too small to search for header: {} bytes", message_buffer.len());
+            // println!("⏳ [I/O Thread] Buffer too small to search for header: {} bytes", message_buffer.len());
             return false;
         }
 
@@ -154,10 +154,10 @@ fn extract_complete_message(message_buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
             .collect::<Vec<_>>()
             .join(" ");
 
-        println!("✅ [I/O Thread] Complete message extracted ({} bytes): {}", complete_message.len(), raw_hex);
+        // println!("✅ [I/O Thread] Complete message extracted ({} bytes): {}", complete_message.len(), raw_hex);
         Some(complete_message)
     } else {
-        println!("⏳ [I/O Thread] Incomplete message: have {} bytes, need {} bytes", message_buffer.len(), FIXED_MESSAGE_LENGTH);
+        // println!("⏳ [I/O Thread] Incomplete message: have {} bytes, need {} bytes", message_buffer.len(), FIXED_MESSAGE_LENGTH);
         None
     }
 }
@@ -171,8 +171,8 @@ fn handle_parsed_can_message(
     timestamp: &str,
     app_handle: &tauri::AppHandle,
 ) {
-    println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
-    info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+    // println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+    // info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
 
     // 尝试解析新协议的车辆状态（ID: 0x00000123）
     let mut vehicle_status: Option<(String, f32)> = None;
@@ -236,7 +236,7 @@ fn handle_parse_failure(raw_hex: &str, timestamp: &str, app_handle: &tauri::AppH
 /// 处理 Windows 上消息被截断的情况（例如先发 0xAA，再发剩下的 19 字节）
 fn process_message_buffer(message_buffer: &mut Vec<u8>, app_handle: &tauri::AppHandle) {
     loop {
-        println!("🔄 [I/O Thread] Processing buffer, size: {}", message_buffer.len());
+        // println!("🔄 [I/O Thread] Processing buffer, size: {}", message_buffer.len());
 
         // 第一步：查找并对齐消息头
         if !find_and_align_message_header(message_buffer) {
@@ -270,7 +270,7 @@ fn process_message_buffer(message_buffer: &mut Vec<u8>, app_handle: &tauri::AppH
         }
 
         // 继续处理缓冲区中的下一条消息
-        println!("🔄 [I/O Thread] Continuing to process buffer, remaining: {} bytes", message_buffer.len());
+        // println!("🔄 [I/O Thread] Continuing to process buffer, remaining: {} bytes", message_buffer.len());
     }
 }
 

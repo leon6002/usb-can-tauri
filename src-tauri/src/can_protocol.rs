@@ -319,9 +319,9 @@ pub fn parse_received_can_message(data: &[u8]) -> Option<(String, String, String
         return None;
     }
 
-    println!("🔍 [Parse] Fixed 20-byte protocol");
-    println!("🔍 [Parse] Type: 0x{:02X}, Frame Type: 0x{:02X}, Frame Mode: 0x{:02X}",
-             data[2], data[3], data[4]);
+    // println!("🔍 [Parse] Fixed 20-byte protocol");
+    // println!("🔍 [Parse] Type: 0x{:02X}, Frame Type: 0x{:02X}, Frame Mode: 0x{:02X}",
+            //  data[2], data[3], data[4]);
 
     // Parse frame type (byte 3)
     // 0x01 = Standard frame, 0x02 = Extended frame
@@ -331,7 +331,7 @@ pub fn parse_received_can_message(data: &[u8]) -> Option<(String, String, String
         0x02 => "extended",
         _ => "unknown",
     };
-    println!("🔍 [Parse] Frame Type: {} (0x{:02X})", frame_type, frame_type_byte);
+    // println!("🔍 [Parse] Frame Type: {} (0x{:02X})", frame_type, frame_type_byte);
 
     // Parse CAN ID (bytes 5-8, little-endian)
     let can_id = (data[5] as u32) |
@@ -339,12 +339,12 @@ pub fn parse_received_can_message(data: &[u8]) -> Option<(String, String, String
                  ((data[7] as u32) << 16) |
                  ((data[8] as u32) << 24);
 
-    println!("🔍 [Parse] CAN ID bytes: {:02X} {:02X} {:02X} {:02X} -> 0x{:08X}",
-             data[5], data[6], data[7], data[8], can_id);
+    // println!("🔍 [Parse] CAN ID bytes: {:02X} {:02X} {:02X} {:02X} -> 0x{:08X}",
+            //  data[5], data[6], data[7], data[8], can_id);
 
     // Data length (byte 9)
     let data_len = data[9] as usize;
-    println!("🔍 [Parse] Data length: {}", data_len);
+    // println!("🔍 [Parse] Data length: {}", data_len);
 
     if data_len > 8 {
         println!("❌ [Parse] Invalid data length: {} (max 8)", data_len);
@@ -358,21 +358,21 @@ pub fn parse_received_can_message(data: &[u8]) -> Option<(String, String, String
         .collect::<Vec<_>>()
         .join(" ");
 
-    println!("🔍 [Parse] CAN Data: {}", can_data);
+    // println!("🔍 [Parse] CAN Data: {}", can_data);
 
     // Verify checksum (byte 19)
     let checksum_received = data[19];
     let checksum_calculated: u8 = data[2..19].iter().map(|&b| b as u32).sum::<u32>() as u8;
 
-    println!("🔍 [Parse] Checksum - Received: 0x{:02X}, Calculated: 0x{:02X}",
-             checksum_received, checksum_calculated);
+    // println!("🔍 [Parse] Checksum - Received: 0x{:02X}, Calculated: 0x{:02X}",
+            //  checksum_received, checksum_calculated);
 
     if checksum_received != checksum_calculated {
         println!("⚠️  [Parse] Checksum mismatch!");
     }
 
     let can_id_str = format!("0x{:08X}", can_id);
-    println!("✅ [Parse] Successfully parsed - ID: {}, Data: {}, Frame Type: {}", can_id_str, can_data, frame_type);
+    // println!("✅ [Parse] Successfully parsed - ID: {}, Data: {}, Frame Type: {}", can_id_str, can_data, frame_type);
     Some((can_id_str, can_data, frame_type.to_string()))
 }
 
