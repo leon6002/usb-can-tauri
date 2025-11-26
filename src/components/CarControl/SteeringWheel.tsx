@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useSteeringControl } from "@/hooks/useSteeringControl";
+import { Pedals } from "./Pedals";
+import { Disc } from "lucide-react";
 
 // --- 常量定义 ---
 const TWO_PI = Math.PI * 2;
@@ -33,10 +35,10 @@ const SteeringWheelContinued = () => {
   // 使用方向盘控制 Hook（转向比 8:1）
   useSteeringControl(steeringWheelAngleDeg, STEERING_RATIO);
 
-  // 画布尺寸配置
-  const size = 250;
+  // 画布尺寸配置 - 紧凑尺寸
+  const size = 160; // Reduced size for compact layout
   const center = size / 2;
-  const radius = 100;
+  const radius = 65; // Reduced radius
 
   // --- 绘图逻辑 (保持不变) ---
   useEffect(() => {
@@ -51,50 +53,64 @@ const SteeringWheelContinued = () => {
     // 这里直接使用当前的累计旋转角度
     ctx.rotate(rotation);
 
+    // Light Theme Colors
+    const wheelColor = "#1f2937"; // Gray-800
+    const spokeColor = "#374151"; // Gray-700
+    const accentColor = "#ef4444"; // Red-500
+
     // A. 绘制外圈
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, TWO_PI);
-    ctx.lineWidth = 20;
-    ctx.strokeStyle = "#374151";
+    ctx.lineWidth = 10; // Thinner line
+    ctx.strokeStyle = wheelColor;
+    ctx.shadowColor = "rgba(0,0,0,0.1)";
+    ctx.shadowBlur = 8;
     ctx.stroke();
+    ctx.shadowBlur = 0; // Reset shadow
 
     // B. 绘制内圈装饰
     ctx.beginPath();
-    ctx.arc(0, 0, radius - 15, 0, TWO_PI);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#6B7280";
+    ctx.arc(0, 0, radius - 8, 0, TWO_PI);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#4b5563"; // Gray-600
     ctx.stroke();
 
     // C. 绘制辐条
     ctx.beginPath();
-    ctx.lineWidth = 15;
+    ctx.lineWidth = 8; // Thinner spokes
     ctx.lineCap = "round";
-    ctx.strokeStyle = "#4B5563";
+    ctx.strokeStyle = spokeColor;
     ctx.moveTo(0, 0);
-    ctx.lineTo(0, radius - 10); // 下
+    ctx.lineTo(0, radius - 6); // 下
     ctx.moveTo(0, 0);
     ctx.lineTo(
-      (radius - 10) * Math.cos(toRad(210)),
-      (radius - 10) * Math.sin(toRad(210))
+      (radius - 6) * Math.cos(toRad(210)),
+      (radius - 6) * Math.sin(toRad(210))
     ); // 左上
     ctx.moveTo(0, 0);
     ctx.lineTo(
-      (radius - 10) * Math.cos(toRad(330)),
-      (radius - 10) * Math.sin(toRad(330))
+      (radius - 6) * Math.cos(toRad(330)),
+      (radius - 6) * Math.sin(toRad(330))
     ); // 右上
     ctx.stroke();
 
     // D. 绘制中心盖
     ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, TWO_PI);
-    ctx.fillStyle = "#1F2937";
+    ctx.arc(0, 0, 18, 0, TWO_PI);
+    ctx.fillStyle = "#111827"; // Gray-900
+    ctx.fill();
+
+    // Logo placeholder
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, TWO_PI);
+    ctx.fillStyle = "#374151";
     ctx.fill();
 
     // E. 绘制顶部红色回正标记
     ctx.beginPath();
-    ctx.lineWidth = 20;
-    ctx.strokeStyle = "#EF4444";
-    ctx.arc(0, 0, radius, -Math.PI / 2 - 0.1, -Math.PI / 2 + 0.1);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = accentColor;
+    ctx.arc(0, 0, radius, -Math.PI / 2 - 0.15, -Math.PI / 2 + 0.15);
     ctx.stroke();
 
     ctx.restore();
@@ -162,42 +178,68 @@ const SteeringWheelContinued = () => {
   const displayDegree = steeringWheelAngleDeg.toFixed(0);
   // 计算轮胎转向角
   const tireAngleDeg = (steeringWheelAngleDeg / STEERING_RATIO).toFixed(1);
+  const tireAngleDegNumber = steeringWheelAngleDeg / STEERING_RATIO;
   // 根据角度判断颜色，接近极限时变红
   const isNearLimit = Math.abs(steeringWheelAngleDeg) > MAX_ROTATION_DEG - 10;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4 select-none">
-      <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">
-          Steering
-        </h2>
+    <div className="w-full h-full flex flex-col">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden flex flex-col h-full">
+        {/* Compact Header */}
+        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-600 rounded-md text-white">
+              <Disc className="w-3 h-3" />
+            </div>
+            <h2 className="text-sm font-bold text-gray-900">Control</h2>
+          </div>
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+        </div>
 
-        <canvas
-          ref={canvasRef}
-          width={size}
-          height={size}
-          className="cursor-pointer touch-none"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          style={{ width: size, height: size }}
-        />
+        <div className="p-4 flex flex-col items-center justify-between flex-1 overflow-y-auto">
+          {/* Top: Steering Wheel */}
+          <div className="flex flex-col items-center justify-center w-full">
+            <div className="relative mb-2">
+              {/* Angle Indicator Ring */}
+              <div className="absolute inset-0 rounded-full border border-dashed border-gray-300 opacity-50 pointer-events-none" />
 
-        <div className="mt-4 text-center space-y-2">
-          <p
-            className={`text-lg font-mono transition-colors ${
-              isNearLimit ? "text-red-600 font-bold" : "text-gray-700"
-            }`}
-          >
-            steering angle: {displayDegree}°
-          </p>
-          <p className="text-md font-mono text-blue-600">
-            turning angle: {tireAngleDeg}°
-          </p>
-          <p className="text-sm text-gray-400">
-            max: ±{MAX_ROTATION_DEG}° (turning ratio {STEERING_RATIO}:1)
-          </p>
+              <canvas
+                ref={canvasRef}
+                width={size}
+                height={size}
+                className="cursor-pointer touch-none block relative z-10"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                style={{ width: size, height: size }}
+              />
+            </div>
+
+            <div className="flex gap-4 w-full justify-center">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-medium text-gray-400 uppercase">Wheel</span>
+                <span
+                  className={`font-mono font-bold text-sm ${isNearLimit ? "text-red-600" : "text-gray-800"
+                    }`}
+                >
+                  {displayDegree}°
+                </span>
+              </div>
+
+              <div className="w-px h-8 bg-gray-200" />
+
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-medium text-blue-400 uppercase">Tire</span>
+                <span className="font-mono font-bold text-sm text-blue-600">
+                  {tireAngleDeg}°
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom: Pedals */}
+          <Pedals currentSteeringAngle={tireAngleDegNumber} />
         </div>
       </div>
     </div>
