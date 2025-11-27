@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useSteeringControl } from "@/hooks/useSteeringControl";
+import { useCarControlStore } from "@/store/carControlStore";
 import { Pedals } from "./Pedals";
 import { CarControlPanel } from "./CarControlPanel";
 import { Settings2 } from "lucide-react";
@@ -30,6 +31,9 @@ const SteeringWheelContinued = () => {
   // 使用 useRef 来记录上一次鼠标移动时的角度位置
   // 使用 ref 而不是 state，因为我们不需要它的变化来触发重新渲染
   const lastMouseAngleRef = useRef(0);
+
+  // 获取自动驾驶状态
+  const isDriving = useCarControlStore((state) => state.carStates.isDriving);
 
   // 计算当前方向盘角度（度数）
   const steeringWheelAngleDeg = toDeg(rotation);
@@ -131,6 +135,7 @@ const SteeringWheelContinued = () => {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isDriving) return; // 自动驾驶时禁用交互
     setIsDragging(true);
     // 记录鼠标按下的瞬间的角度，作为起始参照点
     lastMouseAngleRef.current = getMouseAngle(e);
@@ -196,7 +201,8 @@ const SteeringWheelContinued = () => {
             ref={canvasRef}
             width={size}
             height={size}
-            className="cursor-pointer touch-none block relative z-10 drop-shadow-2xl"
+            className={`cursor-pointer touch-none block relative z-10 drop-shadow-2xl transition-opacity duration-300 ${isDriving ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}

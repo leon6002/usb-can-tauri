@@ -52,6 +52,13 @@ export const DemoQuickConnect: React.FC = () => {
     fetchPorts();
   }, []);
 
+  // Auto-collapse when connected
+  useEffect(() => {
+    if (isConnected) {
+      setIsExpanded(false);
+    }
+  }, [isConnected]);
+
   // refresh ports
   const handleRefreshPorts = async () => {
     setIsLoadingPorts(true);

@@ -6,12 +6,14 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
+use log::{error, info, warn};
 use serialport::SerialPort;
 use tauri::Emitter;
-use log::{info, warn, error};
 
+use crate::can_protocol::{
+    parse_distance_from_data, parse_received_can_message, parse_vehicle_status_8byte,
+};
 use crate::{AppState, SendMessage};
-use crate::can_protocol::{parse_received_can_message, parse_distance_from_data, parse_vehicle_status_8byte};
 
 /// 启动 I/O 线程 - 独占拥有串口，处理读写
 pub fn start_io_thread(
@@ -25,7 +27,7 @@ pub fn start_io_thread(
 
     thread::spawn(move || {
         let mut buffer = vec![0u8; 1024];
-        let mut message_buffer = Vec::new();  // 消息缓冲区，用于组装完整的消息
+        let mut message_buffer = Vec::new(); // 消息缓冲区，用于组装完整的消息
 
         // println!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
         // info!("🚀 [I/O Thread] Started - Ready to handle read/write operations");
@@ -103,8 +105,10 @@ fn verify_checksum(message: &[u8]) -> bool {
     let checksum_calculated: u8 = message[2..19].iter().map(|&b| b as u32).sum::<u32>() as u8;
 
     if checksum_received != checksum_calculated {
-        println!("❌ [Checksum] Mismatch - Received: 0x{:02X}, Calculated: 0x{:02X}",
-                 checksum_received, checksum_calculated);
+        println!(
+            "❌ [Checksum] Mismatch - Received: 0x{:02X}, Calculated: 0x{:02X}",
+            checksum_received, checksum_calculated
+        );
         return false;
     }
 
@@ -119,7 +123,10 @@ fn find_and_align_message_header(message_buffer: &mut Vec<u8>) -> bool {
         // println!("🎯 [I/O Thread] Found message header at position {}", header_pos);
 
         if header_pos > 0 {
-            println!("⚠️  [I/O Thread] Discarding {} bytes before message header", header_pos);
+            println!(
+                "⚠️  [I/O Thread] Discarding {} bytes before message header",
+                header_pos
+            );
             message_buffer.drain(0..header_pos);
         }
         true
@@ -134,7 +141,10 @@ fn find_and_align_message_header(message_buffer: &mut Vec<u8>) -> bool {
             println!("⚠️  [I/O Thread] Found 0xAA at position 0, but next byte is 0x{:02X} (not 0x55), discarding", message_buffer[1]);
             message_buffer.remove(0);
         } else {
-            println!("⚠️  [I/O Thread] First byte is 0x{:02X} (not 0xAA), discarding", message_buffer[0]);
+            println!(
+                "⚠️  [I/O Thread] First byte is 0x{:02X} (not 0xAA), discarding",
+                message_buffer[0]
+            );
             message_buffer.remove(0);
         }
         false
@@ -146,13 +156,15 @@ fn extract_complete_message(message_buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
     const FIXED_MESSAGE_LENGTH: usize = 20;
 
     if message_buffer.len() >= FIXED_MESSAGE_LENGTH {
-        let complete_message = message_buffer.drain(0..FIXED_MESSAGE_LENGTH).collect::<Vec<_>>();
+        let complete_message = message_buffer
+            .drain(0..FIXED_MESSAGE_LENGTH)
+            .collect::<Vec<_>>();
 
-        let raw_hex = complete_message
-            .iter()
-            .map(|b| format!("{:02X}", b))
-            .collect::<Vec<_>>()
-            .join(" ");
+        // let raw_hex = complete_message
+        //     .iter()
+        //     .map(|b| format!("{:02X}", b))
+        //     .collect::<Vec<_>>()
+        //     .join(" ");
 
         // println!("✅ [I/O Thread] Complete message extracted ({} bytes): {}", complete_message.len(), raw_hex);
         Some(complete_message)
@@ -199,10 +211,20 @@ fn handle_parsed_can_message(
     let _ = app_handle.emit("can-message-received", can_message);
 
     // 检查是否是雷达消息
-    if can_id == "0x00000521" || can_id == "0x00000522" || can_id == "0x00000523" || can_id == "0x00000524" {
+    if can_id == "0x00000521"
+        || can_id == "0x00000522"
+        || can_id == "0x00000523"
+        || can_id == "0x00000524"
+    {
         let distance = parse_distance_from_data(&can_data);
-        println!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
-        info!("🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm", can_id, distance);
+        println!(
+            "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
+            can_id, distance
+        );
+        info!(
+            "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
+            can_id, distance
+        );
         let radar_message = serde_json::json!({
             "canId": can_id,
             "distance": distance,
@@ -217,7 +239,10 @@ fn handle_parsed_can_message(
 /// 处理解析失败的消息
 fn handle_parse_failure(raw_hex: &str, timestamp: &str, app_handle: &tauri::AppHandle) {
     println!("⚠️  [I/O Thread] Failed to parse CAN message, sending raw data");
-    info!("⚠️  [I/O Thread] Failed to parse CAN message from raw data: {}", raw_hex);
+    info!(
+        "⚠️  [I/O Thread] Failed to parse CAN message from raw data: {}",
+        raw_hex
+    );
 
     let can_message = serde_json::json!({
         "id": "UNKNOWN",
@@ -258,13 +283,24 @@ fn process_message_buffer(message_buffer: &mut Vec<u8>, app_handle: &tauri::AppH
         // 第三步：验证校验和
         if !verify_checksum(&complete_message) {
             println!("⚠️  [I/O Thread] Checksum verification failed, discarding message");
-            info!("⚠️  [I/O Thread] Checksum verification failed for message: {}", raw_hex);
+            info!(
+                "⚠️  [I/O Thread] Checksum verification failed for message: {}",
+                raw_hex
+            );
             continue;
         }
 
         // 第四步：解析消息
-        if let Some((can_id, can_data, frame_type)) = parse_received_can_message(&complete_message) {
-            handle_parsed_can_message(&can_id, &can_data, &frame_type, &raw_hex, &timestamp, app_handle);
+        if let Some((can_id, can_data, frame_type)) = parse_received_can_message(&complete_message)
+        {
+            handle_parsed_can_message(
+                &can_id,
+                &can_data,
+                &frame_type,
+                &raw_hex,
+                &timestamp,
+                app_handle,
+            );
         } else {
             handle_parse_failure(&raw_hex, &timestamp, app_handle);
         }
@@ -273,4 +309,3 @@ fn process_message_buffer(message_buffer: &mut Vec<u8>, app_handle: &tauri::AppH
         // println!("🔄 [I/O Thread] Continuing to process buffer, remaining: {} bytes", message_buffer.len());
     }
 }
-

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useAudioStore } from "@/store/audioStore";
 
 /**
  * 引擎声音管理 Hook
@@ -17,6 +18,7 @@ export const useEngineSound = (
   const fadeInterval2Ref = useRef<NodeJS.Timeout | null>(null); // audio2 的淡出定时器
   const isInitializedRef = useRef(false);
   const isDrivingRef = useRef(isDriving); // 使用 ref 保存最新的 isDriving 状态
+  const isMuted = useAudioStore((state) => state.isMuted); // 获取静音状态
 
   // 更新 isDrivingRef
   useEffect(() => {
@@ -169,7 +171,9 @@ export const useEngineSound = (
       console.log("🔊 Starting engine sound, isDriving:", isDriving);
       currentAudioRef.current = 1;
       audio1.currentTime = 0;
-      audio1.volume = 0.3; // 设置初始音量（从 0.1 提高到 0.3）
+      // Check mute state directly from store to avoid dependency loop
+      const isMutedNow = useAudioStore.getState().isMuted;
+      audio1.volume = isMutedNow ? 0 : 0.3; // 设置初始音量
       audio1
         .play()
         .then(() => {
@@ -213,12 +217,17 @@ export const useEngineSound = (
 
     // 计算音量：速度越快，音量越大
     const normalizedSpeed = Math.min(currentSpeed / maxSpeed, 1); // 归一化到 0-1
-    const targetVolume = minVolume + normalizedSpeed * (maxVolume - minVolume);
+    let targetVolume = minVolume + normalizedSpeed * (maxVolume - minVolume);
+
+    // 如果静音，强制音量为 0
+    if (isMuted) {
+      targetVolume = 0;
+    }
 
     // 平滑过渡两个音频的音量
     smoothVolumeTransition(audio1, targetVolume, 200); // 200ms 过渡时间
     smoothVolumeTransition(audio2, targetVolume, 200);
-  }, [currentSpeed, isDriving]);
+  }, [currentSpeed, isDriving, isMuted]);
 
   /**
    * 平滑音量过渡

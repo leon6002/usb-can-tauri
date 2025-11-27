@@ -208,13 +208,13 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
   /**
    * 更新车辆控制量（速度和转向角）
    */
-  updateVehicleControl: (speed, steeringAngle, gear?) => {
+  updateVehicleControl: (speed, steeringAngle, gear) => {
     set((state) => ({
       carStates: {
         ...state.carStates,
         currentSpeed: speed,
         currentSteeringAngle: steeringAngle,
-        ...(gear && { gear }),
+        gear: gear || state.carStates.gear, // Update gear if provided, otherwise keep current
       },
     }));
   },

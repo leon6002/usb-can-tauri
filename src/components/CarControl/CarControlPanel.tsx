@@ -4,6 +4,7 @@ import LightControl from "./LightControl";
 import SuspensionControl from "./SuspensionControl";
 import FanControl from "./FanControl";
 import DriveControl from "./DriveControl";
+import AudioControl from "./AudioControl";
 
 
 export const CarControlPanel: React.FC = () => {
@@ -20,6 +21,9 @@ export const CarControlPanel: React.FC = () => {
 
       {/* Light Controls */}
       <LightControl />
+
+      {/* Audio Controls */}
+      <AudioControl />
     </div>
   );
 };

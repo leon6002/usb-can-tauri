@@ -176,6 +176,7 @@ if __name__ == "__main__":
 
     print("--- 生成 10 帧平滑数据示例 ---")
     for i in range(10):
-        data = generator.generate_test_data()
-        print(f"帧 {i+1}: CPU: {data[0:3]}, Mem: {data[3]:.2f}, States: {data[4:]}")
+        data = generator.generate_data()
+        print(format_can_message(data))
+        # print(f"帧 {i+1}: CPU: {data[0:3]}, Mem: {data[3]:.2f}, States: {data[4:]}")
         time.sleep(0.5) # 模拟每 0.5 秒接收一次数据

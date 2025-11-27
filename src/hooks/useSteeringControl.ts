@@ -28,6 +28,14 @@ export const useSteeringControl = (
       sceneHandle.animationSystem.updateSteeringAngle(tireSteeringAngleDeg, 0);
     }
 
+    // 更新 store 中的 vehicleDynamics，以便 Environments.tsx 可以获取到最新的转向角进行道路弯曲
+    use3DStore.setState((state) => ({
+      vehicleDynamics: {
+        ...state.vehicleDynamics,
+        steeringAngle: tireSteeringAngleDeg * (Math.PI / 180),
+      },
+    }));
+
     // 2. 节流发送 CAN 信号（避免发送过于频繁）
     // 只有当角度变化超过 0.5 度时才发送
     const angleDiff = Math.abs(tireSteeringAngleDeg - lastSentAngleRef.current);

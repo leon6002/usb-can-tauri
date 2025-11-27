@@ -37,6 +37,10 @@ interface AppConfig {
     animationDuration: number;
     can_stop_duration: number;
   };
+  cameraControl: {
+    allowOrbitControlsInAutoDrive: boolean;
+    allowOrbitControlsInManualDrive: boolean;
+  };
 }
 
 // ============================================
@@ -68,6 +72,13 @@ const APP_CONFIG: AppConfig = {
   suspension: {
     animationDuration: 4000,
     can_stop_duration: 4000,
+  },
+  // 相机控制配置
+  cameraControl: {
+    // 自动行驶时是否允许手动拖动视角
+    allowOrbitControlsInAutoDrive: false,
+    // 手动行驶时是否允许手动拖动视角
+    allowOrbitControlsInManualDrive: true,
   },
 };
 
@@ -102,3 +113,6 @@ export default APP_CONFIG;
 
 export const getSuspensionConfig = (): AppConfig["suspension"] =>
   APP_CONFIG.suspension;
+
+export const getCameraControlConfig = (): AppConfig["cameraControl"] =>
+  APP_CONFIG.cameraControl;

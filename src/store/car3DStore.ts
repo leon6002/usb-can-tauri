@@ -1,5 +1,6 @@
-// use3DStore.ts
 import { create } from "zustand";
+import { useCarControlStore } from "./carControlStore";
+import { getCameraControlConfig } from "@/config/appConfig";
 
 interface SceneHandle {
   animationSystem: any | null;
@@ -91,14 +92,30 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
   },
 
   startDriveAnimation: () => {
-    const { sceneHandle } = get();
+    const { sceneHandle, isDriving } = get();
     console.log("[car3DStore] startDriveAnimation");
+
+    // Prevent repeated triggers if already driving
+    if (isDriving) {
+      return;
+    }
+
     if (sceneHandle?.animationSystem) {
       console.log("[car3DStore] Starting wheel rotation");
       sceneHandle.animationSystem.startWheelRotation?.(10, 1);
       sceneHandle.animationSystem.startRoadMovement?.(0.8);
       // 启动相机动画 - 从当前位置过渡到行驶视角（在 setIsDriving 之前）
-      if ((sceneHandle as any).startCameraAnimation) {
+      // 只有在不允许手动控制视角时，才强制切换到行驶视角
+      const cameraConfig = getCameraControlConfig();
+      // 注意：这里我们需要直接访问 store 实例，因为我们在 store 内部
+      const isAutoDriving = useCarControlStore.getState().carStates.isDriving;
+
+      // 如果是自动驾驶且不允许手动控制，或者手动驾驶且不允许手动控制，则切换视角
+      const shouldSwitchCamera = isAutoDriving
+        ? !cameraConfig.allowOrbitControlsInAutoDrive
+        : !cameraConfig.allowOrbitControlsInManualDrive;
+
+      if (shouldSwitchCamera && (sceneHandle as any).startCameraAnimation) {
         (sceneHandle as any).startCameraAnimation("driving", 1000, true);
       }
       // 禁用 OrbitControls，启用相机跟随（在相机动画之后）
@@ -127,10 +144,22 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
           steeringAngle: 0,
         },
       });
-      // 先启动相机动画 - 从行驶视角过渡到侧面视角（在 setIsDriving 之前）
+
+      // 停止行驶时，根据驾驶模式决定相机行为
+      // 如果是自动驾驶模式（isDriving 为 true），则切换到侧面视角展示车辆
+      // 如果是手动驾驶模式（isDriving 为 false），则恢复到之前的视角
+      const isAutoDriving = useCarControlStore.getState().carStates.isDriving;
+
       if (sceneHandle.animationSystem.startCameraAnimation) {
-        sceneHandle.animationSystem.startCameraAnimation("side", 3000, true);
+        if (isAutoDriving) {
+          // 自动驾驶结束，展示侧面视角
+          sceneHandle.animationSystem.startCameraAnimation("side", 2000, false);
+        } else {
+          // 手动驾驶结束（或未在自动驾驶中），恢复到开始驾驶前的位置
+          sceneHandle.animationSystem.startCameraAnimation("restore", 1500, false);
+        }
       }
+
       // 然后重新启用 OrbitControls（在相机动画之后）
       sceneHandle.animationSystem.setIsDriving?.(false);
       // 更新 store 中的 isDriving 状态

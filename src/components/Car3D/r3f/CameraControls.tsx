@@ -6,6 +6,8 @@ import { OrbitControls } from "@react-three/drei";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { use3DStore } from "../../../store/car3DStore";
+import { useCarControlStore } from "../../../store/carControlStore";
+import { getCameraControlConfig } from "../../../config/appConfig";
 
 export interface CameraKeyframe {
   position: THREE.Vector3;
@@ -53,6 +55,9 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
   const cameraDistanceRef = useRef(8);
   const maxCameraLateralOffsetRef = useRef(14);
 
+  const preDrivePositionRef = useRef<THREE.Vector3 | null>(null);
+  const preDriveTargetRef = useRef<THREE.Vector3 | null>(null);
+
   // 设置相机动画关键帧
   const setupCameraKeyframes = (mode: string): CameraKeyframe[] => {
     const keyframes: CameraKeyframe[] = [];
@@ -76,12 +81,25 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
         break;
       case "side":
         // 侧面视角：从当前位置过渡到车的侧面
-        // 测试：改到车的正右侧 (X=10, Y=3, Z=0)
         keyframes.push(
           { position: currentPos, target: new THREE.Vector3(0, 0, 0), time: 0 },
           {
             position: new THREE.Vector3(10, 3, 0),
             target: new THREE.Vector3(0, 0, 0),
+            time: 1,
+          }
+        );
+        break;
+      case "restore":
+        // 恢复视角：从当前位置过渡到驾驶前的位置
+        const targetPos = preDrivePositionRef.current || new THREE.Vector3(-8, 1, 4);
+        const targetLookAt = preDriveTargetRef.current || new THREE.Vector3(0, 0, 0);
+
+        keyframes.push(
+          { position: currentPos, target: new THREE.Vector3(0, 0, 0), time: 0 },
+          {
+            position: targetPos,
+            target: targetLookAt,
             time: 1,
           }
         );
@@ -121,10 +139,34 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
         // 暴露 setIsDriving 方法
         sceneHandleRef.current.setIsDriving = (isDriving: boolean) => {
           isDrivingRef.current = isDriving;
+
           if (controlsRef.current) {
-            controlsRef.current.enabled = !isDriving;
+            // 默认情况下，行驶时禁用手动控制
+            let shouldDisableControls = isDriving;
+
+            // 获取配置
+            const config = getCameraControlConfig();
+
+            // 检查是否是自动驾驶模式 (CSV Loop)
+            const isAutoDriving = useCarControlStore.getState().carStates.isDriving;
+
+            if (isDriving) {
+              if (isAutoDriving) {
+                // 自动驾驶模式
+                if (config.allowOrbitControlsInAutoDrive) {
+                  shouldDisableControls = false;
+                }
+              } else {
+                // 手动驾驶模式 (Pedals)
+                if (config.allowOrbitControlsInManualDrive) {
+                  shouldDisableControls = false;
+                }
+              }
+            }
+
+            controlsRef.current.enabled = !shouldDisableControls;
+            console.log(`[CameraControls] setIsDriving: ${isDriving}, Auto: ${isAutoDriving}, Controls Enabled: ${!shouldDisableControls}`);
           }
-          console.log(`[CameraControls] setIsDriving: ${isDriving}`);
         };
 
         // 暴露相机动画方法
@@ -133,6 +175,13 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
           duration: number = 3000,
           keepFinalPosition: boolean = false
         ) => {
+          // 如果是开始驾驶，保存当前位置以便后续恢复
+          if (mode === "driving") {
+            preDrivePositionRef.current = camera.position.clone();
+            preDriveTargetRef.current = controlsRef.current?.target?.clone() || new THREE.Vector3(0, 0, 0);
+            console.log("[CameraControls] Saved pre-drive position:", preDrivePositionRef.current);
+          }
+
           const animState = animationStateRef.current;
           animState.isActive = true;
           animState.mode = mode;
@@ -220,13 +269,16 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
       }
     } else if (isDrivingRef.current) {
       // 行驶时应用相机旋转补偿（但不在动画进行中）
-      applyCameraRotationCompensation(
-        camera,
-        isDrivingRef.current,
-        cameraHeightRef.current,
-        cameraDistanceRef.current,
-        maxCameraLateralOffsetRef.current
-      );
+      // 只有在禁用手动控制时才应用自动补偿
+      if (controlsRef.current && !controlsRef.current.enabled) {
+        applyCameraRotationCompensation(
+          camera,
+          isDrivingRef.current,
+          cameraHeightRef.current,
+          cameraDistanceRef.current,
+          maxCameraLateralOffsetRef.current
+        );
+      }
     }
   });
 
