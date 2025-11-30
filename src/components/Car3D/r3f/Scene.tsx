@@ -34,7 +34,8 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
     camera: null,
     scene: null,
   });
-  const { sceneHandle, isDriving } = use3DStore();
+  const sceneHandle = use3DStore((state) => state.sceneHandle);
+  const isDriving = use3DStore((state) => state.isDriving);
   const sendCarCommand = useCarControlStore((state) => state.sendCarCommand);
 
   const handleModelLoaded = useCallback((loadedCar: THREE.Group) => {
@@ -56,8 +57,7 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
     // 发送 CAN 命令（只发送一次）
     const commandId = currentState ? "door_close" : "door_open";
     console.log(
-      `🚗 门当前状态: ${
-        currentState ? "开启" : "关闭"
+      `🚗 门当前状态: ${currentState ? "开启" : "关闭"
       }, 发送CAN命令: ${commandId}`
     );
     sendCarCommand(commandId);
@@ -74,11 +74,11 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
     console.log(`[Scene] Both door animations triggered, isOpen=${newState}`);
   };
 
-  const handleCameraAnimationStateReady = (
+  const handleCameraAnimationStateReady = useCallback((
     animationState: CameraAnimationState
   ) => {
     sceneHandleRef.current.cameraAnimationState = animationState;
-  };
+  }, []);
 
   // 当所有组件都准备好时，调用 onSceneReady
   useEffect(() => {

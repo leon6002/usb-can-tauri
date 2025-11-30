@@ -105,6 +105,12 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
       console.log("[car3DStore] Starting wheel rotation");
       sceneHandle.animationSystem.startWheelRotation?.(10, 1);
       sceneHandle.animationSystem.startRoadMovement?.(0.8);
+
+      // FIX: 开始行驶时，强制停止所有正在进行的相机动画
+      if ((sceneHandle as any).stopCameraAnimation) {
+        (sceneHandle as any).stopCameraAnimation();
+      }
+
       // 启动相机动画 - 从当前位置过渡到行驶视角（在 setIsDriving 之前）
       // 只有在不允许手动控制视角时，才强制切换到行驶视角
       const cameraConfig = getCameraControlConfig();
@@ -112,9 +118,10 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
       const isAutoDriving = useCarControlStore.getState().carStates.isDriving;
 
       // 如果是自动驾驶且不允许手动控制，或者手动驾驶且不允许手动控制，则切换视角
+      // FIX: 手动模式下永远不自动切换视角
       const shouldSwitchCamera = isAutoDriving
         ? !cameraConfig.allowOrbitControlsInAutoDrive
-        : !cameraConfig.allowOrbitControlsInManualDrive;
+        : false;
 
       if (shouldSwitchCamera && (sceneHandle as any).startCameraAnimation) {
         (sceneHandle as any).startCameraAnimation("driving", 1000, true);
@@ -157,7 +164,9 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
           sceneHandle.animationSystem.startCameraAnimation("side", 2000, false);
         } else {
           // 手动驾驶结束（或未在自动驾驶中），恢复到开始驾驶前的位置
-          sceneHandle.animationSystem.startCameraAnimation("restore", 1500, false);
+          // FIX: 手动模式下不自动恢复视角，保持当前视角
+          // sceneHandle.animationSystem.startCameraAnimation("restore", 1500, false);
+          console.log("[car3DStore] Manual drive stopped, keeping current camera position");
         }
       }
 

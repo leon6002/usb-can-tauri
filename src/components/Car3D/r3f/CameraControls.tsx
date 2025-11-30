@@ -1,7 +1,7 @@
 /**
  * R3F 相机控制组件 - 使用 @react-three/drei 的 OrbitControls
  */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { OrbitControls } from "@react-three/drei";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -59,7 +59,7 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
   const preDriveTargetRef = useRef<THREE.Vector3 | null>(null);
 
   // 设置相机动画关键帧
-  const setupCameraKeyframes = (mode: string): CameraKeyframe[] => {
+  const setupCameraKeyframes = useCallback((mode: string): CameraKeyframe[] => {
     const keyframes: CameraKeyframe[] = [];
     const currentPos = camera.position.clone();
 
@@ -112,11 +112,11 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
     }
 
     return keyframes;
-  };
+  }, [camera]);
 
   useEffect(() => {
     // 设置初始相机位置
-    camera.position.set(-8, 1, 4);
+    camera.position.set(8, 1, 4);
     camera.lookAt(0, 0, 0);
 
     if (onAnimationStateReady) {
@@ -271,12 +271,10 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
       // 行驶时应用相机旋转补偿（但不在动画进行中）
       // 只有在禁用手动控制时才应用自动补偿
       if (controlsRef.current) {
-        // Debug log (throttle to avoid spam)
-        if (Math.random() < 0.01) {
-          console.log(`[CameraControls] useFrame: isDriving=${isDrivingRef.current}, enabled=${controlsRef.current.enabled}`);
-        }
+        // FIX: 只有在自动驾驶模式下才应用相机旋转补偿
+        const isAutoDriving = useCarControlStore.getState().carStates.isDriving;
 
-        if (!controlsRef.current.enabled) {
+        if (!controlsRef.current.enabled && isAutoDriving) {
           applyCameraRotationCompensation(
             camera,
             isDrivingRef.current,
