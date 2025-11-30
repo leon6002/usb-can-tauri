@@ -98,7 +98,7 @@ export const DemoQuickConnect: React.FC = () => {
         onClick={() => setIsExpanded(true)}
         className={`p-3 rounded-full shadow-lg transition-all duration-300 backdrop-blur-md border ${isConnected
           ? "bg-green-500/80 hover:bg-green-600/90 border-green-400 text-white"
-          : "bg-white/80 hover:bg-white/90 border-gray-200 text-gray-600"
+          : "bg-black/20 hover:bg-black/30 border-white/10 text-white/80"
           }`}
         title={isConnected ? "Connected" : "Disconnected"}
       >
@@ -109,15 +109,15 @@ export const DemoQuickConnect: React.FC = () => {
 
   // Expanded View
   return (
-    <div className="p-4 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 w-80 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+    <div className="p-4 bg-black/20 backdrop-blur-md rounded-2xl shadow-xl border border-white/10 w-80 transition-all duration-300 animate-in fade-in slide-in-from-top-2">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-white/90 flex items-center gap-2">
           <Link2 className="w-4 h-4" />
           Connection
         </h3>
         <button
           onClick={() => setIsExpanded(false)}
-          className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-1 hover:bg-white/10 rounded-full text-white/60 hover:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -127,7 +127,7 @@ export const DemoQuickConnect: React.FC = () => {
       <div className="mb-3">
         <div className="flex gap-2">
           <Select value={port} onValueChange={setPort} disabled={isConnected}>
-            <SelectTrigger className="flex-1 cursor-pointer bg-white/50">
+            <SelectTrigger className="flex-1 cursor-pointer bg-white/10 border-white/20 text-white placeholder:text-white/40">
               <SelectValue placeholder="Select port..." />
             </SelectTrigger>
             <SelectContent>
@@ -149,7 +149,7 @@ export const DemoQuickConnect: React.FC = () => {
           <button
             onClick={handleRefreshPorts}
             disabled={isConnected || isLoadingPorts}
-            className="px-3 py-2 rounded-md border border-gray-300 bg-white/50 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-3 py-2 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="refresh ports"
           >
             <RefreshCw
