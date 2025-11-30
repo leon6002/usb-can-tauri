@@ -41,6 +41,17 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
   // 获取自动驾驶状态
   const isDriving = useCarControlStore((state) => state.carStates.isDriving);
+  const currentGear = useCarControlStore((state) => state.carStates.gear);
+
+  // Sync gear with store during auto-drive
+  useEffect(() => {
+    if (isDriving && currentGear) {
+      // Ensure currentGear is a valid gear type
+      if (["P", "R", "D"].includes(currentGear)) {
+        setSelectedGear(currentGear as "P" | "R" | "D");
+      }
+    }
+  }, [isDriving, currentGear]);
 
   // 获取 3D 动画控制方法
   const {

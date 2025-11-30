@@ -34,6 +34,16 @@ const SteeringWheelContinued = () => {
 
   // 获取自动驾驶状态
   const isDriving = useCarControlStore((state) => state.carStates.isDriving);
+  const currentSteeringAngle = useCarControlStore((state) => state.carStates.currentSteeringAngle);
+
+  // Sync steering wheel with store during auto-drive
+  useEffect(() => {
+    if (isDriving) {
+      // currentSteeringAngle is tire angle, convert to steering wheel angle (deg) then to radians
+      const targetRotationDeg = currentSteeringAngle * STEERING_RATIO;
+      setRotation(toRad(targetRotationDeg));
+    }
+  }, [isDriving, currentSteeringAngle]);
 
   // 计算当前方向盘角度（度数）
   const steeringWheelAngleDeg = toDeg(rotation);
