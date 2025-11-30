@@ -97,7 +97,7 @@ const SystemMonitorWindow: React.FC = () => {
     },
     {
       status: currentData?.acSystem || 0,
-      label: "Air conditioning system (PWM, high-low drive)",
+      label: "Air conditioning (PWM)",
     },
   ];
 
