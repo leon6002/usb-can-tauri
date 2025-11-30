@@ -34,24 +34,26 @@ fn generate_control_data(elapsed_sec: f64) -> (i16, f64) {
 
     // Keyframes: (time, angle, speed)
     let keyframes = [
-        (0.0, 0.0, 1000.0),   // Start slow
+        (0.0, 0.0, 1500.0),   // Start slow
         (5.0, 0.0, 3000.0),   // Accelerate on straight
-        (12.0, -5.0, 2000.0), // Slow down for turn
-        (22.0, -5.0, 2000.0), // Maintain speed in turn
-        (24.0, -8.0, 1800.0), // Slow more for tighter turn
-        (29.0, -8.0, 1600.0),
-        (31.0, -10.0, 1500.0), // Slowest for tightest part
-        (36.0, -10.0, 1500.0),
-        (39.0, 0.0, 2500.0),  // Accelerate out of turn
-        (49.0, 0.0, 3000.0),  // Max speed on straight
-        (52.0, 15.0, 1400.0), // Slow down for sharp right turn
-        (62.0, 15.0, 1600.0),
-        (64.0, 5.0, 2500.0), // Accelerate slightly as turn widens
-        (84.0, 5.0, 2500.0),
-        (86.0, 0.0, 1000.0), // Slow down for end of cycle
+        (12.0, 10.0, 2000.0), // Slow down for turn
+        (22.0, 18.0, 2000.0), // Maintain speed in turn
+        (24.0, 12.0, 1800.0), // Slow more for tighter turn
+        (29.0, 5.0, 1600.0),
+        (31.0, 0.0, 1500.0), // Slowest for tightest part
+        (36.0, 0.0, 2000.0),
+        (39.0, -5.0, 2500.0), // Accelerate out of turn
+        (49.0, -2.0, 3000.0), // Max speed on straight
+        (52.0, 0.0, 1400.0),  // Slow down for sharp right turn
+        (62.0, 5.0, 1600.0),
+        (70.0, 15.0, 2500.0), // Accelerate slightly as turn widens
+        (84.0, 10.0, 2500.0),
+        (86.0, 5.0, 2000.0),
+        (100.0, 0.0, 1500.0),
+        (110.0, 0.0, 1500.0),
     ];
 
-    let cycle_duration = 86.0;
+    let cycle_duration = 110.0;
     let t = elapsed_sec % cycle_duration;
 
     // Find current segment

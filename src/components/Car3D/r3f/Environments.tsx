@@ -158,9 +158,12 @@ export const Environments: React.FC = () => {
     const { steeringAngle } = vehicleDynamics;
 
     // 计算弯曲半径（基于转向角）
+    // 调整此系数以匹配轮胎转向角和道路扭曲程度
+    // 较小的值会导致更急的弯曲，较大的值会导致更平缓的弯曲
+    const ROAD_CURVATURE_FACTOR = 10; // 原值为 15
     const isSteeringSignificant = Math.abs(steeringAngle) > 0.001;
     const curveRadius = isSteeringSignificant
-      ? 15 / Math.tan(steeringAngle)
+      ? ROAD_CURVATURE_FACTOR / Math.tan(steeringAngle)
       : Infinity;
 
     // 更新道路
