@@ -31,15 +31,13 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   const CREEP_SPEED = 500; // 怠速 (蠕行速度)
   const SEND_INTERVAL = 100; // 每 100ms 发送一次
 
-  const GEAR_P = 0x01; // P档
-  const GEAR_D = 0x04; // D档
+
   const GEAR_P_STR = "P";
   const GEAR_D_STR = "D";
 
   // 获取发送 CAN 命令的方法和更新车辆控制的方法
   const {
-    sendDriveCanCommand,
-    getAndIncrementAliveCounter,
+    sendVehicleControlCommand,
     updateVehicleControl
   } = useCarControlStore.getState();
 
@@ -53,15 +51,12 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   } = use3DStore.getState();
 
   // 发送驾驶 CAN 命令
-  const sendDrivingCommand = async (speed: number, angle: number, gear: number = GEAR_D) => {
-    const canData = buildDriveCanData(
-      getAndIncrementAliveCounter(),
-      speed,
-      angle,
-      gear
-    );
+  const sendDrivingCommand = async (speed: number, angle: number) => {
     try {
-      await sendDriveCanCommand(canData);
+      // New protocol: speed sign determines direction.
+      // Assuming Pedals.tsx controls forward speed (D gear).
+      // If we support Reverse in the future, we should negate speed here if gear is R.
+      await sendVehicleControlCommand(speed, angle);
     } catch (error) {
       console.error("❌ Failed to send drive command:", error);
     }
@@ -96,7 +91,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
       // 怠速时始终为 D 档
       updateVehicleControl(nextSpeed, latestSteeringAngle, GEAR_D_STR);
       updateDriveAnimation(nextSpeed, latestSteeringAngle);
-      sendDrivingCommand(nextSpeed, latestSteeringAngle, GEAR_D);
+      sendDrivingCommand(nextSpeed, latestSteeringAngle);
 
     }, SEND_INTERVAL);
   };
@@ -129,7 +124,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
     const newSpeed = Math.min(currentSpeed + ACCELERATION_STEP, MAX_SPEED);
     updateVehicleControl(newSpeed, latestSteeringAngle, GEAR_D_STR); // 更新 Store
     updateDriveAnimation(newSpeed, latestSteeringAngle); // 更新动画状态
-    sendDrivingCommand(newSpeed, latestSteeringAngle, GEAR_D);
+    sendDrivingCommand(newSpeed, latestSteeringAngle);
 
     // 启动持续加速
     accelerateIntervalRef.current = setInterval(() => {
@@ -141,7 +136,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
       updateVehicleControl(nextSpeed, currentAngle, GEAR_D_STR); // 更新 Store
       updateDriveAnimation(nextSpeed, currentAngle); // 更新动画状态
-      sendDrivingCommand(nextSpeed, currentAngle, GEAR_D);
+      sendDrivingCommand(nextSpeed, currentAngle);
     }, SEND_INTERVAL);
   };
 
@@ -183,12 +178,11 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
     // 立即发送一次当前速度（开始制动）
     let currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
     // 只要有速度就是 D 档
-    let currentGear = currentSpeed > 0 ? GEAR_D : GEAR_P;
     let currentGearStr = currentSpeed > 0 ? GEAR_D_STR : GEAR_P_STR;
 
     updateVehicleControl(currentSpeed, latestSteeringAngle, currentGearStr);
     updateDriveAnimation(currentSpeed, latestSteeringAngle);
-    sendDrivingCommand(currentSpeed, latestSteeringAngle, currentGear);
+    sendDrivingCommand(currentSpeed, latestSteeringAngle);
 
     // 持续减速
     brakeIntervalRef.current = setInterval(() => {
@@ -202,7 +196,6 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
       }
 
       // 确定档位：速度 > 0 为 D 档，速度 = 0 为 P 档
-      const nextGear = nextSpeed > 0 ? GEAR_D : GEAR_P;
       const nextGearStr = nextSpeed > 0 ? GEAR_D_STR : GEAR_P_STR;
 
       // 使用 ref 中的最新转向角
@@ -210,7 +203,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
       updateVehicleControl(nextSpeed, currentAngle, nextGearStr);
       updateDriveAnimation(nextSpeed, currentAngle);
-      sendDrivingCommand(nextSpeed, currentAngle, nextGear);
+      sendDrivingCommand(nextSpeed, currentAngle);
 
       // 如果已经停止，可以考虑清除定时器，或者保持发送0以维持停止状态
       // 这里保持发送0比较安全
@@ -347,37 +340,4 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   );
 };
 
-// 构建驾驶 CAN 数据（与 useSteeringControl.ts 中的函数相同）
-function buildDriveCanData(
-  aliveCounter: number,
-  speedMms: number,
-  angleDeg: number,
-  gear: number = 0x04
-): string {
-  const steeringAngleRaw = Math.round(angleDeg * 100);
-  const speedShifted = speedMms << 4;
-  const rawU32 = speedShifted | (gear & 0x0f);
-  const data0 = rawU32 & 0xff;
-  const data1 = (rawU32 >> 8) & 0xff;
-  let data2 = (rawU32 >> 16) & 0xff;
-  const buffer = new ArrayBuffer(2);
-  const view = new DataView(buffer);
-  view.setInt16(0, steeringAngleRaw, false);
-  const highByte = view.getUint8(0);
-  const lowByte = view.getUint8(1);
-  const data4 = (highByte >> 4) & 0x0f;
-  const data3 = ((highByte & 0x0f) << 4) | (lowByte >> 4);
-  data2 = data2 | ((lowByte & 0x0f) << 4);
-  const data5 = 0x00;
-  const data6 = aliveCounter & 0xff;
-  const payload = [data0, data1, data2, data3, data4, data5, data6];
-  let bcc = 0;
-  for (const byte of payload) {
-    bcc ^= byte;
-  }
-  const data7 = bcc;
-  const finalData = [...payload, data7];
-  return finalData
-    .map((b) => b.toString(16).toUpperCase().padStart(2, "0"))
-    .join(" ");
-}
+

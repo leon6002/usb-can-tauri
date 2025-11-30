@@ -70,86 +70,20 @@ export const useSteeringControl = (
  * 角度: 轮胎转向角（度数）
  */
 async function sendSteeringCanCommand(tireSteeringAngleDeg: number) {
-  const { sendDriveCanCommand, getAndIncrementAliveCounter } = useCarControlStore.getState();
-
-  // 构建 CAN 数据
-  const canData = buildSteeringCanData(getAndIncrementAliveCounter(), tireSteeringAngleDeg);
+  const { sendVehicleControlCommand } = useCarControlStore.getState();
 
   console.log(
     `🎯 Sending steering CAN command: angle=${tireSteeringAngleDeg.toFixed(
       2
-    )}°, data=${canData}`
+    )}°`
   );
 
   try {
-    await sendDriveCanCommand(canData);
+    // Speed is 0 when only steering
+    await sendVehicleControlCommand(0, tireSteeringAngleDeg);
   } catch (error) {
     console.error("❌ Failed to send steering CAN command:", error);
   }
 }
 
-/**
- * 构建转向 CAN 数据
- * 参考 python-test/final_convert.py 中的 build_vehicle_control_data 函数
- *
- * @param speedMms 速度（mm/s）
- * @param angleDeg 转向角（度数）
- * @param gear 档位（默认 0x04 = D档）
- * @param aliveCounter 心跳计数器（默认 0x00）
- * @returns CAN 数据字符串（8字节，空格分隔）
- */
-function buildSteeringCanData(
-  speedMms: number,
-  angleDeg: number,
-  gear: number = 0x04,
-  aliveCounter: number = 0x00
-): string {
-  // 1. 转向角原始值：角度 * 100（单位：0.01度）
-  const steeringAngleRaw = Math.round(angleDeg * 100);
 
-  // 2. 组合 data[0], data[1], data[2]（档位和速度）
-  const speedShifted = speedMms << 4;
-  const rawU32 = speedShifted | (gear & 0x0f);
-
-  // 转换为小端序字节
-  const data0 = rawU32 & 0xff;
-  const data1 = (rawU32 >> 8) & 0xff;
-  let data2 = (rawU32 >> 16) & 0xff;
-
-  // 3. 组合 data[2], data[3], data[4]（转向角）
-  // 转向角是 16 位有符号整数，需要转换为大端序
-  const buffer = new ArrayBuffer(2);
-  const view = new DataView(buffer);
-  view.setInt16(0, steeringAngleRaw, false); // false = 大端序
-  const highByte = view.getUint8(0); // 大端序：高字节在前
-  const lowByte = view.getUint8(1); // 大端序：低字节在后
-
-  // 重构 data[4]（低4位是 highByte 的高4位）
-  const data4 = (highByte >> 4) & 0x0f;
-
-  // 重构 data[3]（高4位是 highByte 的低4位，低4位是 lowByte 的高4位）
-  const data3 = ((highByte & 0x0f) << 4) | (lowByte >> 4);
-
-  // 重构 data[2]（高4位是 lowByte 的低4位）
-  data2 = data2 | ((lowByte & 0x0f) << 4);
-
-  // 4. 填充 data[5] 和 data[6]
-  const data5 = 0x00; // Target Vehicle Braking
-  const data6 = aliveCounter & 0xff; // Alive Rolling Counter
-
-  // 5. 计算校验和（BCC）
-  const payload = [data0, data1, data2, data3, data4, data5, data6];
-  let bcc = 0;
-  for (const byte of payload) {
-    bcc ^= byte;
-  }
-  const data7 = bcc;
-
-  // 6. 组合成最终的 8 字节报文
-  const finalData = [...payload, data7];
-
-  // 转换为十六进制字符串，空格分隔
-  return finalData
-    .map((b) => b.toString(16).toUpperCase().padStart(2, "0"))
-    .join(" ");
-}

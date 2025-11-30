@@ -151,29 +151,6 @@ fn find_and_align_message_header(message_buffer: &mut Vec<u8>) -> bool {
     }
 }
 
-/// 提取完整的消息（20字节）
-fn extract_complete_message(message_buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
-    const FIXED_MESSAGE_LENGTH: usize = 20;
-
-    if message_buffer.len() >= FIXED_MESSAGE_LENGTH {
-        let complete_message = message_buffer
-            .drain(0..FIXED_MESSAGE_LENGTH)
-            .collect::<Vec<_>>();
-
-        // let raw_hex = complete_message
-        //     .iter()
-        //     .map(|b| format!("{:02X}", b))
-        //     .collect::<Vec<_>>()
-        //     .join(" ");
-
-        // println!("✅ [I/O Thread] Complete message extracted ({} bytes): {}", complete_message.len(), raw_hex);
-        Some(complete_message)
-    } else {
-        // println!("⏳ [I/O Thread] Incomplete message: have {} bytes, need {} bytes", message_buffer.len(), FIXED_MESSAGE_LENGTH);
-        None
-    }
-}
-
 /// 处理已解析的 CAN 消息
 fn handle_parsed_can_message(
     can_id: &str,
@@ -185,6 +162,7 @@ fn handle_parsed_can_message(
 ) {
     // println!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
     // info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
+    info!("RX: ID={} Data={}", can_id, can_data);
 
     // 尝试解析新协议的车辆状态（ID: 0x00000123）
     let mut vehicle_status: Option<(String, f32)> = None;
@@ -217,14 +195,14 @@ fn handle_parsed_can_message(
         || can_id == "0x00000524"
     {
         let distance = parse_distance_from_data(&can_data);
-        println!(
-            "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
-            can_id, distance
-        );
-        info!(
-            "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
-            can_id, distance
-        );
+        // println!(
+        //     "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
+        //     can_id, distance
+        // );
+        // info!(
+        //     "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
+        //     can_id, distance
+        // );
         let radar_message = serde_json::json!({
             "canId": can_id,
             "distance": distance,
@@ -259,53 +237,122 @@ fn handle_parse_failure(raw_hex: &str, timestamp: &str, app_handle: &tauri::AppH
 ///
 /// 协议格式：固定20字节
 /// 处理 Windows 上消息被截断的情况（例如先发 0xAA，再发剩下的 19 字节）
+/// 改进逻辑：使用下一个 AA 55 作为分隔符，防止因校验和失败误删数据
 fn process_message_buffer(message_buffer: &mut Vec<u8>, app_handle: &tauri::AppHandle) {
     loop {
-        // println!("🔄 [I/O Thread] Processing buffer, size: {}", message_buffer.len());
-
-        // 第一步：查找并对齐消息头
+        // 第一步：查找并对齐消息头 (确保 buffer 以 AA 55 开头)
         if !find_and_align_message_header(message_buffer) {
             break;
         }
 
-        // 第二步：提取完整的消息（20字节）
-        let Some(complete_message) = extract_complete_message(message_buffer) else {
-            break;
-        };
+        // 第二步：查找下一个消息头 (AA 55)
+        // 从索引 2 开始查找 (跳过当前头的 AA 55)
+        let next_header_pos = message_buffer[2..]
+            .windows(2)
+            .position(|w| w == [0xAA, 0x55])
+            .map(|i| i + 2);
 
-        let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
-        let raw_hex = complete_message
-            .iter()
-            .map(|b| format!("{:02X}", b))
-            .collect::<Vec<_>>()
-            .join(" ");
+        if let Some(pos) = next_header_pos {
+            // 情况 A: 找到了下一个消息头
+            // 当前包的范围是 [0..pos]
+            if pos == 20 {
+                // 长度正好是 20 字节，验证校验和
+                let candidate = &message_buffer[0..20];
+                if verify_checksum(candidate) {
+                    // 校验通过，处理消息
+                    let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+                    let raw_hex = candidate
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
 
-        // 第三步：验证校验和
-        if !verify_checksum(&complete_message) {
-            println!("⚠️  [I/O Thread] Checksum verification failed, discarding message");
-            info!(
-                "⚠️  [I/O Thread] Checksum verification failed for message: {}",
-                raw_hex
-            );
-            continue;
-        }
+                    if let Some((can_id, can_data, frame_type)) =
+                        parse_received_can_message(candidate)
+                    {
+                        handle_parsed_can_message(
+                            &can_id,
+                            &can_data,
+                            &frame_type,
+                            &raw_hex,
+                            &timestamp,
+                            app_handle,
+                        );
+                    } else {
+                        handle_parse_failure(&raw_hex, &timestamp, app_handle);
+                    }
+                } else {
+                    // 校验失败，但在 20 字节处发现了新头
+                    // 这意味着当前这 20 字节是损坏的，或者是偶然的 AA 55
+                    // 既然下一个头在正确的位置，我们丢弃当前的 20 字节，尝试处理下一个
+                    println!("⚠️  [I/O Thread] Checksum failed for aligned packet, discarding current packet");
+                }
+            } else {
+                // 长度不是 20 字节 (例如 19 字节就遇到了 AA 55)
+                // 说明当前包不完整或有错误，丢弃到下一个头的位置
+                println!("⚠️  [I/O Thread] Invalid packet length: {} (expected 20), discarding up to next header", pos);
+            }
 
-        // 第四步：解析消息
-        if let Some((can_id, can_data, frame_type)) = parse_received_can_message(&complete_message)
-        {
-            handle_parsed_can_message(
-                &can_id,
-                &can_data,
-                &frame_type,
-                &raw_hex,
-                &timestamp,
-                app_handle,
-            );
+            // 无论处理成功与否，都移除当前包，移动到下一个头的位置
+            message_buffer.drain(0..pos);
         } else {
-            handle_parse_failure(&raw_hex, &timestamp, app_handle);
-        }
+            // 情况 B: 没有找到下一个消息头
+            // 我们需要判断是否已经有足够的数据来处理一个包
+            if message_buffer.len() >= 20 {
+                // 尝试验证前 20 字节
+                let candidate = &message_buffer[0..20];
+                if verify_checksum(candidate) {
+                    // 校验通过！这是一个有效的包 (虽然还没收到下一个头)
+                    // 处理它
+                    let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+                    let raw_hex = candidate
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
 
-        // 继续处理缓冲区中的下一条消息
-        // println!("🔄 [I/O Thread] Continuing to process buffer, remaining: {} bytes", message_buffer.len());
+                    if let Some((can_id, can_data, frame_type)) =
+                        parse_received_can_message(candidate)
+                    {
+                        handle_parsed_can_message(
+                            &can_id,
+                            &can_data,
+                            &frame_type,
+                            &raw_hex,
+                            &timestamp,
+                            app_handle,
+                        );
+                    } else {
+                        handle_parse_failure(&raw_hex, &timestamp, app_handle);
+                    }
+
+                    // 移除已处理的 20 字节
+                    message_buffer.drain(0..20);
+                } else {
+                    // 校验失败，且后面没有发现 AA 55
+                    // 这可能是：
+                    // 1. 包还没收完 (虽然有20字节，但可能中间丢了数据，真正的头在后面还没来)
+                    // 2. 这是一个坏包
+                    //
+                    // 策略：等待更多数据 (不移除任何东西)，直到：
+                    // - 收到下一个 AA 55 (会进入 情况 A)
+                    // - 缓冲区过大 (防止内存泄漏)
+
+                    if message_buffer.len() > 200 {
+                        println!(
+                            "⚠️  [I/O Thread] Buffer too large ({}), discarding 1 byte to advance",
+                            message_buffer.len()
+                        );
+                        message_buffer.remove(0);
+                    } else {
+                        // 等待更多数据
+                        break;
+                    }
+                }
+            } else {
+                // 数据不足 20 字节，且没有下一个头 -> 等待更多数据
+                break;
+            }
+        }
     }
 }

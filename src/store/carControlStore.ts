@@ -12,11 +12,17 @@ import { handleDoorCommand } from "@/handlers/doorHandler";
 import { handleSuspensionCommand } from "@/handlers/suspensionHandler";
 import { handleStartDriving, handleStopDriving } from "@/handlers/driveHandler";
 import { validateCanId } from "@/utils/validation";
+import { buildVehicleControlData } from "@/utils/canProtocol";
+
+// Tracking variables for signal optimization
+let lastSentSpeed: number | null = null;
+let lastSentAngle: number | null = null;
+let lastSentTime = 0;
 
 interface CarControlStore {
   canCommands: CanCommand[];
   carStates: CarStates;
-  driveCommandAliveCounter: number;
+
 
   progressIntervalId: NodeJS.Timeout | null;
 
@@ -43,10 +49,11 @@ interface CarControlStore {
   stopCsvLoop: () => Promise<void>;
   sendCarCommand: (commandId: string) => Promise<void>;
   sendCanCommand: (canId: string, data: string) => Promise<void>;
-  sendDriveCanCommand: (commandId: string) => Promise<void>;
+
+  sendVehicleControlCommand: (speed: number, angle: number) => Promise<void>;
   csvLoopFinishListener: () => Promise<() => void>;
   unlistenCsvLoopFunc: (() => void) | null;
-  getAndIncrementAliveCounter: () => number;
+
 }
 
 const initialCarStates: CarStates = {
@@ -103,7 +110,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
   // --- 状态 (State) ---
   canCommands: CAN_COMMANDS,
   carStates: initialCarStates,
-  driveCommandAliveCounter: 0x00,
+
   progressIntervalId: null,
 
   /**
@@ -181,19 +188,42 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     }
   },
 
-  sendDriveCanCommand: async (data) => {
+  sendVehicleControlCommand: async (speed, angle) => {
     try {
+      const now = Date.now();
+      const HEARTBEAT_INTERVAL = 1000; // 1 second heartbeat
+
+      // Check if values changed or heartbeat interval passed
+      const hasChanged =
+        lastSentSpeed === null ||
+        lastSentAngle === null ||
+        speed !== lastSentSpeed ||
+        Math.abs(angle - lastSentAngle) > 0.001; // Float comparison
+
+      const timeSinceLastSend = now - lastSentTime;
+      const shouldSend = hasChanged || timeSinceLastSend >= HEARTBEAT_INTERVAL;
+
+      if (!shouldSend) {
+        return;
+      }
+
+      const data = buildVehicleControlData(speed, angle);
       const params = {
-        id: '18C4D2D0',
+        id: '200',
         data: data,
-        frameType: "extended",
+        frameType: "standard",
         protocolLength: "fixed",
       };
       await invoke("send_can_message", params);
+
+      // Update tracking variables
+      lastSentSpeed = speed;
+      lastSentAngle = angle;
+      lastSentTime = now;
     } catch (error) {
-      console.error("Send car command error:", error);
-      toast.error(`Send car command error: ${error}`);
-      throw error; // 抛出错误以便上层调用者（如 sendCarCommand 的其他分支）捕获
+      console.error("Send vehicle control command error:", error);
+      toast.error(`Send vehicle control command error: ${error}`);
+      throw error;
     }
   },
 
@@ -479,10 +509,5 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     set({ unlistenCsvLoopFunc: unlisten });
     return unlisten;
   },
-  getAndIncrementAliveCounter: () => {
-    const currentCounter = get().driveCommandAliveCounter;
-    const newCounter = (currentCounter + 1) % 0x10;
-    set({ driveCommandAliveCounter: newCounter });
-    return currentCounter;
-  },
+
 }));

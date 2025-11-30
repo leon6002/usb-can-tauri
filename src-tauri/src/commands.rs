@@ -155,10 +155,11 @@ pub async fn send_can_message(
     protocol_length: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!(
-        "Sending CAN message - ID: {}, Data: {}, Type: {}, Protocol: {}",
-        id, data, frame_type, protocol_length
-    );
+    // info!(
+    //     "Sending CAN message - ID: {}, Data: {}, Type: {}, Protocol: {}",
+    //     id, data, frame_type, protocol_length
+    // );
+    info!("TX: ID={} Data={}", id, data);
 
     // Check connection state
     {
@@ -175,7 +176,7 @@ pub async fn send_can_message(
     let packet: Vec<u8> = if protocol_length == "variable" {
         match create_can_send_packet_variable(&id, &data, &frame_type) {
             Ok(p) => {
-                info!("CAN packet (variable) created successfully");
+                // info!("CAN packet (variable) created successfully");
                 p
             }
             Err(e) => {
@@ -198,7 +199,7 @@ pub async fn send_can_message(
 
     // Send data through channel
     // info!("Preparing to send packet through channel...");
-    info!("Packet content: {:02X?}", packet);
+    // info!("Packet content: {:02X?}", packet);
 
     let tx_send = state.tx_send.lock().unwrap();
     if let Some(ref sender) = *tx_send {
