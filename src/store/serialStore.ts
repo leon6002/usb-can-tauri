@@ -92,7 +92,7 @@ export const useSerialStore = create<SerialState>((set, get) => ({
         // 断开连接
         await invoke("disconnect_serial");
         set({ isConnected: false });
-        toast.success("已断开连接");
+        // toast.success("已断开连接");
       } else {
         // 连接
         // 转换字段名为 Rust 后端期望的格式
@@ -125,7 +125,7 @@ export const useSerialStore = create<SerialState>((set, get) => ({
       await invoke("disconnect_serial");
       set({ isConnected: false });
       if (!silent) {
-        toast.success("已断开连接");
+        // toast.success("已断开连接");
       }
     } catch (error) {
       console.error("Disconnect error:", error);
