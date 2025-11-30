@@ -30,6 +30,7 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -62,6 +63,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -69,6 +71,7 @@
 
 /* 3D 加载动画样式 */
 @layer utilities {
+
   /* 3D 透视 */
   .perspective-1000 {
     perspective: 1000px;
@@ -98,46 +101,49 @@
     transform: rotateX(90deg) translateZ(48px);
   }
 
-  /* 3D 旋转动画 */
-  .animate-spin-3d {
-    animation: spin3d 8s linear infinite;
+  /* Circuit Pulse Animation */
+  .animate-circuit-pulse {
+    animation: circuitPulse 2s linear infinite;
   }
 
-  @keyframes spin3d {
+  .animate-circuit-pulse-delay-1 {
+    animation: circuitPulse 2s linear infinite;
+    animation-delay: 0.6s;
+  }
+
+  .animate-circuit-pulse-delay-2 {
+    animation: circuitPulse 2s linear infinite;
+    animation-delay: 1.2s;
+  }
+
+  @keyframes circuitPulse {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Vertical Scan Animation */
+  .animate-scan-vertical {
+    animation: scanVertical 3s ease-in-out infinite;
+  }
+
+  @keyframes scanVertical {
     0% {
-      transform: rotateX(0deg) rotateY(0deg);
+      top: 0%;
+      opacity: 0;
     }
-    25% {
-      transform: rotateX(180deg) rotateY(90deg);
-    }
-    50% {
-      transform: rotateX(180deg) rotateY(180deg);
-    }
-    75% {
-      transform: rotateX(360deg) rotateY(270deg);
-    }
-    100% {
-      transform: rotateX(360deg) rotateY(360deg);
-    }
-  }
 
-  /* 进度条动画 */
-  .animate-loading-bar {
-    animation: loadingBar 2s ease-in-out infinite;
-  }
-
-  @keyframes loadingBar {
-    0% {
-      width: 0%;
-      opacity: 0.5;
-    }
-    50% {
-      width: 100%;
+    15% {
       opacity: 1;
     }
+
+    85% {
+      opacity: 1;
+    }
+
     100% {
-      width: 0%;
-      opacity: 0.5;
+      top: 100%;
+      opacity: 0;
     }
   }
 
