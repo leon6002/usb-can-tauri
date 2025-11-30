@@ -98,6 +98,7 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
 
   // 初始化车辆组件
   useEffect(() => {
+    console.log("[AnimationSystem] useEffect: Initializing car components", { car: !!car });
     if (!car) return;
 
     // 初始化 CarComponentsR3F

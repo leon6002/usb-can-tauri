@@ -115,6 +115,7 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
   }, [camera]);
 
   useEffect(() => {
+    console.log("[CameraControls] useEffect: Initializing camera position and controls");
     // 设置初始相机位置
     camera.position.set(8, 1, 4);
     camera.lookAt(0, 0, 0);

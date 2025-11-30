@@ -82,6 +82,13 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
 
   // 当所有组件都准备好时，调用 onSceneReady
   useEffect(() => {
+    console.log("[Scene] useEffect: Checking if scene is ready", {
+      car: !!car,
+      animSystem: !!sceneHandle?.animationSystem,
+      camera: !!sceneHandleRef.current.camera,
+      scene: !!sceneHandleRef.current.scene,
+      onSceneReady: !!onSceneReady
+    });
     if (
       car &&
       sceneHandle?.animationSystem &&

@@ -45,6 +45,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
   // Sync gear with store during auto-drive
   useEffect(() => {
+    console.log("[Pedals] useEffect: Syncing gear", { isDriving, currentGear });
     if (isDriving && currentGear) {
       // Ensure currentGear is a valid gear type
       if (["P", "R", "D"].includes(currentGear)) {
@@ -248,6 +249,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
   // 清理定时器
   useEffect(() => {
+    console.log("[Pedals] useEffect: Mounting/Unmounting");
     return () => {
       if (accelerateIntervalRef.current) clearInterval(accelerateIntervalRef.current);
       if (brakeIntervalRef.current) clearInterval(brakeIntervalRef.current);
