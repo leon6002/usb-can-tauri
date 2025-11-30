@@ -68,7 +68,8 @@ export const use3DStore = create<ThreeDState>((set, get) => ({
 
       // 根据速度动态更新轮子转速和道路移动速度
       const wheelRadius = 300; // mm
-      const wheelRotationSpeed = Math.abs(speed) / wheelRadius;
+      // 移除 Math.abs，允许负速度（倒车）
+      const wheelRotationSpeed = speed / wheelRadius;
       const roadMovementSpeed = wheelRotationSpeed * 0.05;
 
       sceneHandle.animationSystem.updateWheelRotationSpeed?.(

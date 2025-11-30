@@ -66,7 +66,7 @@ const APP_CONFIG: AppConfig = {
   // 雷达配置
   radar: {
     // 雷达查询间隔（毫秒）- 默认 1000ms (1秒)
-    queryIntervalMs: 1000,
+    queryIntervalMs: 100000,
   },
   //悬挂升高或者降低之后隔多长时间（毫秒，默认4秒）发送停止升降的can信号
   suspension: {
