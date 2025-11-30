@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useSteeringControl } from "@/hooks/useSteeringControl";
 import { useCarControlStore } from "@/store/carControlStore";
+import { useSerialStore } from "@/store/serialStore";
 import { Pedals } from "./Pedals";
 import { CarControlPanel } from "./CarControlPanel";
 import { CarStatusPanel } from "./CarStatusPanel";
@@ -37,6 +38,7 @@ const SteeringWheelContinued = () => {
   const isDriving = useCarControlStore((state) => state.carStates.isDriving);
   const currentSpeed = useCarControlStore((state) => state.carStates.currentSpeed);
   const currentSteeringAngle = useCarControlStore((state) => state.carStates.currentSteeringAngle);
+  const isConnected = useSerialStore((state) => state.isConnected);
 
   // Sync steering wheel with store during auto-drive
   useEffect(() => {
@@ -147,7 +149,7 @@ const SteeringWheelContinued = () => {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isDriving) return; // 自动驾驶时禁用交互
+    if (isDriving || !isConnected) return; // 自动驾驶或未连接时禁用交互
     setIsDragging(true);
     // 记录鼠标按下的瞬间的角度，作为起始参照点
     lastMouseAngleRef.current = getMouseAngle(e);
@@ -236,7 +238,7 @@ const SteeringWheelContinued = () => {
             ref={canvasRef}
             width={size}
             height={size}
-            className={`cursor-pointer touch-none block relative z-10 drop-shadow-2xl transition-opacity duration-300 ${isDriving ? "opacity-50 cursor-not-allowed" : ""
+            className={`cursor-pointer touch-none block relative z-10 drop-shadow-2xl transition-opacity duration-300 ${isDriving || !isConnected ? "opacity-50 cursor-not-allowed" : ""
               }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useCarControlStore } from "@/store/carControlStore";
+import { useSerialStore } from "@/store/serialStore";
 import { use3DStore } from "@/store/car3DStore";
 import { Zap, Octagon } from "lucide-react";
 
@@ -42,6 +43,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   // 获取自动驾驶状态
   const isDriving = useCarControlStore((state) => state.carStates.isDriving);
   const currentGear = useCarControlStore((state) => state.carStates.gear);
+  const isConnected = useSerialStore((state) => state.isConnected);
 
   // Sync gear with store during auto-drive
   useEffect(() => {
@@ -119,7 +121,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
   // 加速踏板按下
   const handleAccelerateStart = () => {
-    if (isDriving) return; // 自动驾驶时禁用交互
+    if (isDriving || !isConnected) return; // 自动驾驶或未连接时禁用交互
     if (selectedGear === "P") return; // P档无法加速
 
     setIsAccelerating(true);
@@ -191,7 +193,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
   // 制动踏板按下
   const handleBrakeStart = () => {
-    if (isDriving) return; // 自动驾驶时禁用交互
+    if (isDriving || !isConnected) return; // 自动驾驶或未连接时禁用交互
     setIsBraking(true);
     setIsAccelerating(false);
 
@@ -277,6 +279,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
               ${selectedGear === gear
                 ? (gear === 'R' ? 'bg-red-500 text-white' : gear === 'P' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white')
                 : 'text-white/50 hover:bg-white/10 hover:text-white/80'}
+              ${!isConnected ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
             `}
           >
             {gear}
@@ -308,7 +311,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
                 ? 'bg-red-500/80 border-red-700 shadow-[0_0_15px_rgba(239,68,68,0.5)]'
                 : 'bg-white/20 border-white/30 hover:bg-white/30 shadow-lg'
               }
-              ${isDriving ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
+              ${isDriving || !isConnected ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
             `}
           >
             {/* Pedal Texture */}
@@ -350,7 +353,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
                 ? 'bg-emerald-500/80 border-emerald-700 shadow-[0_0_15px_rgba(16,185,129,0.5)]'
                 : 'bg-white/20 border-white/30 hover:bg-white/30 shadow-lg'
               }
-              ${isDriving || selectedGear === 'P' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
+              ${isDriving || selectedGear === 'P' || !isConnected ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
             `}
           >
             {/* Pedal Texture */}
