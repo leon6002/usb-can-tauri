@@ -40,9 +40,12 @@ export const ConnectionPanel: React.FC = () => {
     try {
       const csvRows = await loadDefaultCsv();
       // 将 CSV 行转换为文本格式
-      const csvText = csvRows
-        .map((row) => `${row.can_id},${row.can_data},${row.interval_ms}`)
-        .join("\n");
+      const csvText = [
+        "can_id,can_data,interval_ms",
+        ...csvRows.map(
+          (row) => `${row.can_id},${row.can_data},${row.interval_ms}`
+        ),
+      ].join("\n");
 
       onConfigChange({
         ...config,
@@ -332,7 +335,7 @@ export const ConnectionPanel: React.FC = () => {
                       {Math.max(
                         0,
                         getTotalRows(config.csvContent) -
-                          (config.csvStartRowIndex || 0)
+                        (config.csvStartRowIndex || 0)
                       )}
                     </span>
                   </div>
@@ -477,11 +480,10 @@ export const ConnectionPanel: React.FC = () => {
 
         <button
           onClick={handleConnect}
-          className={`w-full px-3 py-3 rounded text-xs font-medium transition-colors ${
-            isConnected
+          className={`w-full px-3 py-3 rounded text-xs font-medium transition-colors ${isConnected
               ? "bg-red-600 hover:bg-red-700 text-white"
               : "bg-green-600 hover:bg-green-700 text-white"
-          }`}
+            }`}
         >
           {isConnected ? (
             <>

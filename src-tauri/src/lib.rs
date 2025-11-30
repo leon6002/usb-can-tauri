@@ -9,6 +9,7 @@ use vehicle_control::VehicleControl;
 mod can_protocol;
 
 mod csv_loop;
+mod infinite_loop;
 
 mod io_thread;
 mod system_monitor_thread;
@@ -17,7 +18,8 @@ mod commands;
 use commands::{
     close_system_monitor_window, connect_serial, connect_system_monitor, disconnect_serial,
     disconnect_system_monitor, get_available_ports, open_system_monitor_window, preload_csv_data,
-    send_can_message, start_csv_loop, start_csv_loop_with_preloaded_data, stop_csv_loop,
+    send_can_message, start_csv_loop, start_csv_loop_with_preloaded_data, start_infinite_drive,
+    stop_csv_loop, stop_infinite_drive,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +48,7 @@ pub struct CsvLoopProgress {
     pub can_id: String,
     pub can_data: String,
     pub vehicle_control: Option<VehicleControl>,
+    pub interval_ms: Option<u64>,
 }
 
 // 发送通道消息类型
@@ -105,7 +108,9 @@ pub fn run() {
             open_system_monitor_window,
             close_system_monitor_window,
             connect_system_monitor,
-            disconnect_system_monitor
+            disconnect_system_monitor,
+            start_infinite_drive,
+            stop_infinite_drive
         ])
         .setup(|app| {
             use log::info;

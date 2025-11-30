@@ -75,9 +75,12 @@ export const useSerialStore = create<SerialState>((set, get) => ({
       console.log("📂 Loading preset CSV data on app startup...");
       const csvRows = await loadDefaultCsv();
       console.log(`loaded ${csvRows.length} rows from preset CSV`);
-      const csvText = csvRows
-        .map((row) => `${row.can_id},${row.can_data},${row.interval_ms}`)
-        .join("\n");
+      const csvText = [
+        "can_id,can_data,interval_ms",
+        ...csvRows.map(
+          (row) => `${row.can_id},${row.can_data},${row.interval_ms}`
+        ),
+      ].join("\n");
 
       // 批量更新状态
       set((state) => ({

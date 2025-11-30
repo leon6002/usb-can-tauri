@@ -13,6 +13,7 @@ use crate::can_protocol::{
     create_can_config_packet, create_can_send_packet_fixed, create_can_send_packet_variable,
 };
 use crate::csv_loop::{run_csv_loop, run_csv_loop_with_preloaded_data};
+use crate::infinite_loop::run_infinite_drive;
 use crate::io_thread::start_io_thread;
 use crate::system_monitor_thread::start_system_monitor_thread;
 use crate::vehicle_control::extract_vehicle_control;
@@ -321,15 +322,37 @@ pub async fn preload_csv_data(
         return Err("CSV file is empty".to_string());
     }
 
-    if csv_start_row_index >= records.len() {
+    // Auto-detect interval_ms column
+    let mut interval_ms_column_index: Option<usize> = None;
+    let mut effective_start_row_index = csv_start_row_index;
+
+    if !records.is_empty() {
+        let first_row = &records[0];
+        println!("🔍 [Rust] CSV Header Row: {:?}", first_row);
+        for (i, field) in first_row.iter().enumerate() {
+            if field.trim().eq_ignore_ascii_case("interval_ms") {
+                interval_ms_column_index = Some(i);
+                println!("✅ [Rust] Auto-detected 'interval_ms' at column {}", i);
+
+                // If we found a header at row 0, and the user asked to start at 0,
+                // we should skip the header.
+                if csv_start_row_index == 0 {
+                    effective_start_row_index = 1;
+                }
+                break;
+            }
+        }
+    }
+
+    if effective_start_row_index >= records.len() {
         return Err(format!(
             "Start row index {} out of range (max: {})",
-            csv_start_row_index,
+            effective_start_row_index,
             records.len() - 1
         ));
     }
 
-    let filtered_records: Vec<_> = records.iter().skip(csv_start_row_index).collect();
+    let filtered_records: Vec<_> = records.iter().skip(effective_start_row_index).collect();
     let total = filtered_records.len();
 
     let mut progress_list = Vec::new();
@@ -347,12 +370,35 @@ pub async fn preload_csv_data(
 
         let vehicle_control = extract_vehicle_control(&can_data).ok();
 
+        let interval_ms = if let Some(idx) = interval_ms_column_index {
+            let val_str = record.get(idx).unwrap_or("").trim();
+            // Try parsing as u64, then f64
+            let val = val_str
+                .parse::<u64>()
+                .ok()
+                .or_else(|| val_str.parse::<f64>().ok().map(|f| f as u64));
+
+            if index < 5 || val.is_none() {
+                println!(
+                    "🔍 [Rust] Row {} interval_ms raw: '{}' (bytes: {:?}), parsed: {:?}",
+                    index,
+                    val_str,
+                    val_str.as_bytes(),
+                    val
+                );
+            }
+            val
+        } else {
+            None
+        };
+
         progress_list.push(CsvLoopProgress {
             index,
             total,
             can_id,
             can_data,
             vehicle_control,
+            interval_ms,
         });
     }
 
@@ -505,4 +551,53 @@ pub async fn disconnect_system_monitor(state: State<'_, AppState>) -> Result<Str
     }
 
     Ok("Disconnected from System Monitor".to_string())
+}
+
+/// Start Infinite Algorithmic Drive
+#[tauri::command]
+pub async fn start_infinite_drive(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    info!("🚀 [Rust] start_infinite_drive called");
+
+    if state.csv_loop_running.load(Ordering::SeqCst) {
+        return Err("Drive loop already running".to_string());
+    }
+
+    {
+        let is_connected = state.is_connected.lock().unwrap();
+        if !*is_connected {
+            return Err("Not connected".to_string());
+        }
+    }
+
+    state.csv_loop_running.store(true, Ordering::SeqCst);
+
+    let state_clone = Arc::new(AppState {
+        tx_send: state.tx_send.clone(),
+        is_connected: state.is_connected.clone(),
+        csv_loop_running: state.csv_loop_running.clone(),
+        receive_thread_running: state.receive_thread_running.clone(),
+        write_thread_running: state.write_thread_running.clone(),
+        system_monitor_connected: state.system_monitor_connected.clone(),
+        system_monitor_thread_running: state.system_monitor_thread_running.clone(),
+    });
+
+    std::thread::spawn(move || {
+        if let Err(e) = run_infinite_drive(state_clone, app_handle) {
+            error!("Infinite drive error: {}", e);
+        }
+    });
+
+    Ok("Infinite drive started".to_string())
+}
+
+/// Stop Infinite Algorithmic Drive
+#[tauri::command]
+pub async fn stop_infinite_drive(state: State<'_, AppState>) -> Result<String, String> {
+    info!("Stopping infinite drive");
+    state.csv_loop_running.store(false, Ordering::SeqCst);
+    thread::sleep(Duration::from_millis(100));
+    Ok("Infinite drive stopped".to_string())
 }

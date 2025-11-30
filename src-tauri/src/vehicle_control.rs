@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct VehicleControl {
     /// 车体行进速度，单位 mm/s (Signed Int16)
     pub linear_velocity_mms: i16,
-    /// 转向角度 (rad)
+    /// 转向角度 (degree)
     pub steering_angle: f32,
     /// 档位名称 (P/D/R) - 根据速度推断
     pub gear_name: String,
@@ -34,10 +34,9 @@ pub fn parse_vehicle_control_data(data: &[u8]) -> Result<VehicleControl, &'stati
     // 2. 解析转向角 (Byte 2-3, i16 Big Endian)
     let steering_angle_raw = i16::from_be_bytes([data[2], data[3]]);
 
-    // 3. 转换转向角单位: 从 0.001度 计数转换为 rad
+    // 3. 转换转向角单位: 从 0.001度 计数转换为 degree
     // 1 count = 0.001 度
-    // rad = raw * 0.001 * π/180
-    let steering_angle = steering_angle_raw as f32 * 0.001 * std::f32::consts::PI / 180.0;
+    let steering_angle = steering_angle_raw as f32 * 0.001;
 
     // 4. 推断档位
     // 速度 > 0: D
@@ -50,6 +49,14 @@ pub fn parse_vehicle_control_data(data: &[u8]) -> Result<VehicleControl, &'stati
     } else {
         "P".to_string()
     };
+
+    log::info!(
+        "Parsed Vehicle Control: Bytes={:02X?}, Speed={}mm/s, Angle={:.3}, Gear={}",
+        &data[0..4],
+        linear_velocity_mms,
+        steering_angle,
+        gear_name
+    );
 
     Ok(VehicleControl {
         linear_velocity_mms,
@@ -101,13 +108,13 @@ mod tests {
             Ok(control) => {
                 println!("成功解析控制数据:");
                 println!("  线速度 (mm/s): {}", control.linear_velocity_mms);
-                println!("  转向角 (rad):   {:.4}", control.steering_angle);
+                println!("  转向角 (deg):   {:.4}", control.steering_angle);
                 println!("  档位: {}", control.gear_name);
 
                 assert_eq!(control.linear_velocity_mms, 3000);
                 assert_eq!(control.gear_name, "D");
-                // 18度 = 18 * PI / 180 = PI / 10 ≈ 0.314159
-                let expected_angle = 18.0 * std::f32::consts::PI / 180.0;
+                // 18度
+                let expected_angle = 18.0;
                 assert!((control.steering_angle - expected_angle).abs() < 0.0001);
             }
             Err(e) => panic!("解析失败: {}", e),
@@ -121,7 +128,7 @@ mod tests {
             Ok(control) => {
                 assert_eq!(control.linear_velocity_mms, -3000);
                 assert_eq!(control.gear_name, "R");
-                let expected_angle = -22.0 * std::f32::consts::PI / 180.0;
+                let expected_angle = -22.0;
                 assert!((control.steering_angle - expected_angle).abs() < 0.0001);
             }
             Err(e) => panic!("解析失败: {}", e),

@@ -14,8 +14,8 @@ const DriveControl: React.FC = () => {
         }
         disabled={!isConnected}
         className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 backdrop-blur-md border ${carStates.isDriving
-            ? "bg-red-500/80 border-red-400/50 text-white hover:bg-red-600/90 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
-            : "bg-emerald-500/80 border-emerald-400/50 text-white hover:bg-emerald-600/90 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+          ? "bg-red-500/80 border-red-400/50 text-white hover:bg-red-600/90 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+          : "bg-emerald-500/80 border-emerald-400/50 text-white hover:bg-emerald-600/90 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
           } disabled:opacity-50 disabled:cursor-not-allowed`}
       >
         {carStates.isDriving ? (

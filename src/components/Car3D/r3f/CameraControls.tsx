@@ -270,14 +270,21 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
     } else if (isDrivingRef.current) {
       // 行驶时应用相机旋转补偿（但不在动画进行中）
       // 只有在禁用手动控制时才应用自动补偿
-      if (controlsRef.current && !controlsRef.current.enabled) {
-        applyCameraRotationCompensation(
-          camera,
-          isDrivingRef.current,
-          cameraHeightRef.current,
-          cameraDistanceRef.current,
-          maxCameraLateralOffsetRef.current
-        );
+      if (controlsRef.current) {
+        // Debug log (throttle to avoid spam)
+        if (Math.random() < 0.01) {
+          console.log(`[CameraControls] useFrame: isDriving=${isDrivingRef.current}, enabled=${controlsRef.current.enabled}`);
+        }
+
+        if (!controlsRef.current.enabled) {
+          applyCameraRotationCompensation(
+            camera,
+            isDrivingRef.current,
+            cameraHeightRef.current,
+            cameraDistanceRef.current,
+            maxCameraLateralOffsetRef.current
+          );
+        }
       }
     }
   });
