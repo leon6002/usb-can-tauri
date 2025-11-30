@@ -1,29 +1,29 @@
-use std::sync::{Arc, mpsc};
 use std::sync::atomic::Ordering;
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::Duration;
 
-use serialport::available_ports;
-use tauri::{State, Manager};
-use anyhow::{Result, anyhow};
-use log::{info, error, warn};
+use anyhow::{anyhow, Result};
 use csv::ReaderBuilder;
+use log::{error, info, warn};
+use serialport::available_ports;
+use tauri::{Manager, State};
 
-use crate::{AppState, SerialConfig, SendMessage, CsvLoopProgress};
-use crate::can_protocol::{create_can_config_packet, create_can_send_packet_fixed, create_can_send_packet_variable};
+use crate::can_protocol::{
+    create_can_config_packet, create_can_send_packet_fixed, create_can_send_packet_variable,
+};
 use crate::csv_loop::{run_csv_loop, run_csv_loop_with_preloaded_data};
 use crate::io_thread::start_io_thread;
+use crate::system_monitor_thread::start_system_monitor_thread;
 use crate::vehicle_control::extract_vehicle_control;
+use crate::{AppState, CsvLoopProgress, SendMessage, SerialConfig};
 
 /// Get available serial ports
 #[tauri::command]
 pub async fn get_available_ports() -> Result<Vec<String>, String> {
     match available_ports() {
         Ok(ports) => {
-            let port_names: Vec<String> = ports
-                .into_iter()
-                .map(|p| p.port_name)
-                .collect();
+            let port_names: Vec<String> = ports.into_iter().map(|p| p.port_name).collect();
             Ok(port_names)
         }
         Err(e) => {
@@ -71,7 +71,10 @@ pub async fn connect_serial(
     }
 
     // Open serial port
-    println!("🔌 [Connect] Opening serial port: {} at {} baud", config.port, config.baud_rate);
+    println!(
+        "🔌 [Connect] Opening serial port: {} at {} baud",
+        config.port, config.baud_rate
+    );
     let port = match serialport::new(&config.port, config.baud_rate)
         .timeout(Duration::from_millis(1000))
         .open()
@@ -152,7 +155,10 @@ pub async fn send_can_message(
     protocol_length: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    info!("Sending CAN message - ID: {}, Data: {}, Type: {}, Protocol: {}", id, data, frame_type, protocol_length);
+    info!(
+        "Sending CAN message - ID: {}, Data: {}, Type: {}, Protocol: {}",
+        id, data, frame_type, protocol_length
+    );
 
     // Check connection state
     {
@@ -171,7 +177,7 @@ pub async fn send_can_message(
             Ok(p) => {
                 info!("CAN packet (variable) created successfully");
                 p
-            },
+            }
             Err(e) => {
                 error!("CAN packet creation failed: {}", e);
                 return Err(format!("Failed to create packet: {}", e));
@@ -182,7 +188,7 @@ pub async fn send_can_message(
             Ok(p) => {
                 // info!("CAN packet (fixed) created successfully");
                 p
-            },
+            }
             Err(e) => {
                 error!("CAN packet creation failed: {}", e);
                 return Err(format!("Failed to create packet: {}", e));
@@ -223,8 +229,16 @@ pub async fn start_csv_loop(
     config: serde_json::Value,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    println!("🚀 [Rust] start_csv_loop called - Interval: {}ms, CSV length: {}, Start row: {}", interval_ms, csv_content.len(), csv_start_row_index);
-    info!("Starting CSV loop - Interval: {}ms, Start row: {}", interval_ms, csv_start_row_index);
+    println!(
+        "🚀 [Rust] start_csv_loop called - Interval: {}ms, CSV length: {}, Start row: {}",
+        interval_ms,
+        csv_content.len(),
+        csv_start_row_index
+    );
+    info!(
+        "Starting CSV loop - Interval: {}ms, Start row: {}",
+        interval_ms, csv_start_row_index
+    );
 
     if state.csv_loop_running.load(Ordering::SeqCst) {
         println!("❌ [Rust] CSV loop already running");
@@ -248,6 +262,8 @@ pub async fn start_csv_loop(
         csv_loop_running: state.csv_loop_running.clone(),
         receive_thread_running: state.receive_thread_running.clone(),
         write_thread_running: state.write_thread_running.clone(),
+        system_monitor_connected: state.system_monitor_connected.clone(),
+        system_monitor_thread_running: state.system_monitor_thread_running.clone(),
     });
     let csv_content_clone = csv_content.clone();
     let config_clone = config.clone();
@@ -305,7 +321,11 @@ pub async fn preload_csv_data(
     }
 
     if csv_start_row_index >= records.len() {
-        return Err(format!("Start row index {} out of range (max: {})", csv_start_row_index, records.len() - 1));
+        return Err(format!(
+            "Start row index {} out of range (max: {})",
+            csv_start_row_index,
+            records.len() - 1
+        ));
     }
 
     let filtered_records: Vec<_> = records.iter().skip(csv_start_row_index).collect();
@@ -335,7 +355,10 @@ pub async fn preload_csv_data(
         });
     }
 
-    println!("✅ [Rust] Preloaded {} records with vehicle control data", progress_list.len());
+    println!(
+        "✅ [Rust] Preloaded {} records with vehicle control data",
+        progress_list.len()
+    );
     Ok(progress_list)
 }
 
@@ -348,8 +371,16 @@ pub async fn start_csv_loop_with_preloaded_data(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
-    println!("🚀 [Rust] start_csv_loop_with_preloaded_data called - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
-    info!("Starting CSV loop with preloaded data - Interval: {}ms, Records: {}", interval_ms, preloaded_data.len());
+    println!(
+        "🚀 [Rust] start_csv_loop_with_preloaded_data called - Interval: {}ms, Records: {}",
+        interval_ms,
+        preloaded_data.len()
+    );
+    info!(
+        "Starting CSV loop with preloaded data - Interval: {}ms, Records: {}",
+        interval_ms,
+        preloaded_data.len()
+    );
 
     if state.csv_loop_running.load(Ordering::SeqCst) {
         println!("❌ [Rust] CSV loop already running");
@@ -364,6 +395,8 @@ pub async fn start_csv_loop_with_preloaded_data(
         csv_loop_running: state.csv_loop_running.clone(),
         receive_thread_running: state.receive_thread_running.clone(),
         write_thread_running: state.write_thread_running.clone(),
+        system_monitor_connected: state.system_monitor_connected.clone(),
+        system_monitor_thread_running: state.system_monitor_thread_running.clone(),
     });
 
     let config_clone = config.clone();
@@ -394,11 +427,15 @@ pub async fn open_system_monitor_window(app_handle: tauri::AppHandle) -> Result<
         }
         None => {
             // 窗口不存在，创建新窗口
-            tauri::WebviewWindowBuilder::new(&app_handle, "system-monitor", tauri::WebviewUrl::App("system-monitor.html".into()))
-                .title("System Monitor")
-                .inner_size(1600.0, 1000.0)
-                .build()
-                .map_err(|e| format!("Failed to create system monitor window: {}", e))?;
+            tauri::WebviewWindowBuilder::new(
+                &app_handle,
+                "system-monitor",
+                tauri::WebviewUrl::App("system-monitor.html".into()),
+            )
+            .title("System Monitor")
+            .inner_size(1600.0, 1000.0)
+            .build()
+            .map_err(|e| format!("Failed to create system monitor window: {}", e))?;
             Ok(())
         }
     }
@@ -408,8 +445,63 @@ pub async fn open_system_monitor_window(app_handle: tauri::AppHandle) -> Result<
 #[tauri::command]
 pub async fn close_system_monitor_window(app_handle: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app_handle.get_webview_window("system-monitor") {
-        window.close().map_err(|e| format!("Failed to close system monitor window: {}", e))?;
+        window
+            .close()
+            .map_err(|e| format!("Failed to close system monitor window: {}", e))?;
     }
     Ok(())
 }
 
+/// Connect to System Monitor serial port
+#[tauri::command]
+pub async fn connect_system_monitor(
+    port_name: String,
+    baud_rate: u32,
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    info!(
+        "Connecting to System Monitor: {} at {}",
+        port_name, baud_rate
+    );
+
+    {
+        let is_connected = state.system_monitor_connected.lock().unwrap();
+        if *is_connected {
+            return Err("System Monitor already connected".to_string());
+        }
+    }
+
+    let port = match serialport::new(&port_name, baud_rate)
+        .timeout(Duration::from_millis(1000))
+        .open()
+    {
+        Ok(port) => port,
+        Err(e) => return Err(format!("Failed to open port: {}", e)),
+    };
+
+    {
+        let mut is_connected = state.system_monitor_connected.lock().unwrap();
+        *is_connected = true;
+    }
+
+    let state_clone = state.inner().clone();
+    start_system_monitor_thread(port, state_clone, app_handle);
+
+    Ok("Connected to System Monitor".to_string())
+}
+
+/// Disconnect System Monitor
+#[tauri::command]
+pub async fn disconnect_system_monitor(state: State<'_, AppState>) -> Result<String, String> {
+    state
+        .system_monitor_thread_running
+        .store(false, Ordering::SeqCst);
+
+    {
+        let mut is_connected = state.system_monitor_connected.lock().unwrap();
+        *is_connected = false;
+    }
+
+    Ok("Disconnected from System Monitor".to_string())
+}

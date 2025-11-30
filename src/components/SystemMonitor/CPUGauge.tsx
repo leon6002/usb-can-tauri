@@ -13,10 +13,10 @@ const CPUGauge: React.FC<CPUGaugeProps> = ({ value, label }) => {
     if (val <= 0) return "#9CA3AF";
 
     // 80 红色：极高负载，危险区域
-    if (val >= 80) return "#F87171"; // Red 400
+    if (val >= 90) return "#F87171"; // Red 400
 
     // 60 琥珀色/黄色：高负载，警告区域
-    if (val >= 60) return "#FACC15"; // Amber 400
+    if (val >= 80) return "#FACC15"; // Amber 400
 
     // 20青色：中负载，活跃但健康
     if (val >= 20) return "#22D3EE"; // Cyan 400

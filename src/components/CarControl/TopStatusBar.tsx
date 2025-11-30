@@ -13,12 +13,12 @@ const TopStatusBar: React.FC = () => {
   };
 
   return (
-    <div className="bg-white border-b border-t border-gray-200 px-6 py-5">
+    <div className="relative px-6 py-5 bg-transparent pointer-events-none">
       <div className="flex items-center justify-between">
         {/* 中心 Logo */}
         <div className="flex items-center justify-center flex-1">
           {/* Logo - Center */}
-          <svg
+          {/* <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 366.09 118.04"
             className="h-12 w-auto"
@@ -118,20 +118,21 @@ const TopStatusBar: React.FC = () => {
                 ></path>
               </g>
             </g>
-          </svg>
+          </svg> */}
+          <img src="/header-renesas.svg" alt="Renesas Logo" />
         </div>
 
-        {/* system monitor button */}
         <Button
           onClick={handleOpenSystemMonitor}
           variant={"link"}
+          className="absolute left-[10rem] top-6 pointer-events-auto text-white/80 hover:text-cyan-400 transition-colors"
           title="Open system monitor window"
         >
           <Activity size={18} />
           <span className="text-sm font-medium">System monitor</span>
         </Button>
         {/* Version Badge */}
-        <div className="absolute top-1 left-1 text-xs text-gray-500 font-medium bg-white px-3 py-1 rounded-md shadow-sm z-50">
+        <div className="absolute top-2 left-2 text-[10px] text-white/30 font-medium px-2 py-0.5 rounded-sm z-50 select-none">
           {APP_VERSION}
         </div>
       </div>

@@ -29,9 +29,9 @@ const MemoryChart: React.FC<MemoryChartProps> = ({
   const chartData =
     memoryData.length > 0
       ? memoryData.map((value, index) => ({
-          time: timeLabels[index] || `${index}s`,
-          memory: value,
-        }))
+        time: timeLabels[index] || `${index}s`,
+        memory: value,
+      }))
       : intialData;
 
   const getFillColor = (val: number) => {
@@ -39,10 +39,10 @@ const MemoryChart: React.FC<MemoryChartProps> = ({
     if (val <= 0) return "#9CA3AF";
 
     // 80 红色：极高负载，危险区域
-    if (val >= 80) return "#F87171"; // Red 400
+    if (val >= 95) return "#F87171"; // Red 400
 
     // 60 琥珀色/黄色：高负载，警告区域
-    if (val >= 60) return "#FACC15"; // Amber 400
+    if (val >= 90) return "#FACC15"; // Amber 400
 
     // 20青色：中负载，活跃但健康
     if (val >= 20) return "#0cae09a3"; // Cyan 400

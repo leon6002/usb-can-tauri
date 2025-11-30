@@ -1,7 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSystemMonitorStore } from "@/store/systemMonitorStore";
-import { Cpu } from "lucide-react";
+import { Cpu, Plug, RefreshCw, Unplug } from "lucide-react";
 import VMPanel from "./VMPanel";
+import { invoke } from "@tauri-apps/api/core";
+import { Button } from "../ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const CPU_LABELS = [
   "G4MH Core @400Mhz MBIST&TCM",
@@ -13,18 +22,55 @@ const CPU_LABELS = [
 const SystemMonitorWindow: React.FC = () => {
   const currentData = useSystemMonitorStore((state) => state.currentData);
   const historyData = useSystemMonitorStore((state) => state.historyData);
-  const startListening = useSystemMonitorStore((state) => state.startListening);
-  const stopListening = useSystemMonitorStore((state) => state.stopListening);
+  const isConnected = useSystemMonitorStore((state) => state.isConnected);
+  const connect = useSystemMonitorStore((state) => state.connect);
+  const disconnect = useSystemMonitorStore((state) => state.disconnect);
+
+  const [ports, setPorts] = useState<string[]>([]);
+  const [selectedPort, setSelectedPort] = useState<string>("");
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const fetchPorts = async () => {
+    try {
+      const availablePorts = await invoke<string[]>("get_available_ports");
+      setPorts(availablePorts);
+      if (availablePorts.length > 0 && !selectedPort) {
+        setSelectedPort(availablePorts[0]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch ports:", error);
+    }
+  };
 
   useEffect(() => {
-    startListening();
-    return () => {
-      stopListening();
-    };
-  }, [startListening, stopListening]);
+    fetchPorts();
+  }, []);
 
-  // prepare chart data - extract memory data array
-  const memoryData = historyData.map((point) => point.memory);
+  const handleConnect = async () => {
+    if (!selectedPort) return;
+    setIsConnecting(true);
+    try {
+      await connect(selectedPort, 500000); // Default baud rate 500000 as per python script
+    } catch (error) {
+      console.error("Connection failed", error);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    await disconnect();
+  };
+
+  // prepare chart data
+  // VM1 Memory (ASIL D) -> Use vm1_mem
+  const vm1MemoryData = historyData.map((point) => point.memory); // Store currently saves max, let's use currentData for live? No, VMPanel needs history.
+  // We need to update store to save both memories in history if we want separate charts.
+  // For now, let's just use the 'memory' field from history which is max(vm0, vm1) as a fallback, 
+  // or better, let's update VMPanel to accept current value for gauge and history for chart.
+  // But VMPanel takes `memoryData` array.
+  // Let's stick to the store's `memory` for now which is max. 
+  // Ideally we should update store to keep track of both.
 
   // prepare time labels - display seconds
   const timeLabels = historyData.map((point) => {
@@ -75,20 +121,65 @@ const SystemMonitorWindow: React.FC = () => {
 
       {/* content container */}
       <div className="relative z-10 flex flex-col h-full p-4 overflow-hidden justify-center mx-auto w-[96%]">
-        {/* title */}
-        <div className="flex-shrink-0 mb-6 p-4 rounded-lg bg-gray-800/60 backdrop-blur-sm shadow-2xl border-l-4 border-cyan-500">
-          <div className="flex items-center justify-between">
+        {/* title & connection bar */}
+        <div className="flex-shrink-0 mb-6 p-4 rounded-lg bg-gray-800/60 backdrop-blur-sm shadow-2xl border-l-4 border-cyan-500 flex justify-between items-center">
+          <div>
             <div className="flex items-center">
               <Cpu className="w-6 h-6 mr-3 text-cyan-400" />
               <h1 className="text-xl font-bold text-white tracking-wide">
                 EE Arch <span className="text-cyan-400">System monitor</span>
               </h1>
             </div>
+            <p className="text-xs text-gray-400 mt-2 ml-9">
+              Real-time high-availability domain (ASIL D/B) core performance data overview
+            </p>
           </div>
-          <p className="text-xs text-gray-400 mt-2 ml-9">
-            Real-time high-availability domain (ASIL D/B) core performance data
-            overview
-          </p>
+
+          {/* Connection Controls */}
+          <div className="flex items-center gap-4 bg-black/30 p-2 rounded-md">
+            {!isConnected ? (
+              <>
+                <Select value={selectedPort} onValueChange={setSelectedPort}>
+                  <SelectTrigger className="w-[180px] bg-gray-700 border-gray-600 text-white">
+                    <SelectValue placeholder="Select Port" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ports.map((port) => (
+                      <SelectItem key={port} value={port}>
+                        {port}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={fetchPorts}
+                  variant="ghost"
+                  size="icon"
+                  className="text-gray-400 hover:text-white"
+                  title="Refresh Ports"
+                >
+                  <RefreshCw size={18} />
+                </Button>
+                <Button
+                  onClick={handleConnect}
+                  disabled={!selectedPort || isConnecting}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                >
+                  <Plug className="mr-2 h-4 w-4" />
+                  Connect
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={handleDisconnect}
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Unplug className="mr-2 h-4 w-4" />
+                Disconnect
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* main container */}
@@ -103,7 +194,7 @@ const SystemMonitorWindow: React.FC = () => {
               currentData?.cpu3 || 0,
             ]}
             cpuLabels={CPU_LABELS.slice(0, 3)}
-            memoryData={memoryData}
+            memoryData={vm1MemoryData} // Using shared memory data for now
             timeLabels={timeLabels}
             statusIndicators={vm1StatusIndicators}
           />
@@ -112,9 +203,9 @@ const SystemMonitorWindow: React.FC = () => {
           <VMPanel
             className="col-span-3"
             title="VM2 - ASIL B"
-            cpuValues={[currentData?.cpu1 || 0]}
+            cpuValues={[currentData?.cpu4 || 0]}
             cpuLabels={[CPU_LABELS[3]]}
-            memoryData={memoryData}
+            memoryData={vm1MemoryData} // Using shared memory data for now
             timeLabels={timeLabels}
             statusIndicators={vm2StatusIndicators}
           />

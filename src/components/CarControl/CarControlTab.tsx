@@ -8,6 +8,7 @@ import { useCarControlStore } from "@/store/carControlStore";
 import { useEngineSound } from "@/hooks/useEngineSound";
 import SteeringWheel from "./SteeringWheel";
 import { DraggableContainer } from "../common/DraggableContainer";
+import TopStatusBar from "./TopStatusBar";
 
 const CarControlTabComponent: React.FC = () => {
   // 从 Context 获取状态和函数
@@ -27,7 +28,10 @@ const CarControlTabComponent: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full relative bg-gray-100">
       {/* Top Status Bar - Optional, maybe hide in HUD mode or make transparent */}
-      {/* <TopStatusBar /> */}
+
+      <div className="relative z-50 pointer-events-none">
+        <TopStatusBar />
+      </div>
 
       {/* Main Content Area - Full Screen 3D */}
       <div className="absolute inset-0 z-0">
@@ -38,7 +42,7 @@ const CarControlTabComponent: React.FC = () => {
       <div className="absolute inset-0 z-10 pointer-events-none">
 
         {/* Top Left: Connection Status */}
-        <div className="absolute top-4 left-4 pointer-events-auto">
+        <div className="absolute top-20 left-4 pointer-events-auto">
           {demoMode && <DemoQuickConnect />}
         </div>
 

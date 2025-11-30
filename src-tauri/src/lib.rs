@@ -1,5 +1,5 @@
-use std::sync::{Arc, Mutex, mpsc};
 use std::sync::atomic::AtomicBool;
+use std::sync::{mpsc, Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
@@ -11,12 +11,13 @@ mod can_protocol;
 mod csv_loop;
 
 mod io_thread;
+mod system_monitor_thread;
 
 mod commands;
 use commands::{
-    get_available_ports, connect_serial, disconnect_serial, send_can_message,
-    start_csv_loop, stop_csv_loop, preload_csv_data, start_csv_loop_with_preloaded_data,
-    open_system_monitor_window, close_system_monitor_window,
+    close_system_monitor_window, connect_serial, connect_system_monitor, disconnect_serial,
+    disconnect_system_monitor, get_available_ports, open_system_monitor_window, preload_csv_data,
+    send_can_message, start_csv_loop, start_csv_loop_with_preloaded_data, stop_csv_loop,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +63,10 @@ pub struct AppState {
     csv_loop_running: Arc<AtomicBool>,
     receive_thread_running: Arc<AtomicBool>,
     write_thread_running: Arc<AtomicBool>,
+
+    // System Monitor State
+    pub system_monitor_connected: Arc<Mutex<bool>>,
+    pub system_monitor_thread_running: Arc<AtomicBool>,
 }
 
 impl Default for AppState {
@@ -72,10 +77,12 @@ impl Default for AppState {
             csv_loop_running: Arc::new(AtomicBool::new(false)),
             receive_thread_running: Arc::new(AtomicBool::new(false)),
             write_thread_running: Arc::new(AtomicBool::new(false)),
+
+            system_monitor_connected: Arc::new(Mutex::new(false)),
+            system_monitor_thread_running: Arc::new(AtomicBool::new(false)),
         }
     }
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -96,7 +103,9 @@ pub fn run() {
             preload_csv_data,
             start_csv_loop_with_preloaded_data,
             open_system_monitor_window,
-            close_system_monitor_window
+            close_system_monitor_window,
+            connect_system_monitor,
+            disconnect_system_monitor
         ])
         .setup(|app| {
             use log::info;
@@ -119,6 +128,11 @@ pub fn run() {
                         state.receive_thread_running.store(false, Ordering::SeqCst);
                         state.write_thread_running.store(false, Ordering::SeqCst);
 
+                        // Stop system monitor thread
+                        state
+                            .system_monitor_thread_running
+                            .store(false, Ordering::SeqCst);
+
                         // 清理发送通道
                         if let Ok(mut tx_send) = state.tx_send.lock() {
                             *tx_send = None;
@@ -127,6 +141,10 @@ pub fn run() {
                         // 更新连接状态
                         if let Ok(mut is_connected) = state.is_connected.lock() {
                             *is_connected = false;
+                        }
+
+                        if let Ok(mut sm_connected) = state.system_monitor_connected.lock() {
+                            *sm_connected = false;
                         }
 
                         info!("✅ Serial connection cleanup completed");
