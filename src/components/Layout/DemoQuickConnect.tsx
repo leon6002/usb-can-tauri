@@ -80,7 +80,7 @@ export const DemoQuickConnect: React.FC = () => {
     setIsLoading(true);
     try {
       onConnect(port);
-      toast.success(`Connected to port: ${port}`);
+      // toast.success(`Connected to port: ${port}`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

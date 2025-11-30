@@ -92,7 +92,7 @@ pub fn run_infinite_drive(state: Arc<AppState>, app_handle: tauri::AppHandle) ->
     // Loop until stopped
     loop {
         // Check stop condition
-        if !state.csv_loop_running.load(Ordering::SeqCst) {
+        if !state.auto_drive_running.load(Ordering::SeqCst) {
             info!("🛑 [Rust] Infinite drive stopped by user");
             break;
         }
@@ -117,7 +117,7 @@ pub fn run_infinite_drive(state: Arc<AppState>, app_handle: tauri::AppHandle) ->
 
         // Emit progress event for frontend visualization
         let _ = app_handle.emit(
-            "csv-loop-progress", // Reuse existing event for compatibility
+            "auto-drive-progress", // Renamed from csv-loop-progress
             serde_json::json!({
                 "index": 0, // Dummy value
                 "total": 0, // Dummy value
@@ -145,10 +145,10 @@ pub fn run_infinite_drive(state: Arc<AppState>, app_handle: tauri::AppHandle) ->
     }
 
     info!("✅ [Rust] Infinite drive ended");
-    state.csv_loop_running.store(false, Ordering::SeqCst);
+    state.auto_drive_running.store(false, Ordering::SeqCst);
 
     let _ = app_handle.emit(
-        "csv-loop-completed",
+        "auto-drive-completed", // Renamed from csv-loop-completed
         serde_json::json!({ "status": "completed" }),
     );
 

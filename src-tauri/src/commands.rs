@@ -4,7 +4,6 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use csv::ReaderBuilder;
 use log::{error, info, warn};
 use serialport::available_ports;
 use tauri::{Manager, State};
@@ -12,12 +11,10 @@ use tauri::{Manager, State};
 use crate::can_protocol::{
     create_can_config_packet, create_can_send_packet_fixed, create_can_send_packet_variable,
 };
-use crate::csv_loop::{run_csv_loop, run_csv_loop_with_preloaded_data};
 use crate::infinite_loop::run_infinite_drive;
 use crate::io_thread::start_io_thread;
 use crate::system_monitor_thread::start_system_monitor_thread;
-use crate::vehicle_control::extract_vehicle_control;
-use crate::{AppState, CsvLoopProgress, SendMessage, SerialConfig};
+use crate::{AppState, SendMessage, SerialConfig};
 
 /// Get available serial ports
 #[tauri::command]
@@ -220,248 +217,6 @@ pub async fn send_can_message(
     }
 }
 
-/// Start CSV loop
-#[tauri::command]
-pub async fn start_csv_loop(
-    csv_content: String,
-    interval_ms: u64,
-    can_id_column_index: usize,
-    can_data_column_index: usize,
-    csv_start_row_index: usize,
-    config: serde_json::Value,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
-    println!(
-        "🚀 [Rust] start_csv_loop called - Interval: {}ms, CSV length: {}, Start row: {}",
-        interval_ms,
-        csv_content.len(),
-        csv_start_row_index
-    );
-    info!(
-        "Starting CSV loop - Interval: {}ms, Start row: {}",
-        interval_ms, csv_start_row_index
-    );
-
-    if state.csv_loop_running.load(Ordering::SeqCst) {
-        println!("❌ [Rust] CSV loop already running");
-        return Err("CSV loop already running".to_string());
-    }
-
-    {
-        let is_connected = state.is_connected.lock().unwrap();
-        if !*is_connected {
-            println!("❌ [Rust] Not connected");
-            return Err("Not connected".to_string());
-        }
-    }
-    // println!("✅ [Rust] Connection check passed");
-
-    state.csv_loop_running.store(true, Ordering::SeqCst);
-
-    let state_clone = Arc::new(AppState {
-        tx_send: state.tx_send.clone(),
-        is_connected: state.is_connected.clone(),
-        csv_loop_running: state.csv_loop_running.clone(),
-        receive_thread_running: state.receive_thread_running.clone(),
-        write_thread_running: state.write_thread_running.clone(),
-        system_monitor_connected: state.system_monitor_connected.clone(),
-        system_monitor_thread_running: state.system_monitor_thread_running.clone(),
-    });
-    let csv_content_clone = csv_content.clone();
-    let config_clone = config.clone();
-
-    std::thread::spawn(move || {
-        if let Err(e) = run_csv_loop(
-            csv_content_clone,
-            interval_ms,
-            can_id_column_index,
-            can_data_column_index,
-            csv_start_row_index,
-            config_clone,
-            state_clone,
-        ) {
-            error!("CSV loop error: {}", e);
-        }
-    });
-
-    Ok("CSV loop started".to_string())
-}
-
-/// Stop CSV loop
-#[tauri::command]
-pub async fn stop_csv_loop(state: State<'_, AppState>) -> Result<String, String> {
-    info!("Stopping CSV loop");
-    state.csv_loop_running.store(false, Ordering::SeqCst);
-    thread::sleep(Duration::from_millis(100));
-    Ok("CSV loop stopped".to_string())
-}
-
-/// Preload CSV data and parse vehicle control information
-#[tauri::command]
-pub async fn preload_csv_data(
-    csv_content: String,
-    can_id_column_index: usize,
-    can_data_column_index: usize,
-    csv_start_row_index: usize,
-) -> Result<Vec<CsvLoopProgress>, String> {
-    println!("📂 [Rust] preload_csv_data called");
-
-    let mut reader = ReaderBuilder::new()
-        .has_headers(false)
-        .from_reader(csv_content.as_bytes());
-
-    let mut records = Vec::new();
-    for result in reader.records() {
-        let record = result.map_err(|e| format!("CSV read error: {}", e))?;
-        records.push(record);
-    }
-
-    println!("✅ [Rust] Loaded {} records from CSV", records.len());
-
-    if records.is_empty() {
-        return Err("CSV file is empty".to_string());
-    }
-
-    // Auto-detect interval_ms column
-    let mut interval_ms_column_index: Option<usize> = None;
-    let mut effective_start_row_index = csv_start_row_index;
-
-    if !records.is_empty() {
-        let first_row = &records[0];
-        println!("🔍 [Rust] CSV Header Row: {:?}", first_row);
-        for (i, field) in first_row.iter().enumerate() {
-            if field.trim().eq_ignore_ascii_case("interval_ms") {
-                interval_ms_column_index = Some(i);
-                println!("✅ [Rust] Auto-detected 'interval_ms' at column {}", i);
-
-                // If we found a header at row 0, and the user asked to start at 0,
-                // we should skip the header.
-                if csv_start_row_index == 0 {
-                    effective_start_row_index = 1;
-                }
-                break;
-            }
-        }
-    }
-
-    if effective_start_row_index >= records.len() {
-        return Err(format!(
-            "Start row index {} out of range (max: {})",
-            effective_start_row_index,
-            records.len() - 1
-        ));
-    }
-
-    let filtered_records: Vec<_> = records.iter().skip(effective_start_row_index).collect();
-    let total = filtered_records.len();
-
-    let mut progress_list = Vec::new();
-
-    for (index, record) in filtered_records.iter().enumerate() {
-        let can_id = record
-            .get(can_id_column_index)
-            .ok_or_else(|| "CAN ID column index out of range".to_string())?
-            .to_string();
-
-        let can_data = record
-            .get(can_data_column_index)
-            .ok_or_else(|| "CAN Data column index out of range".to_string())?
-            .to_string();
-
-        let vehicle_control = extract_vehicle_control(&can_data).ok();
-
-        let interval_ms = if let Some(idx) = interval_ms_column_index {
-            let val_str = record.get(idx).unwrap_or("").trim();
-            // Try parsing as u64, then f64
-            let val = val_str
-                .parse::<u64>()
-                .ok()
-                .or_else(|| val_str.parse::<f64>().ok().map(|f| f as u64));
-
-            if index < 5 || val.is_none() {
-                println!(
-                    "🔍 [Rust] Row {} interval_ms raw: '{}' (bytes: {:?}), parsed: {:?}",
-                    index,
-                    val_str,
-                    val_str.as_bytes(),
-                    val
-                );
-            }
-            val
-        } else {
-            None
-        };
-
-        progress_list.push(CsvLoopProgress {
-            index,
-            total,
-            can_id,
-            can_data,
-            vehicle_control,
-            interval_ms,
-        });
-    }
-
-    println!(
-        "✅ [Rust] Preloaded {} records with vehicle control data",
-        progress_list.len()
-    );
-    Ok(progress_list)
-}
-
-/// Start CSV loop with preloaded data
-#[tauri::command]
-pub async fn start_csv_loop_with_preloaded_data(
-    preloaded_data: Vec<CsvLoopProgress>,
-    interval_ms: u64,
-    config: serde_json::Value,
-    state: State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
-    println!(
-        "🚀 [Rust] start_csv_loop_with_preloaded_data called - Interval: {}ms, Records: {}",
-        interval_ms,
-        preloaded_data.len()
-    );
-    info!(
-        "Starting CSV loop with preloaded data - Interval: {}ms, Records: {}",
-        interval_ms,
-        preloaded_data.len()
-    );
-
-    if state.csv_loop_running.load(Ordering::SeqCst) {
-        println!("❌ [Rust] CSV loop already running");
-        return Err("CSV loop already running".to_string());
-    }
-
-    state.csv_loop_running.store(true, Ordering::SeqCst);
-
-    let state_arc = Arc::new(AppState {
-        tx_send: state.tx_send.clone(),
-        is_connected: state.is_connected.clone(),
-        csv_loop_running: state.csv_loop_running.clone(),
-        receive_thread_running: state.receive_thread_running.clone(),
-        write_thread_running: state.write_thread_running.clone(),
-        system_monitor_connected: state.system_monitor_connected.clone(),
-        system_monitor_thread_running: state.system_monitor_thread_running.clone(),
-    });
-
-    let config_clone = config.clone();
-    std::thread::spawn(move || {
-        if let Err(e) = run_csv_loop_with_preloaded_data(
-            preloaded_data,
-            interval_ms,
-            config_clone,
-            state_arc,
-            app_handle,
-        ) {
-            error!("CSV loop error: {}", e);
-        }
-    });
-
-    Ok("CSV loop started".to_string())
-}
-
 /// 打开系统监控窗口
 #[tauri::command]
 pub async fn open_system_monitor_window(app_handle: tauri::AppHandle) -> Result<(), String> {
@@ -561,7 +316,7 @@ pub async fn start_infinite_drive(
 ) -> Result<String, String> {
     info!("🚀 [Rust] start_infinite_drive called");
 
-    if state.csv_loop_running.load(Ordering::SeqCst) {
+    if state.auto_drive_running.load(Ordering::SeqCst) {
         return Err("Drive loop already running".to_string());
     }
 
@@ -572,12 +327,12 @@ pub async fn start_infinite_drive(
         }
     }
 
-    state.csv_loop_running.store(true, Ordering::SeqCst);
+    state.auto_drive_running.store(true, Ordering::SeqCst);
 
     let state_clone = Arc::new(AppState {
         tx_send: state.tx_send.clone(),
         is_connected: state.is_connected.clone(),
-        csv_loop_running: state.csv_loop_running.clone(),
+        auto_drive_running: state.auto_drive_running.clone(),
         receive_thread_running: state.receive_thread_running.clone(),
         write_thread_running: state.write_thread_running.clone(),
         system_monitor_connected: state.system_monitor_connected.clone(),
@@ -597,7 +352,7 @@ pub async fn start_infinite_drive(
 #[tauri::command]
 pub async fn stop_infinite_drive(state: State<'_, AppState>) -> Result<String, String> {
     info!("Stopping infinite drive");
-    state.csv_loop_running.store(false, Ordering::SeqCst);
+    state.auto_drive_running.store(false, Ordering::SeqCst);
     thread::sleep(Duration::from_millis(100));
     Ok("Infinite drive stopped".to_string())
 }

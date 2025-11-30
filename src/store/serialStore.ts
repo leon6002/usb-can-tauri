@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { SerialConfig } from "@/types"; // 假设 types.ts 在同级目录
-import { loadDefaultCsv } from "@/utils/csvLoader"; // 假设 csvLoader.ts 存在
+
 
 // 1. 定义 Store 接口
 interface SerialState {
@@ -71,27 +71,11 @@ export const useSerialStore = create<SerialState>((set, get) => ({
       // 获取可用串口
       const ports = await invoke<string[]>("get_available_ports");
 
-      // 加载预置的示例数据
-      console.log("📂 Loading preset CSV data on app startup...");
-      const csvRows = await loadDefaultCsv();
-      console.log(`loaded ${csvRows.length} rows from preset CSV`);
-      const csvText = [
-        "can_id,can_data,interval_ms",
-        ...csvRows.map(
-          (row) => `${row.can_id},${row.can_data},${row.interval_ms}`
-        ),
-      ].join("\n");
-
       // 批量更新状态
-      set((state) => ({
+      set({
         availablePorts: ports,
-        config: {
-          ...state.config,
-          csvFilePath: "sample-trajectory.csv (预置)",
-        },
-        driveData: csvText,
-      }));
-      console.log("✅ Preset CSV data loaded successfully");
+      });
+      console.log("✅ Serial initialized");
     } catch (error) {
       console.error("Failed to initialize app:", error);
     }

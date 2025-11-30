@@ -8,7 +8,6 @@ use vehicle_control::VehicleControl;
 
 mod can_protocol;
 
-mod csv_loop;
 mod infinite_loop;
 
 mod io_thread;
@@ -17,9 +16,8 @@ mod system_monitor_thread;
 mod commands;
 use commands::{
     close_system_monitor_window, connect_serial, connect_system_monitor, disconnect_serial,
-    disconnect_system_monitor, get_available_ports, open_system_monitor_window, preload_csv_data,
-    send_can_message, start_csv_loop, start_csv_loop_with_preloaded_data, start_infinite_drive,
-    stop_csv_loop, stop_infinite_drive,
+    disconnect_system_monitor, get_available_ports, open_system_monitor_window, send_can_message,
+    start_infinite_drive, stop_infinite_drive,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +61,7 @@ pub struct AppState {
     // 发送通道的发送端 - 用于将数据发送到写入线程
     tx_send: Arc<Mutex<Option<mpsc::Sender<SendMessage>>>>,
     is_connected: Arc<Mutex<bool>>,
-    csv_loop_running: Arc<AtomicBool>,
+    auto_drive_running: Arc<AtomicBool>,
     receive_thread_running: Arc<AtomicBool>,
     write_thread_running: Arc<AtomicBool>,
 
@@ -77,7 +75,7 @@ impl Default for AppState {
         Self {
             tx_send: Arc::new(Mutex::new(None)),
             is_connected: Arc::new(Mutex::new(false)),
-            csv_loop_running: Arc::new(AtomicBool::new(false)),
+            auto_drive_running: Arc::new(AtomicBool::new(false)),
             receive_thread_running: Arc::new(AtomicBool::new(false)),
             write_thread_running: Arc::new(AtomicBool::new(false)),
 
@@ -101,10 +99,7 @@ pub fn run() {
             connect_serial,
             disconnect_serial,
             send_can_message,
-            start_csv_loop,
-            stop_csv_loop,
-            preload_csv_data,
-            start_csv_loop_with_preloaded_data,
+            send_can_message,
             open_system_monitor_window,
             close_system_monitor_window,
             connect_system_monitor,
@@ -129,7 +124,7 @@ pub fn run() {
                     // 获取 AppState
                     if let Some(state) = app_handle.try_state::<AppState>() {
                         // 停止所有线程
-                        state.csv_loop_running.store(false, Ordering::SeqCst);
+                        state.auto_drive_running.store(false, Ordering::SeqCst);
                         state.receive_thread_running.store(false, Ordering::SeqCst);
                         state.write_thread_running.store(false, Ordering::SeqCst);
 

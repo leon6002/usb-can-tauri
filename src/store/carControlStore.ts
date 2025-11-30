@@ -38,13 +38,6 @@ interface CarControlStore {
     steeringAngle: number,
     gear?: string
   ) => void;
-  startCsvLoop: (
-    onProgressUpdate?: (
-      speed: number,
-      steeringAngle: number,
-      gear?: string
-    ) => void
-  ) => void;
   startInfiniteDrive: (
     onProgressUpdate?: (
       speed: number,
@@ -52,7 +45,7 @@ interface CarControlStore {
       gear?: string
     ) => void
   ) => Promise<void>;
-  stopCsvLoop: () => Promise<void>;
+  stopAutoDrive: () => Promise<void>;
   sendCarCommand: (commandId: string) => Promise<void>;
   sendCanCommand: (canId: string, data: string) => Promise<void>;
 
@@ -257,98 +250,6 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     }));
   },
   // 开始循环发送CSV数据（使用预解析的数据）
-  startCsvLoop: async (
-    onProgressUpdate?: (
-      speed: number,
-      steeringAngle: number,
-      gear?: string
-    ) => void
-  ) => {
-    const { progressIntervalId } = get();
-    // 在设置新 interval 前确保清理旧的
-    if (progressIntervalId) {
-      clearInterval(progressIntervalId);
-      set({ progressIntervalId: null });
-    }
-    const csvContent = useSerialStore.getState().driveData;
-    const config = useSerialStore.getState().config;
-    // 解构出需要的参数
-    const {
-      sendIntervalMs: intervalMs,
-      canIdColumnIndex,
-      canDataColumnIndex,
-      csvStartRowIndex,
-    } = config;
-    try {
-      console.log("🚀 startCsvLoop called with:", {
-        csvContentLength: csvContent.length,
-        intervalMs,
-        canIdColumnIndex,
-        canDataColumnIndex,
-        csvStartRowIndex,
-      });
-
-      // 第一步：预加载并解析 CSV 数据
-      console.log("📂 Preloading CSV data...");
-      const preloadedData = await invoke<any[]>("preload_csv_data", {
-        csvContent: csvContent,
-        canIdColumnIndex: canIdColumnIndex,
-        canDataColumnIndex: canDataColumnIndex,
-        csvStartRowIndex: csvStartRowIndex,
-      });
-
-      console.log(`✅ Preloaded ${preloadedData.length} records`);
-
-      // 第三步：监听后端进度事件 (提前到启动循环之前，防止漏掉事件)
-      if (onProgressUpdate) {
-        // 清除旧的监听器
-        const { unlistenCsvProgressFunc } = get();
-        if (unlistenCsvProgressFunc) {
-          unlistenCsvProgressFunc();
-        }
-
-        console.log("🎧 Setting up listener for csv-loop-progress");
-        const unlisten = await listen<any>("csv-loop-progress", (event) => {
-          const { vehicle_control } = event.payload;
-          // console.log("📨 Received csv-loop-progress event:", event.payload); // Add debug log
-
-          if (vehicle_control) {
-            onProgressUpdate(
-              vehicle_control.linear_velocity_mms,
-              vehicle_control.steering_angle,
-              vehicle_control.gear_name
-            );
-          }
-        });
-
-        // 保存取消监听函数
-        set({ unlistenCsvProgressFunc: unlisten });
-      }
-
-      // 第二步：使用预解析的数据启动循环
-      const result = await invoke("start_csv_loop_with_preloaded_data", {
-        preloadedData: preloadedData,
-        intervalMs: intervalMs,
-        config: {
-          port: config.port,
-          baud_rate: config.baudRate,
-          can_baud_rate: config.canBaudRate,
-          frame_type: config.frameType,
-          can_mode: config.canMode,
-          protocol_length: config.protocolLength,
-        },
-      });
-
-      console.log("✅ startCsvLoop result:", result);
-      console.log(
-        `📊 CSV loop started with ${preloadedData.length} records at ${intervalMs}ms interval`
-      );
-    } catch (error) {
-      console.error("❌ Failed to start CSV loop:", error);
-      throw error;
-    }
-  },
-
   startInfiniteDrive: async (
     onProgressUpdate?: (
       speed: number,
@@ -367,7 +268,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         }
 
         console.log("🎧 Setting up listener for infinite drive progress");
-        const unlisten = await listen<any>("csv-loop-progress", (event) => {
+        const unlisten = await listen<any>("auto-drive-progress", (event) => {
           const { vehicle_control } = event.payload;
           if (vehicle_control) {
             onProgressUpdate(
@@ -388,7 +289,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         carStates: { ...state.carStates, isDriving: true }
       }));
 
-      toast.success("Infinite Drive Started");
+      // toast.success("Infinite Drive Started");
     } catch (error) {
       console.error("❌ Failed to start infinite drive:", error);
       toast.error(`Failed to start infinite drive: ${error}`);
@@ -396,8 +297,8 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     }
   },
 
-  // 停止循环发送
-  stopCsvLoop: async () => {
+  // 停止自动驾驶
+  stopAutoDrive: async () => {
     set((state) => {
       if (state.progressIntervalId) {
         clearTimeout(state.progressIntervalId);
@@ -416,14 +317,12 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       set({ unlistenCsvProgressFunc: null });
     }
 
-    await invoke("stop_csv_loop");
-    // Also try to stop infinite drive just in case
     try {
       await invoke("stop_infinite_drive");
     } catch (e) {
       // Ignore error if not running
     }
-    console.log("✓ 后端 CSV 循环已停止");
+    console.log("✓ Auto Drive Stopped");
   },
 
   // 发送车辆控制命令
@@ -436,7 +335,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       updateVehicleControl,
       updateCarState,
       startInfiniteDrive,
-      stopCsvLoop,
+      stopAutoDrive,
       sendCanCommand,
       canCommands,
     } = get();
@@ -490,7 +389,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         //   stopDriveAnimation,
         // });
         // Stop Infinite Drive
-        stopCsvLoop(); // This now stops both
+        stopAutoDrive(); // This now stops both
         updateVehicleControl(0, 0);
         updateCarState(commandId);
         stopDriveAnimation();
@@ -557,7 +456,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     console.log(
       "🔧 csvLoopFinishListener: Calling listen() for 'csv-loop-completed'"
     );
-    const unlisten = await listen<any>("csv-loop-completed", (event) => {
+    const unlisten = await listen<any>("auto-drive-completed", (event) => {
       console.log("🎉 CSV loop completed event received.", event);
       console.log(
         "📍 Current isDriving state before stop:",
