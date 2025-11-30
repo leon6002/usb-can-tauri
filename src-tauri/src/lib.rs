@@ -3,9 +3,6 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
-mod vehicle_control;
-use vehicle_control::VehicleControl;
-
 mod can_protocol;
 
 mod infinite_loop;
@@ -37,16 +34,6 @@ pub struct CanMessage {
     timestamp: String,
     direction: String,
     frame_type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CsvLoopProgress {
-    pub index: usize,
-    pub total: usize,
-    pub can_id: String,
-    pub can_data: String,
-    pub vehicle_control: Option<VehicleControl>,
-    pub interval_ms: Option<u64>,
 }
 
 // 发送通道消息类型

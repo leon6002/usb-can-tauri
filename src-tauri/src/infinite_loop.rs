@@ -11,8 +11,18 @@ use log::{error, info};
 use tauri::Emitter;
 
 use crate::can_protocol::create_can_send_packet_fixed;
-use crate::vehicle_control::VehicleControl;
 use crate::{AppState, SendMessage};
+
+/// Vehicle Control Data Structure
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VehicleControl {
+    /// 车体行进速度，单位 mm/s (Signed Int16)
+    pub linear_velocity_mms: i16,
+    /// 转向角度 (degree)
+    pub steering_angle: f32,
+    /// 档位名称 (P/D/R) - 根据速度推断
+    pub gear_name: String,
+}
 
 /// Generate vehicle control data based on time
 /// Returns (speed_mm_s, steering_angle_deg)
