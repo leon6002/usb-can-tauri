@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Activity } from "lucide-react";
 import { Button } from "../ui/button";
-import { APP_VERSION } from "@/config/version";
+
 
 const TopStatusBar: React.FC = () => {
   const handleOpenSystemMonitor = async () => {
@@ -125,16 +125,13 @@ const TopStatusBar: React.FC = () => {
         <Button
           onClick={handleOpenSystemMonitor}
           variant={"link"}
-          className="absolute left-[10rem] top-6 pointer-events-auto text-white/80 hover:text-cyan-400 transition-colors"
+          className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-auto text-white/80 hover:text-cyan-400 transition-colors flex items-center gap-2"
           title="Open system monitor window"
         >
           <Activity size={18} />
           <span className="text-sm font-medium">System monitor</span>
         </Button>
-        {/* Version Badge */}
-        <div className="absolute top-2 left-2 text-[10px] text-white/30 font-medium px-2 py-0.5 rounded-sm z-50 select-none">
-          {APP_VERSION}
-        </div>
+
       </div>
     </div>
   );

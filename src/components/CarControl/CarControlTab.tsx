@@ -9,6 +9,7 @@ import { useEngineSound } from "@/hooks/useEngineSound";
 import SteeringWheel from "./SteeringWheel";
 import { DraggableContainer } from "../common/DraggableContainer";
 import TopStatusBar from "./TopStatusBar";
+import { APP_VERSION } from "@/config/version";
 
 const CarControlTabComponent: React.FC = () => {
   // 从 Context 获取状态和函数
@@ -70,6 +71,11 @@ const CarControlTabComponent: React.FC = () => {
       {/* Debug Panel - Keep as is or adjust z-index */}
       <div className="absolute bottom-0 left-0 z-20 pointer-events-auto">
         <DebugPanel showToggleButton={!isDemoMode} />
+      </div>
+
+      {/* Version Badge */}
+      <div className="absolute bottom-1 left-1 text-[10px] text-white/20 font-medium px-2 py-0.5 rounded-sm z-10 select-none pointer-events-none">
+        {APP_VERSION}
       </div>
     </div>
   );
