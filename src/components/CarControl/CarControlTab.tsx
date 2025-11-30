@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { Car3DViewer } from "./Car3DViewer";
-import { CarStatusPanel } from "./CarStatusPanel";
+
 import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
 import { isDemoMode, isShowSteeringWheel } from "@/config/appConfig";
@@ -42,20 +42,15 @@ const CarControlTabComponent: React.FC = () => {
       {/* HUD Overlay Layer */}
       <div className="absolute inset-0 z-10 pointer-events-none">
 
-        {/* Top Left: Connection Status */}
-        <div className="absolute top-20 left-4 pointer-events-auto">
+        {/* Bottom Left: Connection Status */}
+        <div className="absolute bottom-16 left-4 pointer-events-auto">
           {demoMode && <DemoQuickConnect />}
-        </div>
-
-        {/* Top Right: Car Status Panel */}
-        <div className="absolute top-4 right-4 pointer-events-auto">
-          <CarStatusPanel />
         </div>
 
         {/* Bottom Right: Steering Wheel & Pedals (Draggable) */}
         {isShowSteeringWheel() && (
           <DraggableContainer
-            initialPosition={{ x: window.innerWidth - 350, y: window.innerHeight - 700 }}
+            initialPosition={{ x: window.innerWidth - 280, y: (window.innerHeight - 660) / 2 }}
             className="pointer-events-auto"
           >
             <div className="p-2">

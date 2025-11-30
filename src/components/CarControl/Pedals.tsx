@@ -256,7 +256,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   }, []);
 
   return (
-    <div className="w-full p-4 mt-2 flex flex-col items-center gap-4">
+    <div className="w-full p-2 flex flex-col items-center gap-4">
       {/* Gear Selector */}
       <div className="flex gap-2 bg-black/40 p-1 rounded-lg backdrop-blur-sm">
         {(["P", "R", "D"] as const).map((gear) => (

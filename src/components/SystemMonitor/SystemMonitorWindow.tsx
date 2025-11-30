@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSystemMonitorStore } from "@/store/systemMonitorStore";
-import { Cpu, Plug, RefreshCw, Unplug } from "lucide-react";
+import { Button } from "../ui/button";
 import VMPanel from "./VMPanel";
 import { invoke } from "@tauri-apps/api/core";
-import { Button } from "../ui/button";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Cpu, Plug, RefreshCw, Unplug, Maximize, Minimize } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,6 +30,31 @@ const SystemMonitorWindow: React.FC = () => {
   const [ports, setPorts] = useState<string[]>([]);
   const [selectedPort, setSelectedPort] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const checkFullscreen = async () => {
+      try {
+        const window = getCurrentWindow();
+        const fullscreen = await window.isFullscreen();
+        setIsFullscreen(fullscreen);
+      } catch (error) {
+        console.error("Failed to check fullscreen status:", error);
+      }
+    };
+    checkFullscreen();
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      const window = getCurrentWindow();
+      const newFullscreenState = !isFullscreen;
+      await window.setFullscreen(newFullscreenState);
+      setIsFullscreen(newFullscreenState);
+    } catch (error) {
+      console.error("Failed to toggle fullscreen:", error);
+    }
+  };
 
   const fetchPorts = async () => {
     try {
@@ -137,6 +163,15 @@ const SystemMonitorWindow: React.FC = () => {
 
           {/* Connection Controls */}
           <div className="flex items-center gap-4 bg-black/30 p-2 rounded-md">
+            <Button
+              onClick={toggleFullscreen}
+              variant="ghost"
+              size="icon"
+              className="text-gray-400 hover:text-white mr-2"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            </Button>
             {!isConnected ? (
               <>
                 <Select value={selectedPort} onValueChange={setSelectedPort}>

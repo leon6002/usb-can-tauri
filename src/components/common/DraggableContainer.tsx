@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DraggableContainerProps {
     children: React.ReactNode;
@@ -14,6 +14,7 @@ export const DraggableContainer: React.FC<DraggableContainerProps> = ({
 }) => {
     const [position, setPosition] = useState(initialPosition);
     const [isDragging, setIsDragging] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const dragRef = useRef<HTMLDivElement>(null);
     const startPosRef = useRef({ x: 0, y: 0 });
 
@@ -54,21 +55,35 @@ export const DraggableContainer: React.FC<DraggableContainerProps> = ({
         }
     };
 
+    const toggleCollapse = () => {
+        setIsCollapsed(!isCollapsed);
+    };
+
     return (
         <div
             ref={dragRef}
-            className={`absolute ${className} ${isDragging ? 'cursor-grabbing' : ''}`}
+            className={`absolute ${className} ${isDragging ? 'cursor-grabbing' : ''} transition-transform duration-300 ease-in-out`}
             style={{
                 left: position.x,
                 top: position.y,
                 touchAction: "none",
+                transform: isCollapsed ? `translateX(calc(100vw - ${position.x}px))` : "none",
             }}
             onMouseDown={handleMouseDown}
         >
             {/* Drag Handle */}
-            <div className="drag-handle absolute -top-6 left-1/2 transform -translate-x-1/2 cursor-grab active:cursor-grabbing p-1 bg-white/20 backdrop-blur-md rounded-t-lg hover:bg-white/30 transition-colors">
+            <div className="drag-handle absolute -top-6 right-10 transform -translate-x-1/2 cursor-grab active:cursor-grabbing p-1 bg-white/20 backdrop-blur-md rounded-t-lg hover:bg-white/30 transition-colors">
                 <GripHorizontal className="w-4 h-4 text-white/60" />
             </div>
+
+            {/* Collapse Toggle Button */}
+            <button
+                onClick={toggleCollapse}
+                className={`absolute ${isCollapsed ? '-left-6' : 'right-2'} -top-3 -translate-y-1/2 p-1.5 bg-white/20 backdrop-blur-md rounded-l-lg hover:bg-white/30 transition-colors text-white/80 hover:text-white`}
+                title={isCollapsed ? "Show Panel" : "Hide Panel"}
+            >
+                {isCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </button>
 
             {children}
         </div>

@@ -222,7 +222,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       lastSentAngle = angle;
       lastSentTime = now;
     } catch (error) {
-      console.error("Send vehicle control command error:", error);
+      // console.error("Send vehicle control command error:", error);
       toast.error(`Send vehicle control command error: ${error}`);
       throw error;
     }

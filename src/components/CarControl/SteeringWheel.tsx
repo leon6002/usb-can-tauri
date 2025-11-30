@@ -3,6 +3,7 @@ import { useSteeringControl } from "@/hooks/useSteeringControl";
 import { useCarControlStore } from "@/store/carControlStore";
 import { Pedals } from "./Pedals";
 import { CarControlPanel } from "./CarControlPanel";
+import { CarStatusPanel } from "./CarStatusPanel";
 import { Settings2 } from "lucide-react";
 
 
@@ -197,9 +198,12 @@ const SteeringWheelContinued = () => {
   const tireAngleDegNumber = steeringWheelAngleDeg / STEERING_RATIO;
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center gap-2">
+      {/* Radar Status Panel */}
+      <CarStatusPanel className="w-[260px]" />
+
       {/* Speed & Angle Display - Above Wheel */}
-      <div className="flex gap-4 mb-4 bg-black/20 backdrop-blur-sm px-6 py-2 rounded-2xl border border-white/10">
+      <div className="w-[260px] flex justify-between items-center bg-black/20 backdrop-blur-sm px-6 py-2 rounded-2xl border border-white/10">
         {/* Speed */}
         <div className="flex flex-col items-center">
           <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Speed</span>
@@ -224,7 +228,7 @@ const SteeringWheelContinued = () => {
 
       {/* Steering Wheel Container - Transparent */}
       <div className="flex flex-col items-center justify-center relative">
-        <div className="relative mb-2">
+        <div className="relative mb-1">
           {/* Angle Indicator Ring - Subtle */}
           <div className="absolute inset-0 rounded-full border border-dashed border-white/30 opacity-50 pointer-events-none" />
 
@@ -247,7 +251,7 @@ const SteeringWheelContinued = () => {
       <Pedals currentSteeringAngle={tireAngleDegNumber} />
 
       {/* Vehicle Controls - Integrated below pedals */}
-      <div className="mt-6 w-full flex justify-center">
+      <div className="mt-2 w-full flex justify-center">
         <div className="bg-black/20 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-full max-w-[320px]">
           <div className="flex items-center gap-2 mb-3 text-white/60">
             <Settings2 className="w-3 h-3" />

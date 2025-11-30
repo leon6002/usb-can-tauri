@@ -2,6 +2,13 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "system-monitor",
   "description": "Capability for the system monitor window",
-  "windows": ["system-monitor"],
-  "permissions": ["core:default", "core:event:allow-listen"]
+  "windows": [
+    "system-monitor"
+  ],
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen"
+  ]
 }

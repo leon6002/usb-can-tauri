@@ -14,7 +14,8 @@
       {
         "title": "osyx-car-controller",
         "width": 1440,
-        "height": 900
+        "height": 900,
+        "maximized": true
       },
       {
         "label": "system-monitor",

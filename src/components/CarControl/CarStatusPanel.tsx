@@ -4,7 +4,11 @@ import { Radar } from "lucide-react";
 // import { useCarControlStore } from "@/store/carControlStore";
 import { useRadarStore } from "@/store/radarStore";
 
-const CarStatusPanelComponent: React.FC = () => {
+interface CarStatusPanelProps {
+  className?: string;
+}
+
+const CarStatusPanelComponent: React.FC<CarStatusPanelProps> = ({ className }) => {
 
   // const carStates = useCarControlStore((state) => state.carStates);
 
@@ -25,35 +29,30 @@ const CarStatusPanelComponent: React.FC = () => {
     ]
     : [];
 
+  if (!radarDistances) return null;
+
   return (
-    <div className="flex items-center gap-4">
+    <div className={`flex flex-col gap-1 bg-black/20 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 ${className}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <Radar className="w-3 h-3 text-cyan-400" />
+        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Radar System</span>
+      </div>
 
-
-      {/* Radar Group */}
-      {radarDistances && (
-        <div className="flex flex-col gap-1 bg-black/20 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10">
-          <div className="flex items-center gap-2 mb-1">
-            <Radar className="w-3 h-3 text-cyan-400" />
-            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Radar System</span>
+      <div className="flex gap-1 justify-between">
+        {radarList.map((radar) => (
+          <div
+            key={radar.id}
+            className={`flex-1 h-6 flex items-center justify-center rounded border text-[10px] font-bold transition-all ${getRadarColor(
+              radar.data?.distance ?? null
+            )}`}
+            title={radar.name}
+          >
+            {radar.data?.distance !== null && radar.data?.distance !== undefined
+              ? (radar.data.distance / 1000).toFixed(1) + "m"
+              : "-"}
           </div>
-
-          <div className="flex gap-1">
-            {radarList.map((radar) => (
-              <div
-                key={radar.id}
-                className={`w-8 h-6 flex items-center justify-center rounded border text-[10px] font-bold transition-all ${getRadarColor(
-                  radar.data?.distance ?? null
-                )}`}
-                title={radar.name}
-              >
-                {radar.data?.distance !== null && radar.data?.distance !== undefined
-                  ? (radar.data.distance / 1000).toFixed(1) + "m"
-                  : "-"}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 };
