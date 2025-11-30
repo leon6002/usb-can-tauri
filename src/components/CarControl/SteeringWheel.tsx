@@ -34,6 +34,7 @@ const SteeringWheelContinued = () => {
 
   // 获取自动驾驶状态
   const isDriving = useCarControlStore((state) => state.carStates.isDriving);
+  const currentSpeed = useCarControlStore((state) => state.carStates.currentSpeed);
   const currentSteeringAngle = useCarControlStore((state) => state.carStates.currentSteeringAngle);
 
   // Sync steering wheel with store during auto-drive
@@ -191,16 +192,36 @@ const SteeringWheelContinued = () => {
     setIsDragging(false);
   };
 
-  // 计算显示的当前角度（整数）
-  const displayDegree = steeringWheelAngleDeg.toFixed(0);
   // 计算轮胎转向角
   const tireAngleDeg = (steeringWheelAngleDeg / STEERING_RATIO).toFixed(1);
   const tireAngleDegNumber = steeringWheelAngleDeg / STEERING_RATIO;
-  // 根据角度判断颜色，接近极限时变红
-  const isNearLimit = Math.abs(steeringWheelAngleDeg) > MAX_ROTATION_DEG - 10;
 
   return (
     <div className="flex flex-col items-center">
+      {/* Speed & Angle Display - Above Wheel */}
+      <div className="flex gap-4 mb-4 bg-black/20 backdrop-blur-sm px-6 py-2 rounded-2xl border border-white/10">
+        {/* Speed */}
+        <div className="flex flex-col items-center">
+          <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Speed</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-bold text-white font-mono">
+              {((currentSpeed / 1000) * 3.6).toFixed(1)}
+            </span>
+            <span className="text-[10px] font-bold text-white/60 uppercase">km/h</span>
+          </div>
+        </div>
+
+        <div className="w-px h-8 bg-white/10" />
+
+        {/* Angle (Tire) */}
+        <div className="flex flex-col items-center">
+          <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Angle</span>
+          <span className="font-mono font-bold text-xl text-white">
+            {tireAngleDeg}°
+          </span>
+        </div>
+      </div>
+
       {/* Steering Wheel Container - Transparent */}
       <div className="flex flex-col items-center justify-center relative">
         <div className="relative mb-2">
@@ -219,28 +240,6 @@ const SteeringWheelContinued = () => {
             onMouseLeave={handleMouseUp}
             style={{ width: size, height: size }}
           />
-        </div>
-
-        {/* Data Display - Floating Text */}
-        <div className="flex gap-4 w-full justify-center bg-black/20 backdrop-blur-sm px-4 py-1 rounded-full border border-white/10">
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Wheel</span>
-            <span
-              className={`font-mono font-bold text-xs ${isNearLimit ? "text-red-400" : "text-white"
-                }`}
-            >
-              {displayDegree}°
-            </span>
-          </div>
-
-          <div className="w-px h-6 bg-white/20" />
-
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] font-bold text-blue-300/80 uppercase tracking-wider">Tire</span>
-            <span className="font-mono font-bold text-xs text-blue-300">
-              {tireAngleDeg}°
-            </span>
-          </div>
         </div>
       </div>
 
