@@ -98,7 +98,7 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
   unlistenFunc: null,
   maxHistoryPoints: 20,
   lastUpdateTime: 0,
-  throttleInterval: 100,
+  throttleInterval: 500,
 
   // Action: 设置监控数据
   setMonitorData: (data: SystemMonitorData) => {

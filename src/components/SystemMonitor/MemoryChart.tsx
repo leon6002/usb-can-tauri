@@ -85,9 +85,7 @@ const MemoryChart: React.FC<MemoryChartProps> = ({
             dataKey="memory"
             stroke={getFillColor(chartData[0].memory)}
             fill={getFillColor(chartData[0].memory)}
-            isAnimationActive={true}
-            animationDuration={300}
-            animationEasing="linear"
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -95,4 +93,4 @@ const MemoryChart: React.FC<MemoryChartProps> = ({
   );
 };
 
-export default MemoryChart;
+export default React.memo(MemoryChart);
