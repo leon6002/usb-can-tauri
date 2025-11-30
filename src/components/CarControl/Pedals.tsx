@@ -11,6 +11,8 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   const [isAccelerating, setIsAccelerating] = useState(false);
   const [isBraking, setIsBraking] = useState(false);
 
+  const [selectedGear, setSelectedGear] = useState<"P" | "R" | "D">("P");
+
   const accelerateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const brakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const decelerationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -31,10 +33,6 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   const CREEP_SPEED = 500; // 怠速 (蠕行速度)
   const SEND_INTERVAL = 100; // 每 100ms 发送一次
 
-
-  const GEAR_P_STR = "P";
-  const GEAR_D_STR = "D";
-
   // 获取发送 CAN 命令的方法和更新车辆控制的方法
   const {
     sendVehicleControlCommand,
@@ -53,9 +51,6 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   // 发送驾驶 CAN 命令
   const sendDrivingCommand = async (speed: number, angle: number) => {
     try {
-      // New protocol: speed sign determines direction.
-      // Assuming Pedals.tsx controls forward speed (D gear).
-      // If we support Reverse in the future, we should negate speed here if gear is R.
       await sendVehicleControlCommand(speed, angle);
     } catch (error) {
       console.error("❌ Failed to send drive command:", error);
@@ -68,6 +63,9 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
       clearInterval(decelerationIntervalRef.current);
     }
 
+    // P档不蠕行
+    if (selectedGear === "P") return;
+
     // 确保动画正在运行
     startDriveAnimation();
 
@@ -75,21 +73,32 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
       const currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
       let nextSpeed = currentSpeed;
 
-      if (currentSpeed > CREEP_SPEED) {
-        // 速度大于怠速，自然减速
-        nextSpeed = Math.max(currentSpeed - DECELERATION_STEP, CREEP_SPEED);
-      } else if (currentSpeed < CREEP_SPEED) {
-        // 速度小于怠速（例如从静止开始），加速到怠速
-        nextSpeed = Math.min(currentSpeed + DECELERATION_STEP, CREEP_SPEED);
+      // 目标蠕行速度 (D档正向, R档负向)
+      const targetCreepSpeed = selectedGear === "D" ? CREEP_SPEED : -CREEP_SPEED;
+
+      if (selectedGear === "D") {
+        if (currentSpeed > targetCreepSpeed) {
+          // 大于蠕行速度，自然减速
+          nextSpeed = Math.max(currentSpeed - DECELERATION_STEP, targetCreepSpeed);
+        } else if (currentSpeed < targetCreepSpeed) {
+          // 小于蠕行速度，加速到蠕行
+          nextSpeed = Math.min(currentSpeed + DECELERATION_STEP, targetCreepSpeed);
+        }
+      } else { // R Gear
+        if (currentSpeed < targetCreepSpeed) {
+          // 速度比目标更负（更快后退），减速（数值变大）
+          nextSpeed = Math.min(currentSpeed + DECELERATION_STEP, targetCreepSpeed);
+        } else if (currentSpeed > targetCreepSpeed) {
+          // 速度比目标更正（慢后退或前进），加速后退（数值变小）
+          nextSpeed = Math.max(currentSpeed - DECELERATION_STEP, targetCreepSpeed);
+        }
       }
 
       // 使用 ref 中的最新转向角
       const latestSteeringAngle = currentSteeringAngleRef.current;
 
       // 更新状态和发送命令
-      // 更新状态和发送命令
-      // 怠速时始终为 D 档
-      updateVehicleControl(nextSpeed, latestSteeringAngle, GEAR_D_STR);
+      updateVehicleControl(nextSpeed, latestSteeringAngle, selectedGear);
       updateDriveAnimation(nextSpeed, latestSteeringAngle);
       sendDrivingCommand(nextSpeed, latestSteeringAngle);
 
@@ -99,6 +108,8 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   // 加速踏板按下
   const handleAccelerateStart = () => {
     if (isDriving) return; // 自动驾驶时禁用交互
+    if (selectedGear === "P") return; // P档无法加速
+
     setIsAccelerating(true);
     setIsBraking(false);
 
@@ -121,8 +132,14 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
     const latestSteeringAngle = currentSteeringAngleRef.current;
 
     // 立即发送一次
-    const newSpeed = Math.min(currentSpeed + ACCELERATION_STEP, MAX_SPEED);
-    updateVehicleControl(newSpeed, latestSteeringAngle, GEAR_D_STR); // 更新 Store
+    let newSpeed = currentSpeed;
+    if (selectedGear === "D") {
+      newSpeed = Math.min(currentSpeed + ACCELERATION_STEP, MAX_SPEED);
+    } else if (selectedGear === "R") {
+      newSpeed = Math.max(currentSpeed - ACCELERATION_STEP, -MAX_SPEED);
+    }
+
+    updateVehicleControl(newSpeed, latestSteeringAngle, selectedGear); // 更新 Store
     updateDriveAnimation(newSpeed, latestSteeringAngle); // 更新动画状态
     sendDrivingCommand(newSpeed, latestSteeringAngle);
 
@@ -130,11 +147,18 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
     accelerateIntervalRef.current = setInterval(() => {
       // 再次获取最新速度
       currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
-      const nextSpeed = Math.min(currentSpeed + ACCELERATION_STEP, MAX_SPEED);
+      let nextSpeed = currentSpeed;
+
+      if (selectedGear === "D") {
+        nextSpeed = Math.min(currentSpeed + ACCELERATION_STEP, MAX_SPEED);
+      } else if (selectedGear === "R") {
+        nextSpeed = Math.max(currentSpeed - ACCELERATION_STEP, -MAX_SPEED);
+      }
+
       // 使用 ref 中的最新转向角
       const currentAngle = currentSteeringAngleRef.current;
 
-      updateVehicleControl(nextSpeed, currentAngle, GEAR_D_STR); // 更新 Store
+      updateVehicleControl(nextSpeed, currentAngle, selectedGear); // 更新 Store
       updateDriveAnimation(nextSpeed, currentAngle); // 更新动画状态
       sendDrivingCommand(nextSpeed, currentAngle);
     }, SEND_INTERVAL);
@@ -169,47 +193,26 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
       decelerationIntervalRef.current = null;
     }
 
-    // 停止行驶动画
-    // stopDriveAnimation(); // 移除此调用，防止刹车时重置相机视角
-
-    // 使用 ref 中的最新转向角
-    const latestSteeringAngle = currentSteeringAngleRef.current;
-
-    // 立即发送一次当前速度（开始制动）
-    let currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
-    // 只要有速度就是 D 档
-    let currentGearStr = currentSpeed > 0 ? GEAR_D_STR : GEAR_P_STR;
-
-    updateVehicleControl(currentSpeed, latestSteeringAngle, currentGearStr);
-    updateDriveAnimation(currentSpeed, latestSteeringAngle);
-    sendDrivingCommand(currentSpeed, latestSteeringAngle);
-
     // 持续减速
     brakeIntervalRef.current = setInterval(() => {
       // 获取最新速度
-      currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
-
-      // 减速计算
+      const currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
       let nextSpeed = 0;
+
       if (currentSpeed > 0) {
         nextSpeed = Math.max(currentSpeed - BRAKING_STEP, 0);
+      } else if (currentSpeed < 0) {
+        nextSpeed = Math.min(currentSpeed + BRAKING_STEP, 0);
       }
-
-      // 确定档位：速度 > 0 为 D 档，速度 = 0 为 P 档
-      const nextGearStr = nextSpeed > 0 ? GEAR_D_STR : GEAR_P_STR;
 
       // 使用 ref 中的最新转向角
       const currentAngle = currentSteeringAngleRef.current;
 
-      updateVehicleControl(nextSpeed, currentAngle, nextGearStr);
+      updateVehicleControl(nextSpeed, currentAngle, selectedGear);
       updateDriveAnimation(nextSpeed, currentAngle);
       sendDrivingCommand(nextSpeed, currentAngle);
 
-      // 如果已经停止，可以考虑清除定时器，或者保持发送0以维持停止状态
-      // 这里保持发送0比较安全
-
       // 关键修复：当速度降为0时，手动重置 isDriving 状态
-      // 这样下次点击自动驾驶时，startDriveAnimation 就能正常执行
       if (nextSpeed === 0) {
         use3DStore.getState().setIsDriving(false);
       }
@@ -226,9 +229,8 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
       brakeIntervalRef.current = null;
     }
     // 释放制动踏板后，如果车还在动（未完全停止），恢复怠速/减速模式
-    // 如果车已经停稳（速度为0），则保持停止状态（P档）
     const currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
-    if (currentSpeed > 0) {
+    if (Math.abs(currentSpeed) > 0) {
       startIdleDrive();
     }
   };
@@ -236,20 +238,39 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   // 清理定时器
   useEffect(() => {
     return () => {
-      if (accelerateIntervalRef.current) {
-        clearInterval(accelerateIntervalRef.current);
-      }
-      if (brakeIntervalRef.current) {
-        clearInterval(brakeIntervalRef.current);
-      }
-      if (decelerationIntervalRef.current) {
-        clearInterval(decelerationIntervalRef.current);
-      }
+      if (accelerateIntervalRef.current) clearInterval(accelerateIntervalRef.current);
+      if (brakeIntervalRef.current) clearInterval(brakeIntervalRef.current);
+      if (decelerationIntervalRef.current) clearInterval(decelerationIntervalRef.current);
     };
   }, []);
 
   return (
-    <div className="w-full p-4 mt-2">
+    <div className="w-full p-4 mt-2 flex flex-col items-center gap-4">
+      {/* Gear Selector */}
+      <div className="flex gap-2 bg-black/40 p-1 rounded-lg backdrop-blur-sm">
+        {(["P", "R", "D"] as const).map((gear) => (
+          <button
+            key={gear}
+            onClick={() => {
+              // 只有在速度为0时才允许切换档位 (简单保护)
+              const currentSpeed = useCarControlStore.getState().carStates.currentSpeed;
+              if (Math.abs(currentSpeed) < 10) {
+                setSelectedGear(gear);
+                updateVehicleControl(0, currentSteeringAngleRef.current, gear);
+              }
+            }}
+            className={`
+              w-10 h-8 rounded flex items-center justify-center font-bold text-sm transition-all
+              ${selectedGear === gear
+                ? (gear === 'R' ? 'bg-red-500 text-white' : gear === 'P' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white')
+                : 'text-white/50 hover:bg-white/10 hover:text-white/80'}
+            `}
+          >
+            {gear}
+          </button>
+        ))}
+      </div>
+
       {/* Pedals Container - Compact & Transparent */}
       <div className="flex justify-center items-end gap-8">
         {/* Brake Pedal */}
@@ -316,7 +337,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
                 ? 'bg-emerald-500/80 border-emerald-700 shadow-[0_0_15px_rgba(16,185,129,0.5)]'
                 : 'bg-white/20 border-white/30 hover:bg-white/30 shadow-lg'
               }
-              ${isDriving ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
+              ${isDriving || selectedGear === 'P' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}
             `}
           >
             {/* Pedal Texture */}
