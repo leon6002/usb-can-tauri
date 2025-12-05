@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "osyx-car-controller",
+  "productName": "osyx-vehicle-controller",
   "version": "0.1.0",
   "identifier": "com.usbcan.controller",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "osyx-car-controller",
+        "title": "osyx-vehicle-controller",
         "width": 1440,
         "height": 900,
         "maximized": true

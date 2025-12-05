@@ -1,5 +1,5 @@
 [package]
-name = "osyx-car-controller"
+name = "osyx-vehicle-controller"
 version = "2.0.0"
 description = "A car control tool by OSYX technology"
 authors = ["Gulong Chen"]
