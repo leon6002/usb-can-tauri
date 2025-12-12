@@ -160,7 +160,9 @@ export const Environments: React.FC = () => {
     // 计算弯曲半径（基于转向角）
     // 调整此系数以匹配轮胎转向角和道路扭曲程度
     // 较小的值会导致更急的弯曲，较大的值会导致更平缓的弯曲
-    const ROAD_CURVATURE_FACTOR = 10; // 原值为 15
+    // Protocol Inversion: Positive Angle (Left) should produce Left Curve (Negative X displacement)
+    // To achieve this, curveRadius must be negative for positive angle.
+    const ROAD_CURVATURE_FACTOR = -10; // Originally 10 positive
     const isSteeringSignificant = Math.abs(steeringAngle) > 0.001;
     const curveRadius = isSteeringSignificant
       ? ROAD_CURVATURE_FACTOR / Math.tan(steeringAngle)

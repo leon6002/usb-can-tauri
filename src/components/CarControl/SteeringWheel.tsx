@@ -44,13 +44,19 @@ const SteeringWheelContinued = () => {
   useEffect(() => {
     if (isDriving) {
       // currentSteeringAngle is tire angle, convert to steering wheel angle (deg) then to radians
-      const targetRotationDeg = currentSteeringAngle * STEERING_RATIO;
+      // Protocol: Positive = Left, Negative = Right
+      // Visual: Negative = Left (CCW), Positive = Right (CW)
+      // So we invert the sign here
+      const targetRotationDeg = -currentSteeringAngle * STEERING_RATIO;
       setRotation(toRad(targetRotationDeg));
     }
   }, [isDriving, currentSteeringAngle]);
 
   // 计算当前方向盘角度（度数）
-  const steeringWheelAngleDeg = toDeg(rotation);
+  // Protocol: Positive = Left, Negative = Right
+  // Visual (rotation): Positive = Right (CW), Negative = Left (CCW)
+  // So we invert rotation to get the correct protocol angle
+  const steeringWheelAngleDeg = -toDeg(rotation);
 
   // 使用方向盘控制 Hook（转向比 8:1）
   useSteeringControl(steeringWheelAngleDeg, STEERING_RATIO);

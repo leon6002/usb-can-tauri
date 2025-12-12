@@ -268,7 +268,9 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
         const angleInRadians = angle * (Math.PI / 180);
 
         // 179.1 是初始偏移角度（弧度），angleInRadians * 0.5 是转向比
-        const steeringRotation = 179.1 + angleInRadians * 1.5;
+        // Protocol: Positive = Left, Negative = Right
+        // Originally +1.5, inverting to -1.5 to match direction
+        const steeringRotation = 179.1 - angleInRadians * 1.5;
 
         if (steeringAxes.frontLeft) {
           steeringAxes.frontLeft.rotation.z = steeringRotation;

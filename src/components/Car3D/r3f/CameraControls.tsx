@@ -319,10 +319,10 @@ function applyCameraRotationCompensation(
   const { steeringAngle } = vehicleDynamics;
 
   // 根据转向角计算相机的横向偏移
-  // 转向角为正时（向右转），相机向右移动（转弯内角）
-  // 转向角为负时（向左转），相机向左移动（转弯内角）
-  // 使用 sin 函数使偏移平滑变化，并减小偏移量（乘以 0.8）
-  const lateralOffset = Math.sin(steeringAngle) * maxCameraLateralOffset * 0.8;
+  // Protocol Inversion: Positive Angle = Left Turn
+  // We want camera to move towards the inner corner (Left for Left Turn)
+  // So Positive Angle -> Negative Offset (Left)
+  const lateralOffset = -Math.sin(steeringAngle) * maxCameraLateralOffset * 0.8;
 
   // 调试日志
   // if (Math.abs(steeringAngle) > 0.01) {
