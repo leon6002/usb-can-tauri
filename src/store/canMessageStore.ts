@@ -113,9 +113,9 @@ export const useCanMessageStore = create<CanMessageState>((set, get) => ({
         direction: "sent",
         frameType: validFrameType,
       });
-      toast.success("消息发送成功");
+      toast.success("success");
     } catch (error) {
-      toast.error(`发送错误: ${error}`);
+      toast.error(`error: ${error}`);
     }
   },
 

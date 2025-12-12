@@ -184,7 +184,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       addMessage(newMessage);
     } catch (error) {
       console.error("Send car command error:", error);
-      toast.error(`发送车辆命令错误: ${error}`);
+      toast.error(`send can command error: ${error}`);
       throw error; // 抛出错误以便上层调用者（如 sendCarCommand 的其他分支）捕获
     }
   },
