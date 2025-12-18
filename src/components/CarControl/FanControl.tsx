@@ -5,28 +5,40 @@ import { Fan } from "lucide-react";
 
 const FanSpeedIcon: React.FC<{ level: number }> = ({ level }) => {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 rotate-90">
-      {/* Center Dot - Always active or active on level >= 1? Let's treat it as the base (Level 1) or always visible if connected. 
-          Actually, for level 0 it should be dim. Level 1 lit. 
-      */}
-      <circle cx="12" cy="19" r="2" className={`transition-all duration-200 ${level >= 1 ? "fill-white" : "fill-white/20"}`} />
+    <div className="flex items-center gap-0.5">
+      {/* Reusing standard Fan icon as requested */}
+      <Fan 
+        className={`w-3.5 h-3.5 transition-all duration-200 ${level >= 1 ? "text-white opacity-100" : "text-white opacity-40"}`} 
+      />
       
-      {/* Middle Arc - Level 2 */}
-      <path 
-        d="M6.34315 13.3431C7.84285 11.8434 9.92015 11 12 11C14.0799 11 16.1571 11.8434 17.6569 13.3431" 
-        strokeWidth="2" 
-        strokeLinecap="round"
-        className={`transition-all duration-200 ${level >= 2 ? "stroke-white" : "stroke-white/20"}`} 
-      />
-
-      {/* Outer Arc - Level 3 */}
-      <path 
-        d="M2.05025 9.05025C4.70014 6.40036 8.24352 5 12 5C15.7565 5 19.2999 6.40036 21.9497 9.05025" 
-        strokeWidth="2" 
-        strokeLinecap="round"
-        className={`transition-all duration-200 ${level >= 3 ? "stroke-white" : "stroke-white/20"}`} 
-      />
-    </svg>
+      {/* 3 Wavy Lines (Wind) - Stacked Vertically */}
+      <svg width="10" height="14" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Top Wave (Level 3) */}
+        <path 
+          d="M1 3 C3 1 7 1 9 3" 
+          stroke="currentColor" 
+          strokeWidth="1.5" 
+          strokeLinecap="round" 
+          className={`transition-all duration-200 ${level >= 3 ? "text-white opacity-100" : "text-white opacity-40"}`}
+        />
+        {/* Middle Wave (Level 2) */}
+        <path 
+          d="M1 7 C3 5 7 5 9 7" 
+          stroke="currentColor" 
+          strokeWidth="1.5" 
+          strokeLinecap="round" 
+          className={`transition-all duration-200 ${level >= 2 ? "text-white opacity-100" : "text-white opacity-40"}`}
+        />
+        {/* Bottom Wave (Level 1) */}
+        <path 
+          d="M1 11 C3 9 7 9 9 11" 
+          stroke="currentColor" 
+          strokeWidth="1.5" 
+          strokeLinecap="round" 
+          className={`transition-all duration-200 ${level >= 1 ? "text-white opacity-100" : "text-white opacity-40"}`}
+        />
+      </svg>
+    </div>
   );
 };
 
