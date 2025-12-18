@@ -158,6 +158,7 @@ pub async fn send_can_message(
     //     id, data, frame_type, protocol_length
     // );
     info!("TX: ID={} Data={}", id, data);
+    println!("🚀 [TX] ID: {}, Data: {}", id, data);
 
     // Check connection state
     {

@@ -1,5 +1,5 @@
 import React from "react";
-import { isDemoMode } from "../../config/appConfig";
+
 import LightControl from "./LightControl";
 import SuspensionControl from "./SuspensionControl";
 import FanControl from "./FanControl";
@@ -9,15 +9,19 @@ import DriveControl from "./DriveControl";
 
 export const CarControlPanel: React.FC = () => {
   return (
-    <div className="flex flex-col gap-2 w-full max-w-[280px]">
+    <div className="flex flex-col gap-1 w-full max-w-[240px]">
       {/* Main Controls */}
       <DriveControl />
 
-      {/* Suspension Controls */}
-      <SuspensionControl />
-
-      {/* Fan Controls */}
-      {!isDemoMode() && <FanControl />}
+      {/* Suspension & Fan Row */}
+      <div className="flex gap-1 w-full">
+        <div className="flex-[2] min-w-0">
+          <SuspensionControl />
+        </div>
+        <div className="flex-1 min-w-0">
+          <FanControl />
+        </div>
+      </div>
 
       {/* Light Controls */}
       <LightControl />

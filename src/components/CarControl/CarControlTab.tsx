@@ -59,6 +59,8 @@ const CarControlTabComponent: React.FC = () => {
           </DraggableContainer>
         )}
 
+        {/* Fan Control */}
+
 
 
       </div>
