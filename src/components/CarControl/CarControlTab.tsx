@@ -21,6 +21,36 @@ const CarControlTabComponent: React.FC = () => {
     (state) => state.carStates.currentSpeed
   );
 
+  // 窗口缩放逻辑
+  const [scale, setScale] = React.useState(() => {
+    if (typeof window === "undefined") return 1;
+    const targetHeight = 900;
+    const hScale = window.innerHeight / targetHeight;
+    const newScale = Math.max(hScale, 0.7);
+    return newScale;
+  });
+  
+  React.useEffect(() => {
+    const handleResize = () => {
+      // 基于 1080p 高度进行缩放，确保垂直方向总是能放下
+      // 也可以同时考虑宽度 Math.min(window.innerWidth / 1920, window.innerHeight / 1080)
+      const targetHeight = 900; // 调小参考高度，让UI稍微大一点 (之前是 1080)
+      const hScale = window.innerHeight / targetHeight;
+      // 限制最小缩放比例，防止太小
+      const newScale = Math.max(hScale, 0.75); 
+      // 直接使用高度比例，或者更保守一点取宽高的最小值以适应各种比例
+      // const wScale = window.innerWidth / 1920;
+      // 取宽高中较大的缩放比例，或者稍微放宽限制
+      // const newScale = Math.min(wScale, hScale);
+      
+      setScale(newScale);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+
   // 使用引擎声音 hook
   useEngineSound(isDriving, currentSpeed);
 
@@ -39,8 +69,15 @@ const CarControlTabComponent: React.FC = () => {
         <Car3DViewer />
       </div>
 
-      {/* HUD Overlay Layer */}
-      <div className="absolute inset-0 z-10 pointer-events-none">
+      {/* HUD Overlay Layer - Specially Scaled */}
+      <div 
+        className="absolute inset-0 z-10 pointer-events-none origin-top-left"
+        style={{
+          transform: `scale(${scale})`,
+          width: `${100 / scale}%`,
+          height: `${100 / scale}%`
+        }}
+      >
 
         {/* Bottom Left: Connection Status */}
         <div className="absolute bottom-16 left-4 pointer-events-auto">
@@ -50,8 +87,13 @@ const CarControlTabComponent: React.FC = () => {
         {/* Bottom Right: Steering Wheel & Pedals (Draggable) */}
         {isShowSteeringWheel() && (
           <DraggableContainer
-            initialPosition={{ x: window.innerWidth - 280, y: (window.innerHeight - 660) / 2 }}
+            initialPosition={{ 
+              x: window.innerWidth / scale - 280, 
+              y: (window.innerHeight / scale - 660) / 2 
+            }}
             className="pointer-events-auto"
+            key={scale} // Force re-mount on scale change to update initialPosition
+            scale={scale}
           >
             <div className="p-2">
               <SteeringWheel />

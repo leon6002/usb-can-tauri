@@ -5,12 +5,14 @@ interface DraggableContainerProps {
     children: React.ReactNode;
     initialPosition?: { x: number; y: number };
     className?: string;
+    scale?: number;
 }
 
 export const DraggableContainer: React.FC<DraggableContainerProps> = ({
     children,
     initialPosition = { x: 0, y: 0 },
     className = "",
+    scale = 1,
 }) => {
     const [position, setPosition] = useState(initialPosition);
     const [isDragging, setIsDragging] = useState(false);
@@ -21,8 +23,8 @@ export const DraggableContainer: React.FC<DraggableContainerProps> = ({
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (!isDragging) return;
-            const dx = e.clientX - startPosRef.current.x;
-            const dy = e.clientY - startPosRef.current.y;
+            const dx = (e.clientX - startPosRef.current.x) / scale;
+            const dy = (e.clientY - startPosRef.current.y) / scale;
 
             setPosition((prev) => ({
                 x: prev.x + dx,
