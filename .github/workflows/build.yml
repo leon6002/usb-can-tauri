@@ -14,15 +14,19 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            rust_target: 'aarch64-apple-darwin' # 明确指定 Rust target
             name: 'macOS-ARM64'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            rust_target: 'x86_64-apple-darwin'
             name: 'macOS-Intel'
           - platform: 'ubuntu-22.04'
             args: '--target x86_64-unknown-linux-gnu'
+            rust_target: 'x86_64-unknown-linux-gnu'
             name: 'Linux-x64'
           - platform: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
+            rust_target: 'x86_64-pc-windows-msvc' # 关键：让 Rust action 知道要配置 MSVC 环境
             name: 'Windows-x64'
 
     runs-on: ${{ matrix.platform }}
@@ -34,26 +38,36 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
+          # 如果你是 Tauri v1，保留 4.0-dev；如果是 v2，改用 4.1-dev。这里保留两个以防万一
           sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      # --- 关键修改：安装 pnpm ---
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm' # 修改为 pnpm 缓存
+
+      # --- 关键修改：Rust 环境 ---
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'ubuntu-22.04' && 'x86_64-unknown-linux-gnu' || 'x86_64-pc-windows-msvc' }}
+          # 直接引用 matrix 变量，不再使用复杂的 if/else 字符串
+          targets: ${{ matrix.rust_target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Sync node version and setup cache
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          cache: 'npm'
-
+      # --- 关键修改：使用 pnpm 安装 ---
       - name: Install frontend dependencies
-        run: npm install
+        run: pnpm install
 
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
@@ -67,10 +81,10 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      # 这一步是可选的，因为 tauri-action 已经会自动发布 Release。
+      # 如果你确实需要保留构建产物，这个步骤可以留着。
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: |
-            src-tauri/target/*/release/bundle/
-            !src-tauri/target/*/release/bundle/**/.*
+          path: src-tauri/target/release/bundle/

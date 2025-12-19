@@ -14,20 +14,20 @@ jobs:
         include:
           - platform: 'macos-latest' # for Arm64
             args: '--target aarch64-apple-darwin'
+            rust_target: 'aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel
             args: '--target x86_64-apple-darwin'
+            rust_target: 'x86_64-apple-darwin'
           - platform: 'ubuntu-22.04' # for Linux
             args: ''
+            rust_target: '' # Linux 默认即可
           - platform: 'windows-latest' # for Windows
-            args: ''
+            args: '--target x86_64-pc-windows-msvc'
+            rust_target: 'x86_64-pc-windows-msvc'    # 显式安装 MSVC target
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: setup msvc (windows only)
-        if: matrix.platform == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@v1
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -50,8 +50,7 @@ jobs:
       - name: install rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust_target }}
 
       - name: install dependencies
         run: pnpm install
