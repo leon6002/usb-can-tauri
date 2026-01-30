@@ -57,7 +57,7 @@ const TopStatusBar: React.FC = () => {
         {/* Center Logo */}
         <div className="flex items-center justify-center flex-1">
           {/* Logo - Center */}
-          <img src="/header-renesas.svg" alt="Renesas Logo" />
+          <img src="/isoft-logo.png" alt="iSoft Logo" className="h-10 w-auto" />
         </div>
 
         {/* Fullscreen - Right */}
