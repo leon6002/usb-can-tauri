@@ -21,8 +21,8 @@
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
     "@react-three/postprocessing": "^3.0.4",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/api": "2.8.0",
+    "@tauri-apps/plugin-opener": "2.4.0",
     "@types/three": "^0.180.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -37,7 +37,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "2.8.0",
     "@types/node": "^24.7.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
