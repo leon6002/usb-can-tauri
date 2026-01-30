@@ -46,15 +46,15 @@ interface SystemMonitorState {
   clearHistory: () => void;
 }
 
-// Parse 18-byte data packet
+// Parse 12-byte data packet (New Protocol: Mocking Data)
 const parseSystemMonitorData = (data: number[]): SystemMonitorData | null => {
   try {
-    if (data.length < 18) {
+    // Just check if we received enough data (12 bytes)
+    // The content is ignored as per new requirements
+    if (data.length < 12) {
       console.warn("⚠️ [SystemMonitor] Data too short:", data.length);
       return null;
     }
-
-    // Byte 0: 0xAA, Byte 1: 0x55 (Already checked in backend, but good to know)
 
     const getTimeString = (): string => {
       const now = new Date();
@@ -64,21 +64,30 @@ const parseSystemMonitorData = (data: number[]): SystemMonitorData | null => {
       return `${hours}:${minutes}:${seconds}`;
     };
 
+    // Helper for random integer between min and max (inclusive)
+    const getRandomInt = (min: number, max: number) => {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
+
+    // MOCK DATA GENERATION
+    // cpu1 2 3: 6-12
+    // cpu4: 5-10
+    // vm0 vm1: 20-30
+    // status: 2 (Green)
+
     const monitorData: SystemMonitorData = {
-      // 0: AA, 1: 55
-      cpu1: data[2],
-      cpu2: data[3],
-      cpu3: data[4],
-      cpu4: data[5],
-      vm0_mem: data[6],
-      vm1_mem: data[7],
+      cpu1: getRandomInt(6, 12),
+      cpu2: getRandomInt(6, 12),
+      cpu3: getRandomInt(6, 12),
+      cpu4: getRandomInt(5, 10),
+      
+      vm0_mem: getRandomInt(20, 30),
+      vm1_mem: getRandomInt(20, 30),
 
-      // Bytes 8-13 are debug info, skipping for now
-
-      steeringControl: data[14],
-      brakeControl: data[15],
-      bodyControl: data[16],
-      acSystem: data[17],
+      steeringControl: 2,
+      brakeControl: 2,
+      bodyControl: 2,
+      acSystem: 2,
 
       timestamp: getTimeString(),
     };

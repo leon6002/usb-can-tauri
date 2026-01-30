@@ -50,37 +50,44 @@ pub fn start_system_monitor_thread(
 
 fn process_system_monitor_buffer(message_buffer: &mut Vec<u8>, app_handle: &tauri::AppHandle) {
     loop {
-        // Find header 0xAA 0x55
-        let header_pos = message_buffer.windows(2).position(|w| w == [0xAA, 0x55]);
+        // Find a valid packet: 12 bytes long
+        // Byte 4 must be 0
+        // Bytes 7, 8, 9, 10, 11 must be 0
+        
+        // We only care if we have AT LEAST 12 bytes to even start checking.
+        if message_buffer.len() < 12 {
+            break;
+        }
 
-        if let Some(pos) = header_pos {
-            // Discard data before header
-            if pos > 0 {
-                message_buffer.drain(0..pos);
+        // Search for a valid packet position
+        let packet_start = message_buffer.windows(12).position(|chunk| {
+            chunk[4] == 0 && 
+            chunk[7] == 0 && 
+            chunk[8] == 0 && 
+            chunk[9] == 0 && 
+            chunk[10] == 0 && 
+            chunk[11] == 0
+        });
+
+        if let Some(start_index) = packet_start {
+            // Discard garbage before valid packet
+            if start_index > 0 {
+                message_buffer.drain(0..start_index);
             }
-
-            // Check if we have enough bytes (18 bytes total)
-            if message_buffer.len() >= 18 {
-                let packet: Vec<u8> = message_buffer.drain(0..18).collect();
-
-                // Emit event
-                let _ = app_handle.emit("system-monitor-data", packet);
-            } else {
-                // Not enough data yet
-                break;
-            }
+            
+            // Extract the valid packet
+            let packet: Vec<u8> = message_buffer.drain(0..12).collect();
+            
+            // Emit event
+            let _ = app_handle.emit("system-monitor-data", packet);
         } else {
-            // No header found, keep last byte just in case it's 0xAA
-            if message_buffer.len() > 1 {
-                let keep_last = if message_buffer.last() == Some(&0xAA) {
-                    1
-                } else {
-                    0
-                };
-                let len = message_buffer.len();
-                if len > keep_last {
-                    message_buffer.drain(0..len - keep_last);
-                }
+            // No valid packet found in current buffer.
+            // To prevent buffer overflow if we keep receiving invalid data, 
+            // we should discard some data, but let's be careful not to discard a potential partial match at the end.
+            // A simple strategy: keep last 11 bytes just in case they are the start of a valid packet.
+            if message_buffer.len() > 11 {
+                let discard_len = message_buffer.len() - 11;
+                message_buffer.drain(0..discard_len);
             }
             break;
         }
