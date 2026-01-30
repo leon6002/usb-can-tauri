@@ -1,3 +1,4 @@
+import { isShowRadar } from "@/config/appConfig";
 import React from "react";
 import { RadarDistances } from "../../types";
 
@@ -12,6 +13,7 @@ export const RadarDistancePanel: React.FC<RadarDistancePanelProps> = ({
   isConnected = false,
   compact = false,
 }) => {
+  if (!isShowRadar()) return null;
   const getRadarColor = (distance: number | null): string => {
     if (distance === null) return "bg-gray-100";
     if (distance < 300) return "bg-red-100 border-red-300";

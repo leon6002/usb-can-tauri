@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import { Radar } from "lucide-react";
+import { isShowRadar } from "@/config/appConfig";
 
 // import { useCarControlStore } from "@/store/carControlStore";
 import { useRadarStore } from "@/store/radarStore";
@@ -9,7 +10,7 @@ interface CarStatusPanelProps {
 }
 
 const CarStatusPanelComponent: React.FC<CarStatusPanelProps> = ({ className }) => {
-
+  if (!isShowRadar()) return null;
   // const carStates = useCarControlStore((state) => state.carStates);
 
   const getRadarColor = (distance: number | null): string => {
