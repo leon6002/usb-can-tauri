@@ -516,7 +516,12 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
 
       // Convert units
       // Speed: mm/s -> mm/s (no change needed for currentSpeed state)
-      const speed = speed_mms; 
+      // Speed: mm/s -> mm/s (no change needed for currentSpeed state)
+      // Filter out low speed fluctuations (<= 0.3 km/h ≈ 83.33 mm/s)
+      let speed = speed_mms;
+      if (Math.abs(speed) <= 84) {
+          speed = 0;
+      } 
 
       // Steering: 0.001 rad -> degrees
       // rad = raw / 1000
