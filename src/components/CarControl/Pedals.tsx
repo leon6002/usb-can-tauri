@@ -37,7 +37,9 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   // 获取发送 CAN 命令的方法和更新车辆控制的方法
   const {
     sendVehicleControlCommand,
-    updateVehicleControl
+    updateVehicleControl,
+    sendCanCommand,
+    canCommands,
   } = useCarControlStore.getState();
 
   // 获取自动驾驶状态
@@ -139,6 +141,18 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
 
     // 启动行驶动画
     startDriveAnimation();
+
+    // 如果是从静止开始加速，先发送 CAN 模式使能指令
+    const currentSpeedCheck = useCarControlStore.getState().carStates.currentSpeed;
+    if (Math.abs(currentSpeedCheck) < 10) {
+      const enableCanCommand = canCommands.find(c => c.id === "enable_can_mode");
+      if (enableCanCommand) {
+        console.log("⚡ [Pedal] Sending Enable CAN Mode (0x421) before accelerating");
+        sendCanCommand(enableCanCommand.canId, enableCanCommand.data).catch(e => 
+          console.error("Failed to send enable CAN command:", e)
+        );
+      }
+    }
 
     // 获取当前速度 (从 Store 中获取最新值)
     let currentSpeed = useCarControlStore.getState().carStates.currentSpeed;

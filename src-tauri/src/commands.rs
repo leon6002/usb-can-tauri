@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Result};
 use log::{error, info, warn};
 use serialport::available_ports;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 use crate::can_protocol::{
     create_can_config_packet, create_can_send_packet_fixed, create_can_send_packet_variable,
@@ -113,16 +113,20 @@ pub async fn connect_serial(
     // Start I/O thread
     println!("🧵 [Connect] Starting I/O thread");
     let state_clone = state.inner().clone();
-    start_io_thread(port, state_clone, rx_send, app_handle);
+    start_io_thread(port, state_clone, rx_send, app_handle.clone());
 
     println!("✅ [Connect] Serial port connected successfully - Ready to receive messages!");
     info!("Serial port connected successfully");
+
+    // Emit connection status event
+    let _ = app_handle.emit("serial-status", serde_json::json!({ "connected": true }));
+
     Ok("Connected successfully".to_string())
 }
 
 /// Disconnect from serial port
 #[tauri::command]
-pub async fn disconnect_serial(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn disconnect_serial(state: State<'_, AppState>, app_handle: tauri::AppHandle) -> Result<String, String> {
     info!("Disconnecting serial port");
 
     state.receive_thread_running.store(false, Ordering::SeqCst);
@@ -140,8 +144,18 @@ pub async fn disconnect_serial(state: State<'_, AppState>) -> Result<String, Str
 
     thread::sleep(Duration::from_millis(100));
 
+    // Emit connection status event
+    let _ = app_handle.emit("serial-status", serde_json::json!({ "connected": false }));
+
     info!("Serial port disconnected");
     Ok("Disconnected".to_string())
+}
+
+/// Get serial connection status
+#[tauri::command]
+pub async fn get_connection_status(state: State<'_, AppState>) -> Result<bool, String> {
+    let is_connected = state.is_connected.lock().unwrap();
+    Ok(*is_connected)
 }
 
 /// Send CAN message

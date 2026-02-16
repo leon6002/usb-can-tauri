@@ -15,7 +15,7 @@ const LightControl: React.FC = () => {
         <span className="text-[10px] font-medium">Light Mode</span>
       </div>
       <div className="grid grid-cols-4 gap-1 w-full flex-1">
-        {[4, 1, 2, 3].map((mode) => (
+        {[1, 2, 3].map((mode) => (
           <button
             key={mode}
             onClick={() => sendCarCommand(`light_mode_${mode}`)}
@@ -25,7 +25,7 @@ const LightControl: React.FC = () => {
               : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
               } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {mode === 4 ? "OFF" : `${mode}`}
+            {`${mode}`}
           </button>
         ))}
       </div>

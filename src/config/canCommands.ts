@@ -5,21 +5,21 @@ export const CAN_COMMANDS: CanCommand[] = [
     id: "door_open",
     name: "Open doors",
     canId: "201",
-    data: "FF 02 FF FF 00 00 00 00",
+    data: "FF FF 02 FF 00 00 00 00",
     description: "Open left and right doors",
   },
   {
     id: "door_close",
     name: "Close doors",
     canId: "201",
-    data: "FF 01 FF FF 00 00 00 00",
+    data: "FF FF 01 FF 00 00 00 00",
     description: "Close left and right doors",
   },
   {
     id: "door_stop",
     name: "Stop doors",
     canId: "201",
-    data: "FF 03 FF FF 00 00 00 00",
+    data: "FF FF 03 FF 00 00 00 00",
     description: "Stop left and right doors",
   },
   {
@@ -112,5 +112,12 @@ export const CAN_COMMANDS: CanCommand[] = [
     canId: "201",
     data: "FF FF 03 FF 00 00 00 00",
     description: "Stop vehicle suspension",
+  },
+  {
+    id: "enable_can_mode",
+    name: "Enable CAN Mode",
+    canId: "421",
+    data: "01 00 00 00 00 00 00 00",
+    description: "Enable CAN command mode (Hunter SE)",
   },
 ];

@@ -1,5 +1,6 @@
 import React from "react";
 
+import { useCarControlStore } from "@/store/carControlStore";
 import LightControl from "./LightControl";
 import SuspensionControl from "./SuspensionControl";
 import FanControl from "./FanControl";
@@ -11,6 +12,15 @@ import { isShowSuspension } from "@/config/appConfig";
 
 export const CarControlPanel: React.FC = () => {
   const showSuspension = isShowSuspension();
+  const startFeedbackListener = useCarControlStore((state) => state.startFeedbackListener);
+  const stopFeedbackListener = useCarControlStore((state) => state.stopFeedbackListener);
+
+  React.useEffect(() => {
+    startFeedbackListener();
+    return () => {
+      stopFeedbackListener();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-1 w-full max-w-[240px]">

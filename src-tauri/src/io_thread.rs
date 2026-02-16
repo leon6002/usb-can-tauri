@@ -195,14 +195,6 @@ fn handle_parsed_can_message(
         || can_id == "0x00000524"
     {
         let distance = parse_distance_from_data(&can_data);
-        // println!(
-        //     "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
-        //     can_id, distance
-        // );
-        // info!(
-        //     "🎯 [I/O Thread] Radar message - ID: {}, Distance: {} mm",
-        //     can_id, distance
-        // );
         let radar_message = serde_json::json!({
             "canId": can_id,
             "distance": distance,
@@ -211,6 +203,33 @@ fn handle_parsed_can_message(
             "timestamp": timestamp,
         });
         let _ = app_handle.emit("radar-message", radar_message);
+    } 
+    // Handle 0x221 Vehicle Feedback
+    else if can_id == "0x00000221" || can_id == "221" {
+        // Parse data: 8 bytes logic from user requirement
+        // Byte 0-1: Speed (mm/s, signed int16, Big Endian)
+        // Byte 6-7: Steering Angle (rad*1000, signed int16, Big Endian)
+
+        // can_data is a space-separated string of hex bytes, e.g., "00 12 00 00 00 00 01 F4"
+        let bytes: Vec<u8> = can_data
+            .split_whitespace()
+            .filter_map(|s| u8::from_str_radix(s, 16).ok())
+            .collect();
+
+        if bytes.len() >= 8 {
+            let speed_raw = ((bytes[0] as i16) << 8) | (bytes[1] as i16);
+            let angle_raw = ((bytes[6] as i16) << 8) | (bytes[7] as i16);
+
+            let feedback_msg = serde_json::json!({
+                "canId": can_id,
+                "speed_mms": speed_raw, // Speed in mm/s (0.001 m/s * 1000)
+                "steering_angle_rad_1000": angle_raw, // Unit: 0.001 rad
+                "timestamp": timestamp
+            });
+            
+            // Emit special event for System Monitor to trigger mock data
+            let _ = app_handle.emit("vehicle-feedback", feedback_msg);
+        }
     }
 }
 

@@ -80,8 +80,17 @@ fn generate_control_data(elapsed_sec: f64) -> (i16, f64) {
 }
 
 /// Create CAN data string from control values
-fn create_can_data(speed: i16, steering: f64) -> String {
-    let steering_int = (steering * 1000.0) as i16;
+fn create_can_data(speed: i16, steering_deg: f64) -> String {
+    // Protocol: Steering Angle (rad * 1000)
+    // 1. Convert deg to rad
+    let steering_rad = steering_deg * std::f64::consts::PI / 180.0;
+    
+    // 2. Scale by 1000
+    let mut steering_int = (steering_rad * 1000.0).round() as i16;
+
+    // 3. Clamp to valid range [-400, 400]
+    if steering_int > 400 { steering_int = 400; }
+    if steering_int < -400 { steering_int = -400; }
 
     // Big Endian packing
     let speed_bytes = speed.to_be_bytes();

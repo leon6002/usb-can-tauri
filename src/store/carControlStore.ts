@@ -53,6 +53,11 @@ interface CarControlStore {
   csvLoopFinishListener: () => Promise<UnlistenFn>;
   unlistenCsvLoopFunc: UnlistenFn | null;
   unlistenCsvProgressFunc: UnlistenFn | null;
+
+  // Realtime Feedback
+  unlistenFeedbackFunc: UnlistenFn | null;
+  startFeedbackListener: () => Promise<void>;
+  stopFeedbackListener: () => void;
 }
 
 const initialCarStates: CarStates = {
@@ -376,6 +381,17 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
           updateDriveAnimation(speed, steeringAngle);
         };
 
+        // Send CAN initialization command (0x421)
+        const enableCanCommand = findCommandById("enable_can_mode", canCommands);
+        if (enableCanCommand) {
+          console.log("⚡ Sending CAN Mode Enable Command (0x421)");
+          await sendCanCommand(enableCanCommand.canId, enableCanCommand.data);
+          // Wait briefly for the vehicle to accept the command
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } else {
+          console.warn("⚠️ 'enable_can_mode' command not found, skipping initialization");
+        }
+
         // Use new Infinite Drive logic with callback
         startInfiniteDrive(onProgressUpdate);
         updateCarState(commandId);
@@ -483,6 +499,55 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     );
     set({ unlistenCsvLoopFunc: unlisten });
     return unlisten;
+  },
+
+  // --- Realtime Vehicle Feedback Listener ---
+  unlistenFeedbackFunc: null,
+
+  startFeedbackListener: async () => {
+    const { unlistenFeedbackFunc } = get();
+    if (unlistenFeedbackFunc) return;
+
+    console.log("🎧 Starting Vehicle Feedback Listener");
+    
+    // Listen for vehicle feedback (0x221)
+    const unlisten = await listen<any>("vehicle-feedback", (event: any) => {
+      const { speed_mms, steering_angle_rad_1000 } = event.payload;
+
+      // Convert units
+      // Speed: mm/s -> mm/s (no change needed for currentSpeed state)
+      const speed = speed_mms; 
+
+      // Steering: 0.001 rad -> degrees
+      // rad = raw / 1000
+      // deg = rad * (180/PI)
+      const angleRad = steering_angle_rad_1000 / 1000.0;
+      const angleDeg = (angleRad * 180.0) / Math.PI;
+
+      // Update store state directly
+      // Note: This overrides command loop updates if they happen simultaneously,
+      // which is desired as this is 'real' feedback.
+      if (speed !== undefined && angleDeg !== undefined) {
+          set((state) => ({
+              carStates: {
+                  ...state.carStates,
+                  currentSpeed: speed,
+                  currentSteeringAngle: angleDeg,
+              }
+          }));
+      }
+    });
+
+    set({ unlistenFeedbackFunc: unlisten });
+  },
+
+  stopFeedbackListener: () => {
+      const { unlistenFeedbackFunc } = get();
+      if (unlistenFeedbackFunc) {
+          unlistenFeedbackFunc();
+          set({ unlistenFeedbackFunc: null });
+          console.log("🛑 Stopped Vehicle Feedback Listener");
+      }
   },
 
 }));

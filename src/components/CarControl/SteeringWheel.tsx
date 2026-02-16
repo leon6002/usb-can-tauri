@@ -40,9 +40,10 @@ const SteeringWheelContinued = () => {
   const currentSteeringAngle = useCarControlStore((state) => state.carStates.currentSteeringAngle);
   const isConnected = useSerialStore((state) => state.isConnected);
 
-  // Sync steering wheel with store during auto-drive
+  // Sync steering wheel with store
+  // Only sync in Auto Drive mode, and when not dragging.
   useEffect(() => {
-    if (isDriving) {
+    if (isDriving && !isDragging) {
       // currentSteeringAngle is tire angle, convert to steering wheel angle (deg) then to radians
       // Protocol: Positive = Left, Negative = Right
       // Visual: Negative = Left (CCW), Positive = Right (CW)
@@ -50,7 +51,7 @@ const SteeringWheelContinued = () => {
       const targetRotationDeg = -currentSteeringAngle * STEERING_RATIO;
       setRotation(toRad(targetRotationDeg));
     }
-  }, [isDriving, currentSteeringAngle]);
+  }, [currentSteeringAngle, isDragging, isDriving]);
 
   // 计算当前方向盘角度（度数）
   // Protocol: Positive = Left, Negative = Right
@@ -202,8 +203,8 @@ const SteeringWheelContinued = () => {
   };
 
   // 计算轮胎转向角
-  const tireAngleDeg = (steeringWheelAngleDeg / STEERING_RATIO).toFixed(1);
   const tireAngleDegNumber = steeringWheelAngleDeg / STEERING_RATIO;
+
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -229,7 +230,7 @@ const SteeringWheelContinued = () => {
         <div className="flex flex-col items-center">
           <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Angle</span>
           <span className="font-mono font-bold text-xl text-white">
-            {tireAngleDeg}°
+            {currentSteeringAngle.toFixed(1)}°
           </span>
         </div>
       </div>

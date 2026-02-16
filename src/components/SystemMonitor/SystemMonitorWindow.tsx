@@ -2,16 +2,9 @@ import { useEffect, useState } from "react";
 import { useSystemMonitorStore } from "@/store/systemMonitorStore";
 import { Button } from "../ui/button";
 import VMPanel from "./VMPanel";
-import { invoke } from "@tauri-apps/api/core";
+
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Cpu, Plug, RefreshCw, Unplug, Maximize, Minimize } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Cpu, Maximize, Minimize } from "lucide-react";
 
 const CPU_LABELS = [
   "G4MH Core @400Mhz MBIST&TCM",
@@ -23,14 +16,19 @@ const CPU_LABELS = [
 const SystemMonitorWindow: React.FC = () => {
   const currentData = useSystemMonitorStore((state) => state.currentData);
   const historyData = useSystemMonitorStore((state) => state.historyData);
-  const isConnected = useSystemMonitorStore((state) => state.isConnected);
-  const connect = useSystemMonitorStore((state) => state.connect);
-  const disconnect = useSystemMonitorStore((state) => state.disconnect);
+  const startMockLoop = useSystemMonitorStore((state) => state.startMockLoop);
+  const stopMockLoop = useSystemMonitorStore((state) => state.stopMockLoop);
 
-  const [ports, setPorts] = useState<string[]>([]);
-  const [selectedPort, setSelectedPort] = useState<string>("");
-  const [isConnecting, setIsConnecting] = useState(false);
+  
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Start listening for vehicle feedback on mount
+  useEffect(() => {
+    startMockLoop();
+    return () => {
+      stopMockLoop();
+    };
+  }, []);
 
   useEffect(() => {
     const checkFullscreen = async () => {
@@ -54,38 +52,6 @@ const SystemMonitorWindow: React.FC = () => {
     } catch (error) {
       console.error("Failed to toggle fullscreen:", error);
     }
-  };
-
-  const fetchPorts = async () => {
-    try {
-      const availablePorts = await invoke<string[]>("get_available_ports");
-      setPorts(availablePorts);
-      if (availablePorts.length > 0 && !selectedPort) {
-        setSelectedPort(availablePorts[0]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch ports:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchPorts();
-  }, []);
-
-  const handleConnect = async () => {
-    if (!selectedPort) return;
-    setIsConnecting(true);
-    try {
-      await connect(selectedPort, 500000); // Default baud rate 500000 as per python script
-    } catch (error) {
-      console.error("Connection failed", error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    await disconnect();
   };
 
   // prepare chart data
@@ -161,60 +127,20 @@ const SystemMonitorWindow: React.FC = () => {
             </p>
           </div>
 
-          {/* Connection Controls */}
-          <div className="flex items-center gap-4 bg-black/30 p-2 rounded-md">
-            <Button
-              onClick={toggleFullscreen}
-              variant="ghost"
-              size="icon"
-              className="text-gray-400 hover:text-white mr-2"
-              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            >
-              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-            </Button>
-            {!isConnected ? (
-              <>
-                <Select value={selectedPort} onValueChange={setSelectedPort}>
-                  <SelectTrigger className="w-[180px] bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Select Port" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ports.map((port) => (
-                      <SelectItem key={port} value={port}>
-                        {port}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={fetchPorts}
-                  variant="ghost"
-                  size="icon"
-                  className="text-gray-400 hover:text-white"
-                  title="Refresh Ports"
-                >
-                  <RefreshCw size={18} />
-                </Button>
-                <Button
-                  onClick={handleConnect}
-                  disabled={!selectedPort || isConnecting}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white"
-                >
-                  <Plug className="mr-2 h-4 w-4" />
-                  Connect
-                </Button>
-              </>
-            ) : (
+            {/* Connection Status Indicator - controlled by 0x221 feedback */}
+            <div className="flex items-center gap-4 bg-black/30 p-2 rounded-md">
               <Button
-                onClick={handleDisconnect}
-                variant="destructive"
-                className="bg-red-600 hover:bg-red-700"
+                onClick={toggleFullscreen}
+                variant="ghost"
+                size="icon"
+                className="text-gray-400 hover:text-white mr-2"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
               >
-                <Unplug className="mr-2 h-4 w-4" />
-                Disconnect
+                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
               </Button>
-            )}
-          </div>
+              
+
+            </div>
         </div>
 
         {/* main container */}

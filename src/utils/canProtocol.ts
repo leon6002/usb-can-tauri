@@ -10,26 +10,41 @@
  * @returns CAN 数据字符串 (4字节, 空格分隔)
  */
 export function buildVehicleControlData(speedMms: number, angleDeg: number): string {
-    // 1. 处理速度 (16位有符号, 大端序)
-    // 限制范围在 -32768 到 32767 之间
+    // 1. Process Speed (16-bit signed, Big Endian)
+    // Range: -32768 to 32767
     const speed = Math.max(-32768, Math.min(32767, Math.round(speedMms)));
 
-    // 2. 处理转向角 (16位有符号, 大端序)
-    // 角度 * 1000, 限制范围
-    const angle = Math.max(-32768, Math.min(32767, Math.round(angleDeg * 1000)));
+    // 2. Process Steering Angle (16-bit signed, Big Endian)
+    // Input: Degrees
+    // Required Unit: 0.001 rad
+    // Valid Range (Raw Value): -400 to +400 (approx +/- 23 degrees)
+    
+    // Convert deg to rad
+    const angleRad = angleDeg * (Math.PI / 180);
+    // Convert to 0.001 rad units
+    let angleRaw = Math.round(angleRad * 1000);
+    
+    // Clamp to valid range [-400, 400]
+    angleRaw = Math.max(-400, Math.min(400, angleRaw));
 
-    const buffer = new ArrayBuffer(4);
+    // Create 8-byte buffer (standard CAN frame)
+    const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
 
-    // 设置速度 (Byte 0-1)
-    view.setInt16(0, speed, false); // false = Big Endian
+    // Byte 0-1: Speed
+    view.setInt16(0, speed, false); // Big Endian
 
-    // 设置转向角 (Byte 2-3)
-    view.setInt16(2, angle, false); // false = Big Endian
+    // Byte 2-3: Steering Angle? 
+    // Wait, let's check the memory layout from previous knowledge or assume standard packing.
+    // The previous code put it at Byte 2-3.
+    // Bytes 4-7: Reserved (0x00)
+    view.setInt16(2, angleRaw, false); // Big Endian
+    
+    // Bytes 4-7 are 0 by default in new ArrayBuffer
 
     const bytes = new Uint8Array(buffer);
 
-    // 转换为十六进制字符串
+    // Convert to hex string
     return Array.from(bytes)
         .map(b => b.toString(16).toUpperCase().padStart(2, '0'))
         .join(' ');

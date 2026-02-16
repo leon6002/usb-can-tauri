@@ -164,8 +164,12 @@ pub fn create_can_send_packet_fixed(id: &str, data: &str, frame_type: &str) -> R
     packet.extend_from_slice(&id_bytes);
     // info!("CAN ID bytes (4 bytes, little-endian): {:02X?}", id_bytes);
 
-    // Data length: fixed 8 bytes
-    packet.push(0x08);
+    // Data length: fixed 8 bytes, but special case for 0x421 (Enable CAN Mode) which requires DLC=1
+    if can_id == 0x421 {
+        packet.push(0x01);
+    } else {
+        packet.push(0x08);
+    }
 
     // Data content
     packet.extend_from_slice(&data_bytes);

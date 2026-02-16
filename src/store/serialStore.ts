@@ -68,14 +68,29 @@ export const useSerialStore = create<SerialState>((set, get) => ({
    */
   initializeSerial: async () => {
     try {
-      // 获取可用串口
+      // 1. 获取可用串口
       const ports = await invoke<string[]>("get_available_ports");
+
+      // 2. 获取当前连接状态
+      const connected = await invoke<boolean>("get_connection_status");
 
       // 批量更新状态
       set({
         availablePorts: ports,
+        isConnected: connected,
       });
-      console.log("✅ Serial initialized");
+
+      // 3. 监听全局连接状态变化
+      // Note: Only setup listener once to avoid duplicates, although initializeSerial usually runs once
+      // If needed we can track listener status. For now, we assume initializeSerial runs once per store instance/window.
+      import("@tauri-apps/api/event").then(({ listen }) => {
+        listen<{ connected: boolean }>("serial-status", (event) => {
+          console.log("🔄 Serial status changed event:", event.payload);
+          set({ isConnected: event.payload.connected });
+        });
+      });
+
+      console.log("✅ Serial initialized (Connected:", connected, ")");
     } catch (error) {
       console.error("Failed to initialize app:", error);
     }

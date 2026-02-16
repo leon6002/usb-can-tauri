@@ -1,6 +1,5 @@
 import { create } from "zustand";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
+
 
 // 系统监控数据接口
 export interface SystemMonitorData {
@@ -39,11 +38,16 @@ interface SystemMonitorState {
 
   // Actions
   setMonitorData: (data: SystemMonitorData) => void;
-  connect: (port: string, baudRate: number) => Promise<void>;
+  // connect: (port: string, baudRate: number) => Promise<void>; // Deprecated
+  connect: () => Promise<void>; 
   disconnect: () => Promise<void>;
   startListening: () => Promise<void>;
   stopListening: () => void;
   clearHistory: () => void;
+  
+  startMockLoop: () => void;
+  stopMockLoop: () => void;
+  mockIntervalId: NodeJS.Timeout | null;
 }
 
 // Parse 12-byte data packet (New Protocol: Mocking Data)
@@ -103,11 +107,12 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
   // 状态
   currentData: null,
   historyData: [],
-  isConnected: false,
-  unlistenFunc: null,
+  isConnected: false, // Now represents "Monitoring Active"
+  unlistenFunc: null, // Deprecated but kept for interface compatibility if needed, or remove
   maxHistoryPoints: 20,
   lastUpdateTime: 0,
-  throttleInterval: 500,
+  throttleInterval: 1000,
+  mockIntervalId: null as NodeJS.Timeout | null,
 
   // Action: 设置监控数据
   setMonitorData: (data: SystemMonitorData) => {
@@ -118,7 +123,7 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
         cpu2: data.cpu2,
         cpu3: data.cpu3,
         cpu4: data.cpu4,
-        memory: Math.max(data.vm0_mem, data.vm1_mem), // Use max for simple display
+        memory: Math.max(data.vm0_mem, data.vm1_mem),
       };
       const newHistory = [...state.historyData, historyPoint];
       if (newHistory.length > state.maxHistoryPoints) {
@@ -132,65 +137,91 @@ export const useSystemMonitorStore = create<SystemMonitorState>((set, get) => ({
     });
   },
 
-  connect: async (port: string, baudRate: number) => {
-    try {
-      await invoke("connect_system_monitor", { portName: port, baudRate });
-      set({ isConnected: true });
-      // Start listening automatically after connect
-      await get().startListening();
-    } catch (error) {
-      console.error("Failed to connect system monitor:", error);
-      throw error;
-    }
-  },
+  // Replaces connect/startListening
+  startMockLoop: () => {
+    const { unlistenFunc } = get();
+    if (unlistenFunc) return;
 
-  disconnect: async () => {
-    try {
-      get().stopListening();
-      await invoke("disconnect_system_monitor");
-      set({ isConnected: false });
-    } catch (error) {
-      console.error("Failed to disconnect system monitor:", error);
-    }
-  },
+    console.log("🟢 Starting System Monitor Feedback Listener");
+    
+    // Clear any existing watchdog
+    let watchdogTimer: NodeJS.Timeout | null = null;
+    
+    const resetWatchdog = () => {
+      if (watchdogTimer) clearTimeout(watchdogTimer);
+      // If no data for 200ms (10 frames at 20ms), consider disconnected
+      watchdogTimer = setTimeout(() => {
+         set({ isConnected: false });
+         console.log("⚠️ System Monitor Disconnected (No 0x221 Feedback)");
+         
+         // Reset data to zeros
+          const zeroData: SystemMonitorData = {
+            cpu1: 0,
+            cpu2: 0,
+            cpu3: 0,
+            cpu4: 0,
+            vm0_mem: 0,
+            vm1_mem: 0,
+            steeringControl: 0,
+            brakeControl: 0,
+            bodyControl: 0,
+            acSystem: 0,
+            timestamp: new Date().toLocaleTimeString(),
+          };
+          get().setMonitorData(zeroData);
+      }, 500); 
+    };
 
-  // Action: 启动监听
-  startListening: async () => {
-    try {
-      if (get().unlistenFunc) return;
-
-      const unlisten = await listen<number[]>("system-monitor-data", (event) => {
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      // Listen for vehicle feedback (0x221)
+      listen<any>("vehicle-feedback", (_event) => {
+        // We received valid 0x221 data
+        // 1. Mark as connected
+        set({ isConnected: true });
+        
+        // 2. Generate and set System Monitor Mock Data (Throttled)
+        const { lastUpdateTime, throttleInterval } = get();
         const now = Date.now();
-        const state = get();
-        if (now - state.lastUpdateTime < state.throttleInterval) {
-          return;
+        
+        if (now - lastUpdateTime > throttleInterval) {
+            // (In a real app, we might use event.payload info here too)
+            const mockData = parseSystemMonitorData(new Array(12).fill(0));
+            if (mockData) {
+              get().setMonitorData(mockData);
+            }
         }
 
-        const parsedData = parseSystemMonitorData(event.payload);
-        if (parsedData) {
-          state.setMonitorData(parsedData);
-        }
+        // 3. Reset watchdog (always reset watchdog on activity, regardless of throttle)
+        resetWatchdog();
+      }).then(unlisten => {
+         set({ unlistenFunc: unlisten });
       });
+    });
+  },
 
-      set({ unlistenFunc: unlisten });
-      console.log("✅ Started listening for system monitor messages");
-    } catch (error) {
-      console.error(
-        "❌ Failed to start listening for system monitor messages:",
-        error
-      );
+  // Replaces disconnect/stopListening
+  stopMockLoop: () => {
+    const { unlistenFunc } = get();
+    if (unlistenFunc) {
+      unlistenFunc(); // Call the unlisten function returned by tauri
+      set({ 
+        isConnected: false,
+        unlistenFunc: null 
+      });
+      console.log("🔴 Stopped System Monitor Feedback Listener");
     }
   },
 
-  // Action: 停止监听
-  stopListening: () => {
-    const unlisten = get().unlistenFunc;
-    if (unlisten) {
-      unlisten();
-    }
-    set({ unlistenFunc: null });
-    console.log("⏹️  Stopped listening for system monitor messages");
+  // Legacy/Unused actions (kept empty or redirecting to mock loop if called)
+  connect: async () => {
+    console.warn("connect() is deprecated, use startMockLoop()");
+    get().startMockLoop();
   },
+  disconnect: async () => {
+    get().stopMockLoop();
+  },
+  startListening: async () => {},
+  stopListening: () => {},
 
   // Action: 清空历史数据
   clearHistory: () => {
