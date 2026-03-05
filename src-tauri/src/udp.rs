@@ -7,6 +7,7 @@ use serde::Serialize;
 // The state structural to hold our UDP socket
 pub struct UdpState {
     pub socket: Mutex<Option<Arc<UdpSocket>>>,
+    pub listener_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -29,8 +30,16 @@ pub async fn init_udp_socket(local_port: u16, app_handle: AppHandle, state: Stat
     // Store the sender so we can send out later
     *state.socket.lock().await = Some(socket.clone());
 
+    // Cancel old task if any
+    {
+        let mut task_guard = state.listener_task.lock().await;
+        if let Some(task) = task_guard.take() {
+            task.abort();
+        }
+    }
+
     // Spawn listener task
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         let mut buf = [0u8; 2048];
         log::info!("UDP listener started on port {}", local_port);
         loop {
@@ -57,7 +66,10 @@ pub async fn init_udp_socket(local_port: u16, app_handle: AppHandle, state: Stat
                 }
             }
         }
+
     });
+
+    *state.listener_task.lock().await = Some(handle);
 
     Ok(format!("UDP socket initialized on port {}", local_port))
 }
@@ -92,11 +104,16 @@ pub async fn send_udp_command(
 #[tauri::command]
 pub async fn close_udp_socket(state: State<'_, UdpState>) -> Result<String, String> {
     let mut socket_guard = state.socket.lock().await;
+    let mut task_guard = state.listener_task.lock().await;
+    
+    // Abort the listener task to drop its ownership of the Arc<UdpSocket>
+    if let Some(task) = task_guard.take() {
+        task.abort();
+    }
+    
     if socket_guard.is_some() {
-        // By setting it to None, the Arc is dropped. 
-        // If the listener task receives an error (e.g., socket closed) it will gracefully exit its loop.
         *socket_guard = None;
-        log::info!("UDP socket closed.");
+        log::info!("UDP socket and listener task closed.");
         Ok("UDP socket closed successfully".into())
     } else {
         Err("No active UDP socket to close".into())

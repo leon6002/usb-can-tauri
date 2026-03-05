@@ -84,6 +84,7 @@ pub fn run() {
         .manage(AppState::default())
         .manage(udp::UdpState {
             socket: tokio::sync::Mutex::new(None),
+            listener_task: tokio::sync::Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             get_available_ports,
