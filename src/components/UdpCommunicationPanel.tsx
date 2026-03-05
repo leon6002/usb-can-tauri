@@ -37,7 +37,6 @@ export function UdpCommunicationPanel() {
   const [selectedCmd, setSelectedCmd] = useState("");
   const [waitAck, setWaitAck] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
-  const [status, setStatus] = useState("Uninitialized");
   
   // Sequence number for commands
   const seqRef = useRef(1001);
@@ -55,7 +54,7 @@ export function UdpCommunicationPanel() {
     const unlisten = listen<UdpMessagePayload>("udp-message-received", (event) => {
       const msg = event.payload;
       addLog(`[RECV from ${msg.sender}] ${msg.data}`);
-      setStatus("Communication Active");
+
       
       // Attempt to parse JSON
       try {
@@ -84,12 +83,23 @@ export function UdpCommunicationPanel() {
         localPort: parseInt(localPort),
       });
       setInitialized(true);
-      setStatus("Initialized / Ready");
       toast.success(resp as string);
       addLog(`Socket bound to port ${localPort}`);
     } catch (err: any) {
       toast.error(`Failed to initialize: ${err}`);
       addLog(`INIT ERROR: ${err}`);
+    }
+  };
+
+  const handleUnbind = async () => {
+    try {
+      await invoke("close_udp_socket");
+      setInitialized(false);
+      toast.info("Socket unbound");
+      addLog("Socket unbound.");
+    } catch (err: any) {
+      toast.error(`Failed to unbind: ${err}`);
+      addLog(`UNBIND ERROR: ${err}`);
     }
   };
 
@@ -160,115 +170,148 @@ export function UdpCommunicationPanel() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2 bg-slate-900 text-cyan-400 border-cyan-800 hover:bg-slate-800 hover:text-cyan-300">
           <Network className="w-4 h-4" />
           UDP Comm Test
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[700px] h-[85vh] flex flex-col bg-slate-950 text-slate-200 border-slate-800">
         <DialogHeader>
-          <DialogTitle>UDP Communication Panel</DialogTitle>
-          <DialogDescription>
-            Test UDP protocol with ZCU hardware (ETH-COMM-UDP-001)
+          <DialogTitle className="text-cyan-400 flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            UDP Communication Console
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Hardware interface testing utility bridging PC and ZCU over UDP.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-          {/* Settings Section */}
-          <div className="grid grid-cols-2 gap-4 border p-4 rounded-md bg-muted/20">
-            <div className="space-y-2">
-              <Label>Target IP (ZCU)</Label>
-              <Input
-                value={targetIp}
-                onChange={(e) => setTargetIp(e.target.value)}
-                placeholder="192.168.1.100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Target Port</Label>
-              <Input
-                value={targetPort}
-                onChange={(e) => setTargetPort(e.target.value)}
-                placeholder="5000"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Local Port</Label>
-              <div className="flex gap-2">
+        <div className="flex-1 flex flex-col overflow-hidden gap-4 mt-2">
+          
+          {/* Top Bar: Local Listener Status */}
+          <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${initialized ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]' : 'bg-slate-600'}`} />
+                <span className="text-sm font-medium text-slate-300">{initialized ? "LISTENER ACTIVE" : "OFFLINE"}</span>
+              </div>
+              <div className="h-4 w-px bg-slate-700 mx-2" />
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-400 uppercase tracking-wider">Local Port</Label>
                 <Input
                   value={localPort}
                   onChange={(e) => setLocalPort(e.target.value)}
                   placeholder="5001"
                   disabled={initialized}
+                  className="w-20 h-8 bg-slate-950 border-slate-700 text-cyan-300 font-mono text-sm"
                 />
-                <Button 
-                  onClick={handleInit} 
-                  disabled={initialized}
-                  className="shrink-0"
-                >
-                  {initialized ? "Bound" : "Init Bind"}
-                </Button>
               </div>
             </div>
-            <div className="space-y-2 flex flex-col justify-end">
-              <div className="flex items-center gap-2 mb-2 text-sm font-medium">
-                <Activity className="w-4 h-4" />
-                Status: <span className={initialized ? "text-green-600" : "text-gray-500"}>{status}</span>
-              </div>
+            <div>
+              {!initialized ? (
+                <Button onClick={handleInit} size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-white h-8 px-4">
+                  Start Listen
+                </Button>
+              ) : (
+                <Button onClick={handleUnbind} size="sm" variant="destructive" className="bg-red-900/80 hover:bg-red-800 text-red-200 border border-red-800 h-8 px-4">
+                  Stop Listen
+                </Button>
+              )}
             </div>
           </div>
 
-          <div className="h-px bg-border my-2" />
+          {/* Middle: Big Log Terminal */}
+          <div className="flex-1 flex flex-col min-h-[300px]">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Network className="w-3 h-3" />
+                Terminal Logs
+              </Label>
+              <Button variant="ghost" size="sm" onClick={() => setLogs([])} className="h-6 text-xs text-slate-500 hover:text-slate-300">
+                Clear
+              </Button>
+            </div>
+            <div className="flex-1 border border-slate-800 rounded-lg bg-[#0a0f18] text-emerald-400 p-3 overflow-y-auto font-mono text-[13px] leading-relaxed relative shadow-inner">
+              {logs.length === 0 ? (
+                <span className="text-slate-700 select-none">Waiting for incoming transmission...</span>
+              ) : (
+                logs.map((log, i) => {
+                  const isSend = log.includes("[SEND]");
+                  const isErr = log.includes("ERROR:");
+                  return (
+                    <div key={i} className={`mb-1 break-all ${isSend ? 'text-cyan-400' : isErr ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {log}
+                    </div>
+                  );
+                })
+              )}
+              <div ref={logEndRef} />
+            </div>
+          </div>
 
-          {/* Action Section */}
-          <div className="space-y-4">
-            <div className="flex gap-4 items-end">
-              <div className="flex-1 space-y-2">
-                <Label>Command Payload</Label>
+          {/* Bottom: Send Control Deck */}
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4">
+            
+            {/* Target Settings */}
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-xs text-slate-400 uppercase tracking-wider">Target IP</Label>
+                <Input
+                  value={targetIp}
+                  onChange={(e) => setTargetIp(e.target.value)}
+                  placeholder="192.168.1.100"
+                  className="h-8 bg-slate-950 border-slate-700 text-slate-200 font-mono text-sm"
+                />
+              </div>
+              <div className="w-24 space-y-1.5">
+                <Label className="text-xs text-slate-400 uppercase tracking-wider">Port</Label>
+                <Input
+                  value={targetPort}
+                  onChange={(e) => setTargetPort(e.target.value)}
+                  placeholder="5000"
+                  className="h-8 bg-slate-950 border-slate-700 text-slate-200 font-mono text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Command & Execute */}
+            <div className="flex items-end gap-3">
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-xs text-slate-400 uppercase tracking-wider">Payload</Label>
                 <Select value={selectedCmd} onValueChange={setSelectedCmd}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a command..." />
+                  <SelectTrigger className="h-9 bg-slate-950 border-slate-700 text-cyan-300 font-mono text-sm">
+                    <SelectValue placeholder="Select packet type..." />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="101">101: CMD_START_STOP</SelectItem>
-                    <SelectItem value="102">102: CMD_GET_STATUS</SelectItem>
-                    <SelectItem value="103">103: CMD_PING</SelectItem>
+                  <SelectContent className="bg-slate-900 border-slate-700">
+                    <SelectItem value="101" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">101: CMD_START_STOP</SelectItem>
+                    <SelectItem value="102" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">102: CMD_GET_STATUS</SelectItem>
+                    <SelectItem value="103" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">103: CMD_PING</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2 mb-2">
+              
+              <div className="flex items-center gap-2 mb-2 px-2">
                 <input 
                   type="checkbox" 
                   id="waitAck" 
                   checked={waitAck} 
                   onChange={(e) => setWaitAck(e.target.checked)} 
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-600 bg-slate-950 text-cyan-500 accent-cyan-500"
                 />
-                <Label htmlFor="waitAck" className="cursor-pointer">Wait ACK</Label>
+                <Label htmlFor="waitAck" className="cursor-pointer text-xs text-slate-400 uppercase tracking-wider">Ack Info</Label>
               </div>
-              <Button onClick={handleSend} disabled={!initialized || !selectedCmd}>
+
+              <Button 
+                onClick={handleSend} 
+                disabled={!initialized || !selectedCmd}
+                className="h-9 bg-cyan-600 hover:bg-cyan-500 text-white min-w-[120px] shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:shadow-none transition-all"
+              >
                 <Send className="w-4 h-4 mr-2" />
-                Send Packet
+                Transmit
               </Button>
             </div>
           </div>
-
-          {/* Log Section */}
-          <div className="flex-1 flex flex-col mt-4 min-h-[200px]">
-            <Label className="mb-2">Communication Logs</Label>
-            <div className="flex-1 border rounded-md bg-black text-green-400 p-2 overflow-y-auto font-mono text-sm max-h-[300px]">
-              {logs.length === 0 ? (
-                <span className="text-gray-500">No logs yet...</span>
-              ) : (
-                logs.map((log, i) => (
-                  <div key={i} className="mb-1 leading-tight break-all">
-                    {log}
-                  </div>
-                ))
-              )}
-              <div ref={logEndRef} />
-            </div>
-          </div>
+          
         </div>
       </DialogContent>
     </Dialog>

@@ -97,7 +97,8 @@ pub fn run() {
             start_infinite_drive,
             stop_infinite_drive,
             udp::init_udp_socket,
-            udp::send_udp_command
+            udp::send_udp_command,
+            udp::close_udp_socket
         ])
         .setup(|app| {
             use log::info;

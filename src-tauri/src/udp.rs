@@ -88,3 +88,17 @@ pub async fn send_udp_command(
         }
     }
 }
+
+#[tauri::command]
+pub async fn close_udp_socket(state: State<'_, UdpState>) -> Result<String, String> {
+    let mut socket_guard = state.socket.lock().await;
+    if socket_guard.is_some() {
+        // By setting it to None, the Arc is dropped. 
+        // If the listener task receives an error (e.g., socket closed) it will gracefully exit its loop.
+        *socket_guard = None;
+        log::info!("UDP socket closed.");
+        Ok("UDP socket closed successfully".into())
+    } else {
+        Err("No active UDP socket to close".into())
+    }
+}
