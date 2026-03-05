@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { ActiveTab } from "../../types";
 import { useSerialStore } from "@/store/serialStore";
+import { UdpCommunicationPanel } from "../UdpCommunicationPanel";
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -44,6 +45,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           </div>
+        </div>
+        <div className="mt-3">
+          <UdpCommunicationPanel />
         </div>
       </div>
 

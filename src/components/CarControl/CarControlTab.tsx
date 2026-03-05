@@ -3,6 +3,7 @@ import { Car3DViewer } from "./Car3DViewer";
 
 import { DebugPanel } from "./DebugPanel";
 import { DemoQuickConnect } from "../Layout/DemoQuickConnect";
+import { UdpCommunicationPanel } from "../UdpCommunicationPanel";
 import { isDemoMode, isShowSteeringWheel } from "@/config/appConfig";
 import { useCarControlStore } from "@/store/carControlStore";
 import { useEngineSound } from "@/hooks/useEngineSound";
@@ -80,8 +81,9 @@ const CarControlTabComponent: React.FC = () => {
       >
 
         {/* Bottom Left: Connection Status */}
-        <div className="absolute bottom-16 left-4 pointer-events-auto">
+        <div className="absolute bottom-16 left-4 pointer-events-auto flex flex-col gap-2">
           {demoMode && <DemoQuickConnect />}
+          <UdpCommunicationPanel />
         </div>
 
         {/* Bottom Right: Steering Wheel & Pedals (Draggable) */}

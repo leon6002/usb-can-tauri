@@ -11,6 +11,7 @@ mod io_thread;
 mod system_monitor_thread;
 
 mod commands;
+mod udp;
 use commands::{
     close_system_monitor_window, connect_serial, connect_system_monitor, disconnect_serial,
     disconnect_system_monitor, get_available_ports, open_system_monitor_window, send_can_message,
@@ -81,18 +82,22 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
+        .manage(udp::UdpState {
+            socket: tokio::sync::Mutex::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             get_available_ports,
             connect_serial,
             disconnect_serial,
-            send_can_message,
             send_can_message,
             open_system_monitor_window,
             close_system_monitor_window,
             connect_system_monitor,
             disconnect_system_monitor,
             start_infinite_drive,
-            stop_infinite_drive
+            stop_infinite_drive,
+            udp::init_udp_socket,
+            udp::send_udp_command
         ])
         .setup(|app| {
             use log::info;
