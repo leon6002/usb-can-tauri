@@ -143,13 +143,12 @@ export function UdpCommunicationPanel() {
     if (!payload) return;
 
     try {
+      addLog(`[SEND] ${payload}`);
       await invoke("send_udp_command", {
         targetIp,
         targetPort: parseInt(targetPort),
         payloadJson: payload,
       });
-
-      addLog(`[SEND] ${payload}`);
       
       if (waitAck) {
         // Wait 2 seconds, if status hasn't changed or we can manually track ACK
