@@ -3,7 +3,7 @@ import json
 import time
 
 # 模拟 ZCU 的监听地址和端口
-ZCU_IP = "0.0.0.1"
+ZCU_IP = "0.0.0.0"
 ZCU_PORT = 5000
 
 # 上位机的接收端口
@@ -49,12 +49,12 @@ def start_mock_zcu():
             }
             
             # 发送响应回上位机的 IP 和设定的本地端口
-            resp_bytes = json.dumps(response).encode('utf-8')
+            resp_bytes = json.dumps(response, ensure_ascii=False).encode('utf-8')
             # addr[0] 是上位机的 IP，我们发给上位机监听的 5001 端口
             target_addr = (addr[0], PC_PORT)  
             
             sock.sendto(resp_bytes, target_addr)
-            print(f"[发送 ACK 应答至 {target_addr}]: {json.dumps(response)}")
+            print(f"[发送 ACK 应答至 {target_addr}]: {json.dumps(response, ensure_ascii=False)}")
             
         except KeyboardInterrupt:
             print("\n退出模拟器")
