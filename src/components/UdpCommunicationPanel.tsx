@@ -35,6 +35,7 @@ export function UdpCommunicationPanel() {
   const [localPort, setLocalPort] = useState("5001");
   const [initialized, setInitialized] = useState(false);
   const [selectedCmd, setSelectedCmd] = useState("");
+  const [customPayload, setCustomPayload] = useState("{\n  \"cmd_code\": 999,\n  \"parameters\": {}\n}");
   const [waitAck, setWaitAck] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
   
@@ -121,6 +122,14 @@ export function UdpCommunicationPanel() {
       case "103":
         body = { cmd_code: 103, parameters: {} };
         break;
+      case "custom":
+        try {
+          body = JSON.parse(customPayload);
+        } catch (e) {
+          toast.error("Invalid JSON format in custom payload");
+          return null;
+        }
+        break;
       default:
         return null;
     }
@@ -185,7 +194,7 @@ export function UdpCommunicationPanel() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col overflow-hidden gap-4 mt-2">
+        <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden gap-4 mt-2 pr-2">
           
           {/* Top Bar: Local Listener Status */}
           <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg p-3">
@@ -274,40 +283,57 @@ export function UdpCommunicationPanel() {
             </div>
 
             {/* Command & Execute */}
-            <div className="flex items-end gap-3">
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-xs text-slate-400 uppercase tracking-wider">Payload</Label>
-                <Select value={selectedCmd} onValueChange={setSelectedCmd}>
-                  <SelectTrigger className="h-9 bg-slate-950 border-slate-700 text-cyan-300 font-mono text-sm">
-                    <SelectValue placeholder="Select packet type..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-700">
-                    <SelectItem value="101" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">101: CMD_START_STOP</SelectItem>
-                    <SelectItem value="102" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">102: CMD_GET_STATUS</SelectItem>
-                    <SelectItem value="103" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">103: CMD_PING</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center gap-2 mb-2 px-2">
-                <input 
-                  type="checkbox" 
-                  id="waitAck" 
-                  checked={waitAck} 
-                  onChange={(e) => setWaitAck(e.target.checked)} 
-                  className="rounded border-slate-600 bg-slate-950 text-cyan-500 accent-cyan-500"
-                />
-                <Label htmlFor="waitAck" className="cursor-pointer text-xs text-slate-400 uppercase tracking-wider">Ack Info</Label>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-end gap-3">
+                <div className="flex-1 space-y-1.5">
+                  <Label className="text-xs text-slate-400 uppercase tracking-wider">Payload</Label>
+                  <Select value={selectedCmd} onValueChange={setSelectedCmd}>
+                    <SelectTrigger className="h-9 bg-slate-950 border-slate-700 text-cyan-300 font-mono text-sm">
+                      <SelectValue placeholder="Select packet type..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-700">
+                      <SelectItem value="101" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">101: CMD_START_STOP</SelectItem>
+                      <SelectItem value="102" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">102: CMD_GET_STATUS</SelectItem>
+                      <SelectItem value="103" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">103: CMD_PING</SelectItem>
+                      <SelectItem value="custom" className="text-slate-200 font-mono text-xs focus:bg-slate-800 focus:text-cyan-300">Custom JS0N Body...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex items-center gap-2 mb-2 px-2">
+                  <input 
+                    type="checkbox" 
+                    id="waitAck" 
+                    checked={waitAck} 
+                    onChange={(e) => setWaitAck(e.target.checked)} 
+                    className="rounded border-slate-600 bg-slate-950 text-cyan-500 accent-cyan-500"
+                  />
+                  <Label htmlFor="waitAck" className="cursor-pointer text-xs text-slate-400 uppercase tracking-wider">Ack Info</Label>
+                </div>
+
+                <Button 
+                  onClick={handleSend} 
+                  disabled={!initialized || !selectedCmd}
+                  className="h-9 bg-cyan-600 hover:bg-cyan-500 text-white min-w-[120px] shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:shadow-none transition-all"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Transmit
+                </Button>
               </div>
 
-              <Button 
-                onClick={handleSend} 
-                disabled={!initialized || !selectedCmd}
-                className="h-9 bg-cyan-600 hover:bg-cyan-500 text-white min-w-[120px] shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:shadow-none transition-all"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Transmit
-              </Button>
+              {/* Custom Payload Editor */}
+              {selectedCmd === "custom" && (
+                <div className="space-y-1.5 mt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <Label className="text-xs text-slate-400 uppercase tracking-wider">Custom JSON Body</Label>
+                  <textarea
+                    value={customPayload}
+                    onChange={(e) => setCustomPayload(e.target.value)}
+                    className="w-full min-h-[160px] max-h-[300px] bg-slate-950 border border-slate-700 rounded-md text-slate-200 font-mono text-[13px] p-3 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-y shadow-inner"
+                    placeholder={`{"cmd_code": 999, "parameters": {}}`}
+                    spellCheck={false}
+                  />
+                </div>
+              )}
             </div>
           </div>
           
