@@ -34,6 +34,8 @@ export interface AnimationSystemHandle {
   stopSuspensionAnimation: () => void;
 }
 
+const VISUAL_STEERING_SCALE = 0.85;
+
 export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
   const carComponentsRef = useRef<CarComponentsR3F | null>(null);
   const stateRef = useRef({
@@ -270,7 +272,8 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
         // 179.1 是初始偏移角度（弧度），angleInRadians * 0.5 是转向比
         // Protocol: Positive = Left, Negative = Right
         // Originally +1.5, inverting to -1.5 to match direction
-        const steeringRotation = 179.1 - angleInRadians * 1.5;
+        const steeringRotation =
+          179.1 - angleInRadians * 1.5 * VISUAL_STEERING_SCALE;
 
         if (steeringAxes.frontLeft) {
           steeringAxes.frontLeft.rotation.z = steeringRotation;
@@ -280,7 +283,7 @@ export const AnimationSystem: React.FC<AnimationSystemProps> = ({ car }) => {
         }
 
         // 保存当前转向角（弧度）
-        stateRef.current.steering.angle = angleInRadians;
+        stateRef.current.steering.angle = angleInRadians * VISUAL_STEERING_SCALE;
       },
       resetRoadTexture: () => {
         // 重置道路纹理偏移

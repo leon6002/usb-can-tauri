@@ -1,15 +1,14 @@
-import React, { useRef, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSteeringControl } from "@/hooks/useSteeringControl";
 import { useCarControlStore } from "@/store/carControlStore";
 import { useSerialStore } from "@/store/serialStore";
 import { Pedals } from "./Pedals";
 import { CarControlPanel } from "./CarControlPanel";
 import { CarStatusPanel } from "./CarStatusPanel";
-import { Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, Settings2 } from "lucide-react";
 
 
 // --- 常量定义 ---
-const TWO_PI = Math.PI * 2;
 // 将角度转换为弧度的辅助函数
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 // 将弧度转换为角度的辅助函数
@@ -21,18 +20,23 @@ const MAX_ROTATION_RAD = toRad(MAX_ROTATION_DEG);
 
 // 转向比：方向盘转8度，轮胎转1度
 const STEERING_RATIO = 8;
+const TURN_STEP_DEG = 10;
+const TURN_INTERVAL_MS = 40;
+const RESET_INTERVAL_MS = 16;
+const RESET_DAMPING = 0.22;
+const MIN_RESET_STEP_DEG = 1.2;
+const MAX_RESET_STEP_DEG = 12;
+
+type SteeringDirection = "left" | "right" | null;
+
+const clampRotation = (value: number) =>
+  Math.max(-MAX_ROTATION_RAD, Math.min(MAX_ROTATION_RAD, value));
 
 const SteeringWheelContinued = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // 记录当前方向盘的旋转角度（弧度）
-  // 初始化为 0，该值现在可以超过 -PI 到 PI 的范围
   const [rotation, setRotation] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-
-  // 使用 useRef 来记录上一次鼠标移动时的角度位置
-  // 使用 ref 而不是 state，因为我们不需要它的变化来触发重新渲染
-  const lastMouseAngleRef = useRef(0);
+  const [activeDirection, setActiveDirection] = useState<SteeringDirection>(null);
+  const steeringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const resetIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 获取自动驾驶状态
   const isDriving = useCarControlStore((state) => state.carStates.isDriving);
@@ -40,174 +44,128 @@ const SteeringWheelContinued = () => {
   const currentSteeringAngle = useCarControlStore((state) => state.carStates.currentSteeringAngle);
   const isConnected = useSerialStore((state) => state.isConnected);
 
-  // Sync steering wheel with store
-  // Only sync in Auto Drive mode, and when not dragging.
-  useEffect(() => {
-    if (isDriving && !isDragging) {
-      // currentSteeringAngle is tire angle, convert to steering wheel angle (deg) then to radians
-      // Protocol: Positive = Left, Negative = Right
-      // Visual: Negative = Left (CCW), Positive = Right (CW)
-      // So we invert the sign here
-      const targetRotationDeg = -currentSteeringAngle * STEERING_RATIO;
-      setRotation(toRad(targetRotationDeg));
+  const clearSteeringIntervals = () => {
+    if (steeringIntervalRef.current) {
+      clearInterval(steeringIntervalRef.current);
+      steeringIntervalRef.current = null;
     }
-  }, [currentSteeringAngle, isDragging, isDriving]);
+
+    if (resetIntervalRef.current) {
+      clearInterval(resetIntervalRef.current);
+      resetIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (isDriving && activeDirection === null) {
+      const targetRotationDeg = -currentSteeringAngle * STEERING_RATIO;
+      setRotation(clampRotation(toRad(targetRotationDeg)));
+    }
+  }, [activeDirection, currentSteeringAngle, isDriving]);
+
+  useEffect(() => {
+    if (isDriving || !isConnected) {
+      clearSteeringIntervals();
+      setActiveDirection(null);
+    }
+  }, [isConnected, isDriving]);
+
+  useEffect(() => () => clearSteeringIntervals(), []);
 
   // 计算当前方向盘角度（度数）
   // Protocol: Positive = Left, Negative = Right
   // Visual (rotation): Positive = Right (CW), Negative = Left (CCW)
   // So we invert rotation to get the correct protocol angle
   const steeringWheelAngleDeg = -toDeg(rotation);
+  const tireAngleDegNumber = steeringWheelAngleDeg / STEERING_RATIO;
+  const displayedTireAngle = isDriving ? currentSteeringAngle : tireAngleDegNumber;
 
   // 使用方向盘控制 Hook（转向比 8:1）
   useSteeringControl(steeringWheelAngleDeg, STEERING_RATIO);
 
-  // 画布尺寸配置 - 紧凑尺寸
-  const size = 160; // Reduced size for compact layout
-  const center = size / 2;
-  const radius = 65; // Reduced radius
+  const startSteering = (direction: Exclude<SteeringDirection, null>) => {
+    if (isDriving || !isConnected) return;
 
-  // --- 绘图逻辑 (保持不变) ---
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    clearSteeringIntervals();
+    setActiveDirection(direction);
 
-    ctx.clearRect(0, 0, size, size);
-    ctx.save();
-    ctx.translate(center, center);
-    // 这里直接使用当前的累计旋转角度
-    ctx.rotate(rotation);
+    const delta = direction === "left" ? -toRad(TURN_STEP_DEG) : toRad(TURN_STEP_DEG);
+    const applyTurnStep = () => {
+      setRotation((prevRotation) => clampRotation(prevRotation + delta));
+    };
 
-    // Light Theme Colors
-    const wheelColor = "#1f2937"; // Gray-800
-    const spokeColor = "#374151"; // Gray-700
-    const accentColor = "#ef4444"; // Red-500
-
-    // A. 绘制外圈
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, TWO_PI);
-    ctx.lineWidth = 10; // Thinner line
-    ctx.strokeStyle = wheelColor;
-    ctx.shadowColor = "rgba(0,0,0,0.1)";
-    ctx.shadowBlur = 8;
-    ctx.stroke();
-    ctx.shadowBlur = 0; // Reset shadow
-
-    // B. 绘制内圈装饰
-    ctx.beginPath();
-    ctx.arc(0, 0, radius - 8, 0, TWO_PI);
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "#4b5563"; // Gray-600
-    ctx.stroke();
-
-    // C. 绘制辐条
-    ctx.beginPath();
-    ctx.lineWidth = 8; // Thinner spokes
-    ctx.lineCap = "round";
-    ctx.strokeStyle = spokeColor;
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, radius - 6); // 下
-    ctx.moveTo(0, 0);
-    ctx.lineTo(
-      (radius - 6) * Math.cos(toRad(210)),
-      (radius - 6) * Math.sin(toRad(210))
-    ); // 左上
-    ctx.moveTo(0, 0);
-    ctx.lineTo(
-      (radius - 6) * Math.cos(toRad(330)),
-      (radius - 6) * Math.sin(toRad(330))
-    ); // 右上
-    ctx.stroke();
-
-    // D. 绘制中心盖
-    ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, TWO_PI);
-    ctx.fillStyle = "#111827"; // Gray-900
-    ctx.fill();
-
-    // Logo placeholder
-    ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, TWO_PI);
-    ctx.fillStyle = "#374151";
-    ctx.fill();
-
-    // E. 绘制顶部红色回正标记
-    ctx.beginPath();
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = accentColor;
-    ctx.arc(0, 0, radius, -Math.PI / 2 - 0.15, -Math.PI / 2 + 0.15);
-    ctx.stroke();
-
-    ctx.restore();
-  }, [rotation]);
-
-  // --- 交互逻辑的核心修改 ---
-
-  // 计算鼠标相对于画布中心的角度 (-PI 到 PI)
-  const getMouseAngle = (event: React.MouseEvent | MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return 0;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left - center;
-    const y = event.clientY - rect.top - center;
-    return Math.atan2(y, x);
+    applyTurnStep();
+    steeringIntervalRef.current = setInterval(applyTurnStep, TURN_INTERVAL_MS);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isDriving || !isConnected) return; // 自动驾驶或未连接时禁用交互
-    setIsDragging(true);
-    // 记录鼠标按下的瞬间的角度，作为起始参照点
-    lastMouseAngleRef.current = getMouseAngle(e);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-
-    const currentMouseAngle = getMouseAngle(e);
-    const lastAngle = lastMouseAngleRef.current;
-
-    // 1. 计算增量：这一帧鼠标转了多少度
-    let delta = currentMouseAngle - lastAngle;
-
-    // 2. --- 核心修复：处理跨越 ±180度边界的跳变 ---
-    // 如果增量特别大（大于 PI），说明跨越了边界。
-    // 例如：从 -179度 变到了 +179度。直接相减是 358度。
-    // 我们需要把它修正为实际移动的 -2度。
-    if (delta > Math.PI) {
-      delta -= TWO_PI;
-    } else if (delta < -Math.PI) {
-      delta += TWO_PI;
+  const stopSteering = () => {
+    if (steeringIntervalRef.current) {
+      clearInterval(steeringIntervalRef.current);
+      steeringIntervalRef.current = null;
     }
 
-    // 3. 计算目标角度
-    let newRotation = rotation + delta;
-
-    // 4. --- 核心功能：限制最大角度为 ±240度 ---
-    // 使用 Math.max 和 Math.min 将角度钳制在范围内
-    newRotation = Math.max(
-      -MAX_ROTATION_RAD,
-      Math.min(MAX_ROTATION_RAD, newRotation)
-    );
-
-    // 更新状态
-    setRotation(newRotation);
-
-    // 5. 重要：更新“上一次”鼠标角度为当前角度，供下一帧使用
-    lastMouseAngleRef.current = currentMouseAngle;
+    setActiveDirection(null);
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
+  const startResetAnimation = () => {
+    if (resetIntervalRef.current) {
+      clearInterval(resetIntervalRef.current);
+    }
+
+    const minStep = toRad(MIN_RESET_STEP_DEG);
+    const maxStep = toRad(MAX_RESET_STEP_DEG);
+
+    resetIntervalRef.current = setInterval(() => {
+      setRotation((prevRotation) => {
+        const remaining = Math.abs(prevRotation);
+
+        if (remaining <= minStep) {
+          if (resetIntervalRef.current) {
+            clearInterval(resetIntervalRef.current);
+            resetIntervalRef.current = null;
+          }
+
+          return 0;
+        }
+
+        const easedStep = Math.max(
+          minStep,
+          Math.min(maxStep, remaining * RESET_DAMPING)
+        );
+
+        return prevRotation > 0
+          ? prevRotation - easedStep
+          : prevRotation + easedStep;
+      });
+    }, RESET_INTERVAL_MS);
   };
 
-  // 计算轮胎转向角
-  const tireAngleDegNumber = steeringWheelAngleDeg / STEERING_RATIO;
+  const resetSteering = () => {
+    if (isDriving || !isConnected) return;
+    clearSteeringIntervals();
+    setActiveDirection(null);
+    startResetAnimation();
+  };
+
+  const buttonBaseClass =
+    "group relative flex h-[76px] w-[76px] items-center justify-center rounded-[22px] border backdrop-blur-md transition-all duration-200 select-none touch-none shrink-0";
+  const buttonStateClass = (direction: Exclude<SteeringDirection, null>) => {
+    if (isDriving || !isConnected) {
+      return "cursor-not-allowed border-white/10 bg-white/[0.04] text-white/20";
+    }
+
+    if (activeDirection === direction) {
+      return direction === "left"
+        ? "border-cyan-400/60 bg-cyan-400/20 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.22)]"
+        : "border-amber-400/60 bg-amber-400/20 text-amber-100 shadow-[0_0_24px_rgba(251,191,36,0.22)]";
+    }
+
+    return "border-white/10 bg-black/25 text-white/80 hover:border-white/20 hover:bg-white/[0.08]";
+  };
 
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-3">
       {/* Radar Status Panel */}
       <CarStatusPanel className="w-[260px]" />
 
@@ -230,37 +188,66 @@ const SteeringWheelContinued = () => {
         <div className="flex flex-col items-center">
           <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Angle</span>
           <span className="font-mono font-bold text-xl text-white">
-            {currentSteeringAngle.toFixed(1)}°
+            {displayedTireAngle.toFixed(1)}°
           </span>
         </div>
       </div>
 
-      {/* Steering Wheel Container - Transparent */}
-      <div className="flex flex-col items-center justify-center relative">
-        <div className="relative mb-1">
-          {/* Angle Indicator Ring - Subtle */}
-          <div className="absolute inset-0 rounded-full border border-dashed border-white/30 opacity-50 pointer-events-none" />
+      <div className="mt-3 w-[260px] px-2 py-1">
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            disabled={isDriving || !isConnected}
+            className={`${buttonBaseClass} ${buttonStateClass("left")}`}
+            onPointerDown={() => startSteering("left")}
+            onPointerUp={stopSteering}
+            onPointerLeave={stopSteering}
+            onPointerCancel={stopSteering}
+          >
+            <div className="absolute inset-[8px] rounded-[16px] border border-white/10 group-hover:border-white/15" />
+            <ChevronLeft className="relative z-10 h-8 w-8" />
+          </button>
 
-          <canvas
-            ref={canvasRef}
-            width={size}
-            height={size}
-            className={`cursor-pointer touch-none block relative z-10 drop-shadow-2xl transition-opacity duration-300 ${isDriving || !isConnected ? "opacity-50 cursor-not-allowed" : ""
+          <button
+            type="button"
+            disabled={isDriving || !isConnected}
+            className={`group relative flex h-[76px] w-[76px] items-center justify-center rounded-[22px] border backdrop-blur-md transition-all duration-200 select-none shrink-0 ${isDriving || !isConnected
+              ? "cursor-not-allowed border-white/10 bg-white/[0.04] text-white/20"
+              : "border-white/10 bg-white/[0.05] text-white/65 hover:border-white/20 hover:bg-white/[0.08]"
               }`}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            style={{ width: size, height: size }}
-          />
+            onClick={resetSteering}
+            aria-label="Reset steering"
+          >
+            <div className="absolute inset-[8px] rounded-[16px] border border-white/10 group-hover:border-white/15" />
+            <RotateCcw className="relative z-10 h-5 w-5" />
+          </button>
+
+          <button
+            type="button"
+            disabled={isDriving || !isConnected}
+            className={`${buttonBaseClass} ${buttonStateClass("right")}`}
+            onPointerDown={() => startSteering("right")}
+            onPointerUp={stopSteering}
+            onPointerLeave={stopSteering}
+            onPointerCancel={stopSteering}
+          >
+            <div className="absolute inset-[8px] rounded-[16px] border border-white/10 group-hover:border-white/15" />
+            <ChevronRight className="relative z-10 h-8 w-8" />
+          </button>
+        </div>
+
+        <div className="mt-2 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-white/35">
+          {isDriving ? "Auto Sync" : `${displayedTireAngle.toFixed(1)}°`}
         </div>
       </div>
 
       {/* Pedals - Passed down */}
-      <Pedals currentSteeringAngle={tireAngleDegNumber} />
+      <div className="mt-2 w-full">
+        <Pedals currentSteeringAngle={tireAngleDegNumber} />
+      </div>
 
       {/* Vehicle Controls - Integrated below pedals */}
-      <div className="mt-2 w-full flex justify-center">
+      <div className="mt-4 w-full flex justify-center">
         <div className="bg-black/20 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-full max-w-[320px]">
           <div className="flex items-center gap-2 mb-3 text-white/60">
             <Settings2 className="w-3 h-3" />

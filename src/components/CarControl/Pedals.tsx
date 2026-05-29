@@ -274,9 +274,9 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
   }, []);
 
   return (
-    <div className="w-full p-2 flex flex-col items-center gap-4">
+    <div className="w-full p-2 flex flex-col items-center gap-6">
       {/* Gear Selector */}
-      <div className="flex gap-2 bg-black/40 p-1 rounded-lg backdrop-blur-sm">
+      <div className="flex gap-2 bg-black/40 p-1.5 rounded-xl backdrop-blur-sm">
         {(["P", "R", "D"] as const).map((gear) => (
           <button
             key={gear}
@@ -289,7 +289,7 @@ export const Pedals: React.FC<PedalsProps> = ({ currentSteeringAngle }) => {
               }
             }}
             className={`
-              w-10 h-8 rounded flex items-center justify-center font-bold text-sm transition-all
+              w-12 h-10 rounded-md flex items-center justify-center font-bold text-base transition-all
               ${selectedGear === gear
                 ? (gear === 'R' ? 'bg-red-500 text-white' : gear === 'P' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white')
                 : 'text-white/50 hover:bg-white/10 hover:text-white/80'}
