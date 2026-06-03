@@ -1,7 +1,7 @@
 /**
- * R3F 场景组件 - 主场景容器
+ * R3F scene component - main scene container
  */
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { Suspense, useRef, useState, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Lights } from "./Lights";
@@ -11,6 +11,7 @@ import { AnimationSystem, AnimationSystemHandle } from "./AnimationSystem";
 import { InteractionSystem } from "./InteractionSystem";
 import { use3DStore } from "../../../store/car3DStore";
 import { useCarControlStore } from "../../../store/carControlStore";
+import { isIndependentDoors } from "../../../config/appConfig";
 import { Environments } from "./Environments";
 
 export interface SceneProps {
@@ -23,7 +24,7 @@ export interface SceneHandle {
   camera: THREE.PerspectiveCamera | null;
   scene: THREE.Scene | null;
   cameraAnimationState?: CameraAnimationState;
-  controls?: any; // OrbitControls 引用
+  controls?: any; // OrbitControls reference
 }
 
 export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
@@ -50,28 +51,45 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
       return;
     }
 
-    // 获取当前门状态（两个门状态相同）
-    const currentState = doorStateRef.current.left;
-    const newState = !currentState;
+    const independent = isIndependentDoors();
 
-    // 发送 CAN 命令（只发送一次）
-    const commandId = currentState ? "door_close" : "door_open";
-    console.log(
-      `🚗 门当前状态: ${currentState ? "开启" : "关闭"
-      }, 发送CAN命令: ${commandId}`
-    );
-    sendCarCommand(commandId);
+    if (independent) {
+      // Independent mode: operate only the clicked door
+      const currentState = doorStateRef.current[door];
+      const newState = !currentState;
+      const prefix = door === "left" ? "left_door" : "right_door";
+      const commandId = currentState ? `${prefix}_close` : `${prefix}_open`;
+      const animName = door === "left" ? "DoorFLOpen" : "DoorFROpen";
 
-    // 更新两个门的状态
-    doorStateRef.current.left = newState;
-    doorStateRef.current.right = newState;
-    console.log(`🚗 两个门状态更新为: ${newState ? "开启" : "关闭"}`);
+      console.log(
+        `[Scene] ${door} door is ${currentState ? "open" : "closed"}, sending: ${commandId}`
+      );
+      sendCarCommand(commandId);
 
-    // 同时播放两个门的动画
-    sceneHandle.animationSystem.playDoorAnimation("DoorFLOpen", currentState);
-    sceneHandle.animationSystem.playDoorAnimation("DoorFROpen", currentState);
+      doorStateRef.current[door] = newState;
+      console.log(`[Scene] ${door} door state updated to: ${newState ? "open" : "closed"}`);
 
-    console.log(`[Scene] Both door animations triggered, isOpen=${newState}`);
+      sceneHandle.animationSystem.playDoorAnimation(animName, currentState);
+      console.log(`[Scene] ${door} door animation triggered, isOpen=${newState}`);
+    } else {
+      // Linked mode: both doors together
+      const currentState = doorStateRef.current.left;
+      const newState = !currentState;
+
+      const commandId = currentState ? "door_close" : "door_open";
+      console.log(
+        `[Scene] Doors are ${currentState ? "open" : "closed"}, sending: ${commandId}`
+      );
+      sendCarCommand(commandId);
+
+      doorStateRef.current.left = newState;
+      doorStateRef.current.right = newState;
+      console.log(`[Scene] Both doors state updated to: ${newState ? "open" : "closed"}`);
+
+      sceneHandle.animationSystem.playDoorAnimation("DoorFLOpen", currentState);
+      sceneHandle.animationSystem.playDoorAnimation("DoorFROpen", currentState);
+      console.log(`[Scene] Both door animations triggered, isOpen=${newState}`);
+    }
   };
 
   const handleCameraAnimationStateReady = useCallback((
@@ -80,7 +98,7 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
     sceneHandleRef.current.cameraAnimationState = animationState;
   }, []);
 
-  // 当所有组件都准备好时，调用 onSceneReady
+  // When all components are ready, call onSceneReady
   useEffect(() => {
     console.log("[Scene] useEffect: Checking if scene is ready", {
       car: !!car,
@@ -96,7 +114,7 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
       sceneHandleRef.current.scene &&
       onSceneReady
     ) {
-      // 更新 sceneHandleRef 中的 animationSystem
+      // Update animationSystem in sceneHandleRef
       sceneHandleRef.current.animationSystem = sceneHandle.animationSystem;
       onSceneReady(sceneHandleRef.current);
       console.log("[Scene] Scene ready callback triggered");
@@ -123,25 +141,27 @@ export const Scene: React.FC<SceneProps> = ({ onSceneReady, onError }) => {
         sceneHandleRef.current.scene = state.scene;
       }}
     >
-      {/* 灯光 */}
+      {/* Lights */}
       <Lights />
 
-      {/* 环境 */}
+      {/* Environment */}
       <Environments />
 
-      {/* 相机控制 */}
+      {/* Camera controls */}
       <CameraControls
         sceneHandleRef={sceneHandleRef}
         onAnimationStateReady={handleCameraAnimationStateReady}
       />
 
-      {/* 车辆模型 */}
-      <Car onModelLoaded={handleModelLoaded} onError={onError} />
+      {/* Car model */}
+      <Suspense fallback={null}>
+        <Car onModelLoaded={handleModelLoaded} onError={onError} />
+      </Suspense>
 
-      {/* 动画系统 */}
+      {/* Animation system */}
       {car && <AnimationSystem car={car} />}
 
-      {/* 交互系统 */}
+      {/* Interaction system */}
       {car && (
         <InteractionSystem
           car={car}

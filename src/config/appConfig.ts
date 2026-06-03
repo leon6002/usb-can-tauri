@@ -1,41 +1,43 @@
 /**
- * 应用配置文件
- * 用于切换演示模式和调试模式
+ * Application configuration file
+ * Used to switch between Demo mode and Debug mode
  *
- * 演示模式 (DEMO):
- * - 只显示车辆控制界面
- * - 隐藏所有其他 tab
- * - 显示快速连接面板
+ * Demo mode (DEMO):
+ * - Show vehicle control UI only
+ * - Hide all other tabs
+ * - Show quick-connect panel
  *
- * 调试模式 (DEBUG):
- * - 显示所有 tab（车辆控制、CAN配置、按钮配置）
- * - 显示完整的调试面板
- * - 显示所有功能
+ * Debug mode (DEBUG):
+ * - Show all tabs (Vehicle Control, CAN Config, Button Config)
+ * - Show full debug panel
+ * - Show all features
  */
 
 export type AppMode = "DEMO" | "DEBUG";
 
 interface AppConfig {
   mode: AppMode;
-  // 演示模式下的快速连接配置
+  // Quick-connect config for demo mode
   demoQuickConnect?: {
     port: string | undefined;
     baudRate: number;
   };
-  // UI 功能开关
+  // UI feature toggles
   features?: {
-    // 是否显示风扇档位控制
+    // Show fan level control
     showFanControl?: boolean;
     showSteeringWheel?: boolean;
     showSuspension?: boolean;
-    // 是否显示雷达
+    // Show radar distance display
     showRadar?: boolean;
-    // 是否显示系统监控
+    // Show system monitor button
     showSystemMonitor?: boolean;
+    // Independent door control (true=left/right separately, false=both together)
+    independentDoors?: boolean;
   };
-  // 雷达配置
+  // Radar config
   radar?: {
-    // 雷达查询间隔（毫秒）
+    // Radar query interval in milliseconds
     queryIntervalMs?: number;
   };
   suspension: {
@@ -49,52 +51,54 @@ interface AppConfig {
 }
 
 // ============================================
-// 🔧 配置入口 - 修改这里来切换模式
+// Config entry — edit here to switch modes
 // ============================================
 const APP_CONFIG: AppConfig = {
-  // 切换模式: "DEMO" 或 "DEBUG"
+  // Mode: "DEMO" or "DEBUG"
   mode: "DEMO",
 
-  // 演示模式下的快速连接配置（仅在 mode === "DEMO" 时使用）
+  // Quick-connect config for demo mode (only used when mode === "DEMO")
   demoQuickConnect: {
     port: undefined,
     baudRate: 2000000,
   },
 
-  // UI 功能开关
+  // UI feature toggles
   features: {
-    // 是否显示风扇档位控制（0-3档）
+    // Fan level control (0–3)
     showFanControl: true,
     showSteeringWheel: true,
-    // 是否显示悬挂控制
+    // Suspension control
     showSuspension: false,
-    // 是否显示雷达
+    // Radar distance display
     showRadar: false,
-    // 是否显示系统监控
+    // System monitor button
     showSystemMonitor: true,
+    // Independent door control
+    independentDoors: true,
   },
 
-  // 雷达配置
+  // Radar config
   radar: {
-    // 雷达查询间隔（毫秒）- 默认 1000ms (1秒)
+    // Radar query interval in milliseconds (default: 1000000 ms)
     queryIntervalMs: 1000000,
   },
-  //悬挂升高或者降低之后隔多长时间（毫秒，默认4秒）发送停止升降的can信号
+  // Delay in milliseconds before auto-sending suspension stop signal after raise/lower (default: 4000 ms)
   suspension: {
     animationDuration: 4000,
     can_stop_duration: 4000,
   },
-  // 相机控制配置
+  // Camera control config
   cameraControl: {
-    // 自动行驶时是否允许手动拖动视角
+    // Allow manual orbit during auto-drive
     allowOrbitControlsInAutoDrive: false,
-    // 手动行驶时是否允许手动拖动视角
+    // Allow manual orbit during manual drive
     allowOrbitControlsInManualDrive: true,
   },
 };
 
 // ============================================
-// 导出配置和工具函数
+// Exported config and utility functions
 // ============================================
 
 export const getAppMode = (): AppMode => APP_CONFIG.mode;
@@ -105,9 +109,6 @@ export const isDebugMode = (): boolean => APP_CONFIG.mode === "DEBUG";
 
 export const getDemoQuickConnect = () => APP_CONFIG.demoQuickConnect;
 
-/**
- * 检查是否显示风扇档位控制
- */
 export const isShowFanControl = (): boolean =>
   APP_CONFIG.features?.showFanControl ?? false;
 
@@ -123,9 +124,9 @@ export const isShowRadar = (): boolean =>
 export const isShowSystemMonitor = (): boolean =>
   APP_CONFIG.features?.showSystemMonitor ?? false;
 
-/**
- * 获取雷达查询间隔（毫秒）
- */
+export const isIndependentDoors = (): boolean =>
+  APP_CONFIG.features?.independentDoors ?? false;
+
 export const getRadarQueryInterval = (): number =>
   APP_CONFIG.radar?.queryIntervalMs ?? 1000;
 

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { CanCommand, CarStates } from "@/types"; // 假设 types.ts 在同级目录
+import { CanCommand, CarStates } from "@/types";
 import { useSerialStore } from "./serialStore";
 import { useDebugStore } from "./useDebugStore";
 import { useCanMessageStore } from "./canMessageStore";
@@ -57,17 +57,17 @@ interface CarControlStore {
 
 const initialCarStates: CarStates = {
   isDriving: false,
-  leftDoorStatus: "停止",
-  rightDoorStatus: "停止",
+  leftDoorStatus: "Stopped",
+  rightDoorStatus: "Stopped",
   fanLevel: 0,
   lightMode: 1,
-  suspensionStatus: "停止",
-  // 实时 CAN 数据
+  suspensionStatus: "Stopped",
+  // Real-time CAN data
   currentSpeed: 0, // mm/s
   currentSteeringAngle: 0, // degree
-  // 新协议数据
-  gear: "P", // 档位 (P/R/N/D/S)
-  steeringAngleDegrees: 0, // 转向角（度数）
+  // New protocol data
+  gear: "P", // Gear (P/R/N/D/S)
+  steeringAngleDegrees: 0, // Steering angle (degrees)
 };
 
 const findCommandById = (
@@ -79,17 +79,23 @@ const findCommandById = (
 
 const commandStateMap: Partial<Record<string, Partial<CarStates>>> = {
   door_open: {
-    leftDoorStatus: "开启",
-    rightDoorStatus: "开启",
+    leftDoorStatus: "Open",
+    rightDoorStatus: "Open",
   },
   door_close: {
-    leftDoorStatus: "关闭",
-    rightDoorStatus: "关闭",
+    leftDoorStatus: "Closed",
+    rightDoorStatus: "Closed",
   },
   door_stop: {
-    leftDoorStatus: "停止",
-    rightDoorStatus: "停止",
+    leftDoorStatus: "Stopped",
+    rightDoorStatus: "Stopped",
   },
+  left_door_open: { leftDoorStatus: "Open" },
+  left_door_close: { leftDoorStatus: "Closed" },
+  left_door_stop: { leftDoorStatus: "Stopped" },
+  right_door_open: { rightDoorStatus: "Open" },
+  right_door_close: { rightDoorStatus: "Closed" },
+  right_door_stop: { rightDoorStatus: "Stopped" },
   fan_level_0: { fanLevel: 0 },
   fan_level_1: { fanLevel: 1 },
   fan_level_2: { fanLevel: 2 },
@@ -100,13 +106,13 @@ const commandStateMap: Partial<Record<string, Partial<CarStates>>> = {
   light_mode_4: { lightMode: 4 },
   start_driving: { isDriving: true },
   stop_driving: { isDriving: false },
-  suspension_up: { suspensionStatus: "升高" },
-  suspension_down: { suspensionStatus: "降低" },
-  suspension_stop: { suspensionStatus: "正常" },
+  suspension_up: { suspensionStatus: "Raised" },
+  suspension_down: { suspensionStatus: "Lowered" },
+  suspension_stop: { suspensionStatus: "Normal" },
 };
 
 export const useCarControlStore = create<CarControlStore>((set, get) => ({
-  // --- 状态 (State) ---
+  // --- State ---
   canCommands: CAN_COMMANDS,
   carStates: initialCarStates,
 
@@ -115,7 +121,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
   unlistenCsvProgressFunc: null,
 
   /**
-   * 更新 CAN 命令配置
+   * Update CAN command config
    */
   updateCanCommand: (commandId, field, value) => {
     set((state) => ({
@@ -125,7 +131,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     }));
   },
   /**
-   * 更新车辆状态
+   * Update vehicle state
    */
   updateCarState: (commandId) => {
     console.log(`🔄 updateCarState called with commandId: ${commandId}`);
@@ -143,22 +149,22 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     });
   },
   /**
-   * 发送 CAN 命令
-   * @param canId 要发送的 CAN ID
-   * @param data 要发送的 CAN Data
+   * Send CAN command
+   * @param canId CAN ID to send
+   * @param data CAN data to send
    */
   sendCanCommand: async (canId, data) => {
-    // 1. 跨 Store 获取配置
+    // 1. Get config from serial store
     const config = useSerialStore.getState().config;
-    // 2. 跨 Store 获取消息记录 Action
+    // 2. Get message recording action from CAN message store
     const { addMessage } = useCanMessageStore.getState();
 
     try {
-      // 验证 CAN ID
+      // Validate CAN ID
       const validation = validateCanId(canId, config.frameType);
 
       if (!validation.valid) {
-        console.warn("❌ CAN ID 验证失败:", validation.error);
+        console.warn("❌ CAN ID validation failed:", validation.error);
         toast.error(validation.error);
         return;
       }
@@ -170,22 +176,22 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         protocolLength: config.protocolLength,
       };
 
-      // 3. 调用后端 API
+      // 3. Call backend API
       await invoke("send_can_message", params);
 
-      // 4. 记录消息到日志
+      // 4. Log message to message store
       const newMessage = {
         id: canId,
         data: data,
         timestamp: new Date().toLocaleTimeString(),
-        direction: "sent" as const, // 使用 'as const' 确保类型正确
+        direction: "sent" as const, // Use 'as const' to ensure correct type
         frameType: config.frameType as "standard" | "extended",
       };
       addMessage(newMessage);
     } catch (error) {
       console.error("Send car command error:", error);
       toast.error(`send can command error: ${error}`);
-      throw error; // 抛出错误以便上层调用者（如 sendCarCommand 的其他分支）捕获
+      throw error; // Re-throw for upstream callers (e.g. other branches of sendCarCommand)
     }
   },
 
@@ -232,12 +238,12 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     set((state) => ({
       carStates: {
         ...state.carStates,
-        ...newState, // 合并传入的新状态
+        ...newState, // Merge incoming new state
       },
     }));
   },
   /**
-   * 更新车辆控制量（速度和转向角）
+   * Update vehicle control values (speed and steering angle)
    */
   updateVehicleControl: (speed, steeringAngle, gear) => {
     set((state) => ({
@@ -249,7 +255,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       },
     }));
   },
-  // 开始循环发送CSV数据（使用预解析的数据）
+  // Start infinite algorithmic drive loop (replaces CSV-based loop)
   startInfiniteDrive: async (
     onProgressUpdate?: (
       speed: number,
@@ -297,7 +303,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     }
   },
 
-  // 停止自动驾驶
+  // Stop auto-drive
   stopAutoDrive: async () => {
     set((state) => {
       if (state.progressIntervalId) {
@@ -306,7 +312,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       }
       return {};
     });
-    // 清理事件监听器
+    // Clean up event listeners
     const { unlistenCsvLoopFunc, unlistenCsvProgressFunc } = get();
     if (unlistenCsvLoopFunc) {
       unlistenCsvLoopFunc();
@@ -325,7 +331,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     console.log("✓ Auto Drive Stopped");
   },
 
-  // 发送车辆控制命令
+  // Send vehicle control command
   sendCarCommand: async (commandId: string) => {
     console.log("📍 sendCarCommand called with:", commandId);
     // const { config, driveData: csvContent } = useSerialStore.getState();
@@ -352,7 +358,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
     } = use3DStore.getState();
 
     try {
-      // 处理"开始行驶"命令 - 使用CSV循环发送
+      // Handle "start driving" command - use infinite algorithmic drive
       if (commandId === "start_driving") {
         // handleStartDriving({
         //   config,
@@ -393,10 +399,23 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         updateVehicleControl(0, 0);
         updateCarState(commandId);
         stopDriveAnimation();
-      } else if (commandId === "door_open" || commandId === "door_close") {
-        const stopCommand = findCommandById("door_stop", canCommands);
+      } else if (
+        commandId === "door_open" ||
+        commandId === "door_close" ||
+        commandId === "left_door_open" ||
+        commandId === "left_door_close" ||
+        commandId === "right_door_open" ||
+        commandId === "right_door_close"
+      ) {
+        // Find corresponding stop command by command ID
+        const stopId = commandId.startsWith("left_")
+          ? "left_door_stop"
+          : commandId.startsWith("right_")
+          ? "right_door_stop"
+          : "door_stop";
+        const stopCommand = findCommandById(stopId, canCommands);
         if (!stopCommand) {
-          console.error("❌ 未找到停止门命令");
+          console.error(`❌ Door stop command not found: ${stopId}`);
           return;
         }
         const params = {
@@ -414,7 +433,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       ) {
         const stopCommand = findCommandById("suspension_stop", canCommands);
         if (!stopCommand) {
-          console.error("❌ 未找到停止 suspension 命令");
+          console.error("❌ Suspension stop command not found");
           return;
         }
         handleSuspensionCommand({
@@ -427,9 +446,9 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
           addDebugLog,
         });
       } else {
-        // 其他命令 - 发送单个CAN消息
+        // Other commands - send single CAN message
         addDebugLog(
-          "发送CAN命令",
+          "Send CAN command",
           commandId,
           command.canId,
           command.data,
@@ -440,7 +459,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
       }
     } catch (error) {
       console.error("Send car command error:", error);
-      toast.error(`发送车辆命令错误: ${error}`);
+      toast.error(`Send vehicle command error: ${error}`);
     }
   },
 
@@ -463,7 +482,7 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         get().carStates.isDriving
       );
 
-      // 调用 stop_driving 命令
+      // Call stop_driving command
       get()
         .sendCarCommand("stop_driving")
         .then(() => {

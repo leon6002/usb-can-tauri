@@ -1,5 +1,5 @@
 /**
- * R3F 车辆模型组件 - 使用 @react-three/drei 的 useGLTF
+ * R3F car model component using @react-three/drei useGLTF
  */
 import React, { useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
@@ -13,21 +13,19 @@ export interface CarProps {
 export const Car: React.FC<CarProps> = ({ onModelLoaded, onError }) => {
   const groupRef = useRef<THREE.Group>(null);
 
-  // 在组件内部调用 useGLTF
-  let gltf;
-  try {
-    gltf = useGLTF("/car-assets/models/Car.glb");
-  } catch (error) {
-    console.error("Failed to load car model:", error);
-    if (onError) {
-      onError(error as Error);
-    }
-    return null;
-  }
+  // Hooks must be called unconditionally before any early return
+  const gltf = useGLTF("/car-assets/models/Car.glb");
 
   useEffect(() => {
-    if (groupRef.current && gltf) {
-      // 设置模型属性
+    if (!gltf || !gltf.scene) {
+      const err = new Error("Car model not loaded");
+      console.error("Failed to load car model:", err);
+      onError?.(err);
+      return;
+    }
+
+    if (groupRef.current) {
+      // Set model properties
       groupRef.current.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.castShadow = true;
@@ -35,7 +33,7 @@ export const Car: React.FC<CarProps> = ({ onModelLoaded, onError }) => {
         }
       });
 
-      // 暴露模型的 mixer 和 animations
+      // Expose mixer and animations
       if (gltf.animations && gltf.animations.length > 0) {
         const mixer = new THREE.AnimationMixer(groupRef.current);
         (groupRef.current as any).mixer = mixer;
@@ -47,16 +45,12 @@ export const Car: React.FC<CarProps> = ({ onModelLoaded, onError }) => {
         );
       }
 
-      // 调用回调函数
-      if (onModelLoaded) {
-        onModelLoaded(groupRef.current);
-      }
-
-      console.log("✅ 车辆模型加载完成");
+      onModelLoaded?.(groupRef.current);
+      console.log("[Car] Model loaded successfully");
     }
   }, [gltf, onModelLoaded]);
 
-  if (!gltf) {
+  if (!gltf || !gltf.scene) {
     return null;
   }
 
@@ -67,5 +61,5 @@ export const Car: React.FC<CarProps> = ({ onModelLoaded, onError }) => {
   );
 };
 
-// 预加载模型
+// Preload model
 useGLTF.preload("/car-assets/models/Car.glb");

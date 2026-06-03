@@ -270,7 +270,7 @@ export class CarComponentsR3F implements ICarComponents {
     const currentState = this.doorStates[`${door}Door` as keyof DoorStates];
     const newState = currentState === 0 ? 1 : 0;
     this.doorStates[`${door}Door` as keyof DoorStates] = newState;
-    console.log(`${door}门状态切换为: ${newState === 0 ? "关闭" : "开启"}`);
+    console.log(`[CarComponents] ${door} door animation state: ${newState === 0 ? "closed" : "open"}`);
   }
 
   /**
