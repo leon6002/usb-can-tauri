@@ -117,8 +117,8 @@ export const CAN_COMMANDS: CanCommand[] = [
     id: "light_mode_4",
     name: "Light mode 4",
     canId: "201",
-    data: "FF FF FF 04 00 00 00 00",
-    description: "Light strip mode 4",
+    data: "FF FF FF 00 00 00 00 00",
+    description: "Light strip off",
   },
   {
     id: "start_driving",
