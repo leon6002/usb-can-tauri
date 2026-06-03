@@ -1,8 +1,8 @@
 /**
- * 应用版本配置
+ * version config
  */
 
-export const APP_VERSION = "v2.2.0";
+export const APP_VERSION = "v2.3.0";
 
 export const getVersionInfo = () => {
   return {

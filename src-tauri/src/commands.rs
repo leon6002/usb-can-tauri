@@ -1,12 +1,14 @@
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::sync::atomic::Ordering;
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use log::{error, info, warn};
 use serialport::available_ports;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 use crate::can_protocol::{
     create_can_config_packet, create_can_send_packet_fixed, create_can_send_packet_variable,
@@ -113,16 +115,20 @@ pub async fn connect_serial(
     // Start I/O thread
     println!("🧵 [Connect] Starting I/O thread");
     let state_clone = state.inner().clone();
-    start_io_thread(port, state_clone, rx_send, app_handle);
+    start_io_thread(port, state_clone, rx_send, app_handle.clone());
 
     println!("✅ [Connect] Serial port connected successfully - Ready to receive messages!");
     info!("Serial port connected successfully");
+
+    // Emit connection status event so debug panel and other windows can react
+    let _ = app_handle.emit("serial-status", serde_json::json!({ "connected": true }));
+
     Ok("Connected successfully".to_string())
 }
 
 /// Disconnect from serial port
 #[tauri::command]
-pub async fn disconnect_serial(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn disconnect_serial(state: State<'_, AppState>, app_handle: tauri::AppHandle) -> Result<String, String> {
     info!("Disconnecting serial port");
 
     state.receive_thread_running.store(false, Ordering::SeqCst);
@@ -141,7 +147,18 @@ pub async fn disconnect_serial(state: State<'_, AppState>) -> Result<String, Str
     thread::sleep(Duration::from_millis(100));
 
     info!("Serial port disconnected");
+
+    // Emit connection status event so debug panel and other windows can react
+    let _ = app_handle.emit("serial-status", serde_json::json!({ "connected": false }));
+
     Ok("Disconnected".to_string())
+}
+
+/// Get serial connection status
+#[tauri::command]
+pub async fn get_connection_status(state: State<'_, AppState>) -> Result<bool, String> {
+    let is_connected = state.is_connected.lock().unwrap();
+    Ok(*is_connected)
 }
 
 /// Send CAN message
@@ -152,6 +169,7 @@ pub async fn send_can_message(
     frame_type: String,
     protocol_length: String,
     state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     // info!(
     //     "Sending CAN message - ID: {}, Data: {}, Type: {}, Protocol: {}",
@@ -202,9 +220,26 @@ pub async fn send_can_message(
 
     let tx_send = state.tx_send.lock().unwrap();
     if let Some(ref sender) = *tx_send {
+        let raw_data = packet.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ");
         match sender.send(SendMessage { packet }) {
             Ok(_) => {
-                // info!("CAN message sent to write thread successfully!");
+                // Emit TX event so all windows can see sent messages
+                println!("📤 [TX EVENT] Emitting TX event: ID={} Data={}", id, data);
+                let _ = app_handle.emit(
+                    "can-message-received",
+                    serde_json::json!({
+                        "id": format!("0x{}", id.trim_start_matches("0x").trim_start_matches("0X")),
+                        "data": data,
+                        "rawData": raw_data,
+                        "timestamp": chrono::Local::now().format("%H:%M:%S%.3f").to_string(),
+                        "direction": "sent",
+                        "frameType": frame_type,
+                    }),
+                );
+
+                // Append to CSV log if enabled
+                write_csv_row(&state, &id, &data, "sent", &frame_type);
+
                 Ok("Message sent successfully".to_string())
             }
             Err(e) => {
@@ -251,6 +286,41 @@ pub async fn close_system_monitor_window(app_handle: tauri::AppHandle) -> Result
         window
             .close()
             .map_err(|e| format!("Failed to close system monitor window: {}", e))?;
+    }
+    Ok(())
+}
+
+/// Open debug panel window
+#[tauri::command]
+pub async fn open_debug_panel_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    match app_handle.get_webview_window("debug-panel") {
+        Some(window) => {
+            let _ = window.show();
+            let _ = window.set_focus();
+            Ok(())
+        }
+        None => {
+            tauri::WebviewWindowBuilder::new(
+                &app_handle,
+                "debug-panel",
+                tauri::WebviewUrl::App("debug-panel.html".into()),
+            )
+            .title("Debug Panel")
+            .inner_size(1200.0, 800.0)
+            .build()
+            .map_err(|e| format!("Failed to create debug panel window: {}", e))?;
+            Ok(())
+        }
+    }
+}
+
+/// Close debug panel window
+#[tauri::command]
+pub async fn close_debug_panel_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("debug-panel") {
+        window
+            .close()
+            .map_err(|e| format!("Failed to close debug panel window: {}", e))?;
     }
     Ok(())
 }
@@ -338,6 +408,9 @@ pub async fn start_infinite_drive(
         write_thread_running: state.write_thread_running.clone(),
         system_monitor_connected: state.system_monitor_connected.clone(),
         system_monitor_thread_running: state.system_monitor_thread_running.clone(),
+        csv_log_enabled: state.csv_log_enabled.clone(),
+        csv_log_file: Arc::new(Mutex::new(None)),
+        csv_log_path: state.csv_log_path.clone(),
     });
 
     std::thread::spawn(move || {
@@ -356,4 +429,89 @@ pub async fn stop_infinite_drive(state: State<'_, AppState>) -> Result<String, S
     state.auto_drive_running.store(false, Ordering::SeqCst);
     thread::sleep(Duration::from_millis(100));
     Ok("Infinite drive stopped".to_string())
+}
+
+// ==================== CSV Log Helpers & Commands ====================
+
+fn csv_format_row(timestamp: &str, direction: &str, can_id: &str, data: &str, raw_data: &str, frame_type: &str) -> String {
+    format!(
+        "{},{},{},{},{},{}\n",
+        timestamp, direction, can_id, data, raw_data, frame_type
+    )
+}
+
+fn write_csv_row(state: &AppState, can_id: &str, data: &str, direction: &str, frame_type: &str) {
+    if !state.csv_log_enabled.load(Ordering::Relaxed) {
+        return;
+    }
+    let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
+    let row = csv_format_row(&timestamp, direction, can_id, data, data, frame_type);
+    if let Ok(mut file_opt) = state.csv_log_file.lock() {
+        if let Some(ref mut file) = *file_opt {
+            let _ = file.write_all(row.as_bytes());
+            let _ = file.flush();
+        }
+    }
+}
+
+/// Start CSV logging — all CAN RX/TX messages are appended to the given file
+#[tauri::command]
+pub async fn start_csv_logging(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    if state.csv_log_enabled.load(Ordering::SeqCst) {
+        // Already logging — close current file first
+        if let Ok(mut file_opt) = state.csv_log_file.lock() {
+            *file_opt = None;
+        }
+    }
+
+    match OpenOptions::new().create(true).append(true).open(&path) {
+        Ok(file) => {
+            // Write CSV header
+            let mut file = file;
+            let _ = writeln!(file, "timestamp,direction,can_id,data,raw_data,frame_type");
+            let _ = file.flush();
+
+            if let Ok(mut file_opt) = state.csv_log_file.lock() {
+                *file_opt = Some(file);
+            }
+            if let Ok(mut log_path) = state.csv_log_path.lock() {
+                *log_path = Some(path.clone());
+            }
+            state.csv_log_enabled.store(true, Ordering::SeqCst);
+            info!("CSV logging started: {}", path);
+            Ok(format!("CSV logging started: {}", path))
+        }
+        Err(e) => Err(format!("Failed to open CSV file: {}", e)),
+    }
+}
+
+/// Stop CSV logging
+#[tauri::command]
+pub async fn stop_csv_logging(state: State<'_, AppState>) -> Result<String, String> {
+    state.csv_log_enabled.store(false, Ordering::SeqCst);
+    if let Ok(mut file_opt) = state.csv_log_file.lock() {
+        if let Some(ref mut file) = *file_opt {
+            let _ = file.flush();
+        }
+        *file_opt = None;
+    }
+    if let Ok(mut log_path) = state.csv_log_path.lock() {
+        *log_path = None;
+    }
+    info!("CSV logging stopped");
+    Ok("CSV logging stopped".to_string())
+}
+
+/// Get CSV logging status
+#[tauri::command]
+pub async fn get_csv_log_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let enabled = state.csv_log_enabled.load(Ordering::SeqCst);
+    let path = state.csv_log_path.lock().unwrap().clone();
+    Ok(serde_json::json!({
+        "enabled": enabled,
+        "path": path,
+    }))
 }

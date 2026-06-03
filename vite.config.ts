@@ -18,6 +18,7 @@ export default defineConfig(async () => ({
       input: {
         main: path.resolve(__dirname, "index.html"),
         "system-monitor": path.resolve(__dirname, "system-monitor.html"),
+        "debug-panel": path.resolve(__dirname, "debug-panel.html"),
       },
     },
   },

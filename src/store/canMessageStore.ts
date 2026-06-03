@@ -53,9 +53,11 @@ const validateCanId = (
 
 interface CanMessageState {
   messages: CanMessage[];
-  unlisten: (() => void) | null; // 用于存储监听器的清理函数
+  txMessages: CanMessage[];
+  unlisten: (() => void) | null;
 
   addMessage: (msg: CanMessage) => void;
+  addMessages: (msgs: CanMessage[]) => void;
 
   // Actions
   clearMessages: () => void;
@@ -71,17 +73,50 @@ interface CanMessageState {
   cleanupCanMessageListener: () => void;
 }
 
+function cappedPush<T>(arr: T[], items: T[], cap: number): T[] {
+  const next = [...arr, ...items];
+  return next.length > cap ? next.slice(next.length - cap) : next;
+}
+
 export const useCanMessageStore = create<CanMessageState>((set, get) => ({
-  // --- 状态 ---
   messages: [],
+  txMessages: [],
   unlisten: null,
 
-  // --- Actions ---
-  clearMessages: () => set({ messages: [] }),
+  clearMessages: () => set({ messages: [], txMessages: [] }),
 
-  // 添加消息到列表 (内部 Helper)
+  MAX_MESSAGES: 200,
+
   addMessage: (msg: CanMessage) => {
-    set((state) => ({ messages: [...state.messages, msg] }));
+    set((state) => {
+      const txNext = msg.direction === "sent"
+        ? cappedPush(state.txMessages, [msg], 200)
+        : state.txMessages;
+      return {
+        messages: cappedPush(state.messages, [msg], 200),
+        txMessages: txNext,
+      };
+    });
+  },
+
+  addMessages: (msgs: CanMessage[]) => {
+    if (msgs.length === 0) return;
+    set((state) => {
+      // Dedup: skip messages identical to the last 50 already stored (same ts+id+data)
+      const recentKeys = new Set(
+        state.messages.slice(-50).map((m) => `${m.timestamp}|${m.id}|${m.data}`)
+      );
+      const deduped = msgs.filter((m) => !recentKeys.has(`${m.timestamp}|${m.id}|${m.data}`));
+      if (deduped.length === 0) return {};
+
+      const txItems = deduped.filter((m) => m.direction === "sent");
+      return {
+        messages: cappedPush(state.messages, deduped, 200),
+        txMessages: txItems.length > 0
+          ? cappedPush(state.txMessages, txItems, 200)
+          : state.txMessages,
+      };
+    });
   },
 
   /**
@@ -120,45 +155,58 @@ export const useCanMessageStore = create<CanMessageState>((set, get) => ({
   },
 
   /**
-   * 副作用 Action：设置监听器
+   * Setup CAN message listener with throttled batch processing.
+   * Events arrive at up to 100 Hz; we batch them and flush to store at ~10 Hz
+   * to avoid overwhelming React with re-renders. CSV logging in Rust captures
+   * every single message losslessly regardless of frontend throttling.
    */
   setupCanMessageListener: async () => {
-    const { unlisten: currentUnlisten, addMessage } = get();
+    const { unlisten: currentUnlisten, addMessages } = get();
 
-    // 清理旧的监听器
+    // Clean up old listener
     if (currentUnlisten) currentUnlisten();
+
+    // Module-level batch buffer shared across all store instances in this window
+    const buffer: CanMessage[] = [];
+    let flushTimer: ReturnType<typeof setInterval> | null = null;
 
     try {
       const newUnlisten = await listen<any>("can-message-received", (event) => {
-        const receivedMessage: CanMessage = {
+        const msg: CanMessage = {
           id: event.payload.id,
           data: event.payload.data,
           rawData: event.payload.rawData,
           timestamp: event.payload.timestamp,
-          direction: "received",
+          direction: event.payload.direction || "received",
           frameType: event.payload.frameType || "standard",
         };
 
-        // 1. 将消息加入日志
-        addMessage(receivedMessage);
+        buffer.push(msg);
 
-        // 2. 跨 Store 调用：更新车辆控制状态
+        // Update vehicle control state immediately (low-volume, needs to be real-time)
         if (
           event.payload.gear !== undefined ||
           event.payload.steeringAngle !== undefined
         ) {
           const { setCarState } = useCarControlStore.getState();
-          // ⚠️ 假设 updateVehicleControl 接受速度、转向角和档位
-          // 你需要根据你的类型进行调整
           setCarState({
             gear: event.payload.gear,
             steeringAngleDegrees: event.payload.steeringAngle,
           });
         }
       });
+
+      // Flush buffer to store every 100ms (10 batches/sec)
+      flushTimer = setInterval(() => {
+        if (buffer.length > 0) {
+          addMessages(buffer.splice(0));
+        }
+      }, 100);
+
       set({ unlisten: newUnlisten });
     } catch (error) {
       console.error("Failed to setup CAN message listener:", error);
+      if (flushTimer) clearInterval(flushTimer);
     }
   },
 

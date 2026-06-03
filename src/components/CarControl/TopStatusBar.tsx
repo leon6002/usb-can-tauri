@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Activity, Maximize, Minimize } from "lucide-react";
+import { Activity, Maximize, Minimize, Bug } from "lucide-react";
 import { Button } from "../ui/button";
 import { useState, useEffect } from "react";
 
@@ -22,6 +22,14 @@ const TopStatusBar: React.FC = () => {
     };
     checkFullscreen();
   }, []);
+
+  const handleOpenDebugPanel = async () => {
+    try {
+      await invoke("open_debug_panel_window");
+    } catch (error) {
+      console.error("Failed to open debug panel window:", error);
+    }
+  };
 
   const handleOpenSystemMonitor = async () => {
     try {
@@ -45,18 +53,29 @@ const TopStatusBar: React.FC = () => {
     <div className="relative px-6 py-5 bg-transparent pointer-events-none">
       <div className="flex items-center justify-between">
         {/* 中心 Logo */}
-        {/* System Monitor - Left */}
-        {showSystemMonitor && (
+        {/* Debug Panel & System Monitor - Left */}
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-auto flex items-center gap-1">
           <Button
-            onClick={handleOpenSystemMonitor}
+            onClick={handleOpenDebugPanel}
             variant={"link"}
-            className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-auto text-white/80 hover:text-cyan-400 transition-colors flex items-center gap-2"
-            title="Open system monitor window"
+            className="text-white/80 hover:text-amber-400 transition-colors flex items-center gap-2"
+            title="Open debug panel window"
           >
-            <Activity size={18} />
-            <span className="text-sm font-medium">System monitor</span>
+            <Bug size={18} />
+            <span className="text-sm font-medium">Debug</span>
           </Button>
-        )}
+          {showSystemMonitor && (
+            <Button
+              onClick={handleOpenSystemMonitor}
+              variant={"link"}
+              className="text-white/80 hover:text-cyan-400 transition-colors flex items-center gap-2"
+              title="Open system monitor window"
+            >
+              <Activity size={18} />
+              <span className="text-sm font-medium">System monitor</span>
+            </Button>
+          )}
+        </div>
 
         {/* Center Logo */}
         <div className="flex items-center justify-center flex-1">

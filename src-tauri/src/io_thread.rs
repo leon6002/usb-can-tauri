@@ -1,6 +1,7 @@
 //! I/O 线程相关的函数
 //! 包括：串口读写、消息缓冲、事件发送等功能
 
+use std::io::Write;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::thread;
@@ -8,7 +9,7 @@ use std::time::Duration;
 
 use log::{error, info, warn};
 use serialport::SerialPort;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 use crate::can_protocol::{
     parse_distance_from_data, parse_received_can_message, parse_vehicle_status_8byte,
@@ -164,7 +165,22 @@ fn handle_parsed_can_message(
     // info!("✅ [I/O Thread] Parsed CAN message - ID: {}, Data: {}", can_id, can_data);
     info!("RX: ID={} Data={}", can_id, can_data);
 
-    // 尝试解析新协议的车辆状态（ID: 0x00000123）
+    // Append to CSV log if enabled
+    if let Some(state) = app_handle.try_state::<crate::AppState>() {
+        if state.csv_log_enabled.load(Ordering::Relaxed) {
+            let row = format!(
+                "{},{},{},{},{},{}\n",
+                timestamp, "received", can_id, can_data, raw_hex, frame_type
+            );
+            if let Ok(mut file_opt) = state.csv_log_file.lock() {
+                if let Some(ref mut f) = *file_opt {
+                    let _ = Write::write_all(f, row.as_bytes());
+                }
+            }
+        }
+    }
+
+    // Try parsing new protocol vehicle status (ID: 0x00000123)
     let mut vehicle_status: Option<(String, f32)> = None;
     if can_id == "0x00000123" {
         vehicle_status = parse_vehicle_status_8byte(&can_data);

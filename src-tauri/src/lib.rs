@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc, Mutex};
 
@@ -12,9 +13,11 @@ mod system_monitor_thread;
 
 mod commands;
 use commands::{
-    close_system_monitor_window, connect_serial, connect_system_monitor, disconnect_serial,
-    disconnect_system_monitor, get_available_ports, open_system_monitor_window, send_can_message,
-    start_infinite_drive, stop_infinite_drive,
+    close_debug_panel_window, close_system_monitor_window, connect_serial,
+    connect_system_monitor, disconnect_serial, disconnect_system_monitor, get_available_ports,
+    get_connection_status, get_csv_log_status, open_debug_panel_window,
+    open_system_monitor_window, send_can_message, start_csv_logging, start_infinite_drive,
+    stop_csv_logging, stop_infinite_drive,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +58,11 @@ pub struct AppState {
     // System Monitor State
     pub system_monitor_connected: Arc<Mutex<bool>>,
     pub system_monitor_thread_running: Arc<AtomicBool>,
+
+    // CSV Log State
+    pub csv_log_enabled: Arc<AtomicBool>,
+    pub csv_log_file: Arc<Mutex<Option<File>>>,
+    pub csv_log_path: Arc<Mutex<Option<String>>>,
 }
 
 impl Default for AppState {
@@ -68,6 +76,10 @@ impl Default for AppState {
 
             system_monitor_connected: Arc::new(Mutex::new(false)),
             system_monitor_thread_running: Arc::new(AtomicBool::new(false)),
+
+            csv_log_enabled: Arc::new(AtomicBool::new(false)),
+            csv_log_file: Arc::new(Mutex::new(None)),
+            csv_log_path: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -85,14 +97,19 @@ pub fn run() {
             get_available_ports,
             connect_serial,
             disconnect_serial,
-            send_can_message,
+            get_connection_status,
             send_can_message,
             open_system_monitor_window,
             close_system_monitor_window,
+            open_debug_panel_window,
+            close_debug_panel_window,
             connect_system_monitor,
             disconnect_system_monitor,
             start_infinite_drive,
-            stop_infinite_drive
+            stop_infinite_drive,
+            start_csv_logging,
+            stop_csv_logging,
+            get_csv_log_status
         ])
         .setup(|app| {
             use log::info;

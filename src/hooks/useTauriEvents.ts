@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useCarControlStore } from "@/store/carControlStore";
 import { useSerialStore } from "@/store/serialStore";
 import { useRadarStore } from "@/store/radarStore";
+import { useCanMessageStore } from "@/store/canMessageStore";
 
 export const useTauriEvents = () => {
   // 查询可用串口，加载内置csv行驶数据
@@ -69,6 +70,15 @@ export const useTauriEvents = () => {
 
       // 执行其他状态清理
       useCarControlStore.getState().stopAutoDrive();
+    };
+  }, []);
+
+  // Setup CAN message listener for message log
+  useEffect(() => {
+    const store = useCanMessageStore.getState();
+    store.setupCanMessageListener();
+    return () => {
+      store.cleanupCanMessageListener();
     };
   }, []);
 

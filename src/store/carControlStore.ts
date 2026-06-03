@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { CanCommand, CarStates } from "@/types";
 import { useSerialStore } from "./serialStore";
 import { useDebugStore } from "./useDebugStore";
-import { useCanMessageStore } from "./canMessageStore";
 import { use3DStore } from "./car3DStore";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { CAN_COMMANDS } from "@/config/canCommands";
@@ -156,8 +155,6 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
   sendCanCommand: async (canId, data) => {
     // 1. Get config from serial store
     const config = useSerialStore.getState().config;
-    // 2. Get message recording action from CAN message store
-    const { addMessage } = useCanMessageStore.getState();
 
     try {
       // Validate CAN ID
@@ -176,18 +173,8 @@ export const useCarControlStore = create<CarControlStore>((set, get) => ({
         protocolLength: config.protocolLength,
       };
 
-      // 3. Call backend API
+      // 3. Call backend API (TX event now emitted by Rust, no manual addMessage needed)
       await invoke("send_can_message", params);
-
-      // 4. Log message to message store
-      const newMessage = {
-        id: canId,
-        data: data,
-        timestamp: new Date().toLocaleTimeString(),
-        direction: "sent" as const, // Use 'as const' to ensure correct type
-        frameType: config.frameType as "standard" | "extended",
-      };
-      addMessage(newMessage);
     } catch (error) {
       console.error("Send car command error:", error);
       toast.error(`send can command error: ${error}`);

@@ -29,7 +29,7 @@ export const MessageList: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {messages
-              .slice()
+              .slice(-200)
               .reverse()
               .map((message, index) => (
                 <div
