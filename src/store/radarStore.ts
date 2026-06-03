@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
 import { RadarDistances, RadarData, RadarMessage } from "../types";
 import { useCarControlStore } from "./carControlStore";
-import { getRadarQueryInterval } from "@/config/appConfig";
+import { getRadarQueryInterval, isShowRadar } from "@/config/appConfig";
 
 // 雷达CAN ID映射（8位十六进制格式）
 const RADAR_CAN_IDS = {
@@ -202,7 +202,11 @@ export const useRadarStore = create<RadarState>((set, get) => ({
       sendRadarQuery,
       radarIntervalId,
     } = get();
-    if (isConnected) {
+
+    // 只有在连接成功且配置允许雷达时才工作
+    const shouldEnable = isConnected && isShowRadar();
+
+    if (shouldEnable) {
       // 启动监听
       if (!unlistenFunc) {
         startListening();

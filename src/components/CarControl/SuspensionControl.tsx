@@ -1,8 +1,10 @@
+import { isShowSuspension } from "@/config/appConfig";
 import { useCarControlStore } from "@/store/carControlStore";
 import { useSerialStore } from "@/store/serialStore";
 import { CircleArrowDown, CircleArrowUp, MoveVertical } from "lucide-react";
 
 const SuspensionControl: React.FC = ({ }) => {
+  if (!isShowSuspension()) return null;
   const isConnected = useSerialStore((state) => state.isConnected);
   const suspensionStatus = useCarControlStore(
     (state) => state.carStates.suspensionStatus

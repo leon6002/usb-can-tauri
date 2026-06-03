@@ -27,6 +27,11 @@ interface AppConfig {
     // 是否显示风扇档位控制
     showFanControl?: boolean;
     showSteeringWheel?: boolean;
+    showSuspension?: boolean;
+    // 是否显示雷达
+    showRadar?: boolean;
+    // 是否显示系统监控
+    showSystemMonitor?: boolean;
   };
   // 雷达配置
   radar?: {
@@ -61,12 +66,18 @@ const APP_CONFIG: AppConfig = {
     // 是否显示风扇档位控制（0-3档）
     showFanControl: true,
     showSteeringWheel: true,
+    // 是否显示悬挂控制
+    showSuspension: false,
+    // 是否显示雷达
+    showRadar: false,
+    // 是否显示系统监控
+    showSystemMonitor: true,
   },
 
   // 雷达配置
   radar: {
     // 雷达查询间隔（毫秒）- 默认 1000ms (1秒)
-    queryIntervalMs: 1000,
+    queryIntervalMs: 1000000,
   },
   //悬挂升高或者降低之后隔多长时间（毫秒，默认4秒）发送停止升降的can信号
   suspension: {
@@ -102,6 +113,15 @@ export const isShowFanControl = (): boolean =>
 
 export const isShowSteeringWheel = (): boolean =>
   APP_CONFIG.features?.showSteeringWheel ?? false;
+
+export const isShowSuspension = (): boolean =>
+  APP_CONFIG.features?.showSuspension ?? false;
+
+export const isShowRadar = (): boolean =>
+  APP_CONFIG.features?.showRadar ?? false;
+
+export const isShowSystemMonitor = (): boolean =>
+  APP_CONFIG.features?.showSystemMonitor ?? false;
 
 /**
  * 获取雷达查询间隔（毫秒）
