@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
   Terminal, FileCode, Send, Trash2, Activity, ArrowUpFromLine,
-  Wifi, WifiOff, Pause, Play, Download, Square, EyeOff, Eye,
+  Wifi, WifiOff, Pause, Play, Download, Square, EyeOff, Eye, Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,30 @@ import { useCanMessageStore } from "@/store/canMessageStore";
 import { useCarControlStore } from "@/store/carControlStore";
 import { validateCanId } from "@/utils/validation";
 
-type DebugTab = "rxtx" | "tx" | "commands";
+type DebugTab = "rxtx" | "tx" | "commands" | "system";
+
+interface SystemMonitorEntry {
+  timestamp: string;
+  raw: number[];
+  parsed: {
+    cpu1: number; cpu2: number; cpu3: number; cpu4: number;
+    vm0_mem: number; vm1_mem: number;
+    steeringControl: number; brakeControl: number;
+    bodyControl: number; acSystem: number;
+  } | null;
+}
 
 const STORAGE_KEY_LIMIT = "debugPanel.renderLimit";
+
+function parseSmData(data: number[]): SystemMonitorEntry["parsed"] {
+  if (!data || data.length < 18) return null;
+  return {
+    cpu1: data[2], cpu2: data[3], cpu3: data[4], cpu4: data[5],
+    vm0_mem: data[6], vm1_mem: data[7],
+    steeringControl: data[14], brakeControl: data[15],
+    bodyControl: data[16], acSystem: data[17],
+  };
+}
 
 // ---- Message list sub-component (shared by RX+TX and TX tabs) ----
 
@@ -124,6 +145,12 @@ const DebugPanelWindow: React.FC = () => {
   const canCommands = useCarControlStore((state) => state.canCommands);
   const updateCanCommand = useCarControlStore((state) => state.updateCanCommand);
 
+  // System monitor data
+  const [smEntries, setSmEntries] = useState<SystemMonitorEntry[]>([]);
+  const [smConnected, setSmConnected] = useState(false);
+  const [smPaused, setSmPaused] = useState(false);
+  const smSnapshotRef = useRef<SystemMonitorEntry[]>([]);
+
   // ID filter: click a CAN ID to hide/show messages with that ID
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const toggleIdFilter = (id: string) => {
@@ -158,7 +185,21 @@ const DebugPanelWindow: React.FC = () => {
       .then((s) => { setCsvLogging(s.enabled); if (s.path) setCsvPath(s.path); })
       .catch(() => {});
 
+    // Listen for system monitor data
+    let unlistenSm: (() => void) | null = null;
+    listen<number[]>("system-monitor-data", (event) => {
+      const raw = event.payload;
+      const parsed = parseSmData(raw);
+      setSmEntries((prev) => {
+        const next = [...prev, { timestamp: new Date().toLocaleTimeString(), raw, parsed }];
+        return next.length > 50 ? next.slice(-50) : next;
+      });
+      if (parsed) setSmConnected(true);
+    }).then((u) => { unlistenSm = u; });
+
     return () => {
+      useCanMessageStore.getState().cleanupCanMessageListener();
+      unlistenStatus?.(); unlistenSm?.(); clearInterval(poll);
       useCanMessageStore.getState().cleanupCanMessageListener();
       unlistenStatus?.(); clearInterval(poll);
     };
@@ -187,6 +228,7 @@ const DebugPanelWindow: React.FC = () => {
   const tabs = [
     { key: "rxtx" as const, label: "RX+TX", icon: Activity },
     { key: "tx" as const, label: "TX", icon: ArrowUpFromLine },
+    { key: "system" as const, label: "System", icon: Cpu },
     { key: "commands" as const, label: "Commands", icon: FileCode },
   ];
 
@@ -341,6 +383,88 @@ const DebugPanelWindow: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* ---- System Tab ---- */}
+        {activeTab === "system" && (() => {
+          const displayEntries = smPaused ? smSnapshotRef.current : smEntries;
+          const latest = displayEntries.length > 0 ? displayEntries[displayEntries.length - 1] : null;
+          const isPercent = (label: string) => label.startsWith("CPU") || label.startsWith("VM");
+          const statusColor = (v: number) => v === 2 ? "text-emerald-600" : v === 1 ? "text-amber-600" : "text-red-600";
+          return (
+          <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Cpu className="w-4 h-4" />
+              <h3 className="text-sm font-semibold text-gray-700">
+                System Monitor Data
+                {smConnected
+                  ? <span className="text-emerald-500 ml-2 text-xs">● Live</span>
+                  : <span className="text-gray-400 ml-2 text-xs">○ Waiting for data</span>}
+                {smPaused && <span className="text-amber-500 ml-2 text-xs">PAUSED</span>}
+              </h3>
+              <span className="text-xs text-gray-400 ml-auto">{displayEntries.length} entries</span>
+              <Button onClick={() => { if (!smPaused) smSnapshotRef.current = [...smEntries]; setSmPaused(!smPaused); }}
+                size="sm" variant="outline" className="h-7 text-xs">
+                {smPaused ? <Play className="w-3 h-3 mr-1" /> : <Pause className="w-3 h-3 mr-1" />}
+                {smPaused ? "Resume" : "Pause"}
+              </Button>
+            </div>
+
+            {/* Latest parsed values */}
+            {latest?.parsed && (
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                {([
+                  ["CPU1", latest.parsed.cpu1],
+                  ["CPU2", latest.parsed.cpu2],
+                  ["CPU3", latest.parsed.cpu3],
+                  ["CPU4", latest.parsed.cpu4],
+                  ["VM0 Mem", latest.parsed.vm0_mem],
+                  ["VM1 Mem", latest.parsed.vm1_mem],
+                  ["Steering", latest.parsed.steeringControl],
+                  ["Brake", latest.parsed.brakeControl],
+                  ["Body", latest.parsed.bodyControl],
+                  ["AC", latest.parsed.acSystem],
+                ] as const).map(([label, val]) => (
+                  <div key={label} className="bg-white rounded border border-gray-200 p-2 text-center">
+                    <div className="text-[10px] text-gray-500">{label}</div>
+                    <div className={`text-sm font-mono font-bold ${isPercent(label) ? "text-gray-800" : statusColor(val)}`}>{val}</div>
+                    {isPercent(label) && (
+                      <div className="w-full bg-gray-200 h-1 mt-1 rounded">
+                        <div className="bg-emerald-500 h-1 rounded" style={{ width: `${Math.min(100, val)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Raw bytes history */}
+            <div className="space-y-1">
+              {displayEntries.slice().reverse().slice(0, 30).map((entry, i) => (
+                <div key={i} className="bg-white rounded border border-gray-200 p-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-gray-400">{entry.timestamp}</span>
+                    {entry.parsed && (
+                      <span className="text-emerald-600 text-[10px]">
+                        CPU:{entry.parsed.cpu1}/{entry.parsed.cpu2}/{entry.parsed.cpu3}/{entry.parsed.cpu4}
+                        {" "}Mem:{entry.parsed.vm0_mem}/{entry.parsed.vm1_mem}
+                        {" "}St:{entry.parsed.steeringControl} Br:{entry.parsed.brakeControl}
+                        {" "}Bd:{entry.parsed.bodyControl} AC:{entry.parsed.acSystem}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-gray-500 break-all">
+                    [{entry.raw.join(", ")}]
+                  </div>
+                </div>
+              ))}
+              {displayEntries.length === 0 && (
+                <div className="text-center text-gray-400 py-10 text-sm">
+                  No system monitor data. Connect the system monitor serial port to see data here.
+                </div>
+              )}
+            </div>
+          </div>
+        )})()}
 
         {/* ---- Commands Tab ---- */}
         {activeTab === "commands" && (
