@@ -1,6 +1,6 @@
 [package]
 name = "osyx-vehicle-controller"
-version = "2.3.0"
+version = "2.3.1"
 description = "A car control tool by OSYX technology"
 authors = ["Gulong Chen"]
 edition = "2021"

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.2.0-blue)
+![Version](https://img.shields.io/badge/version-2.3.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
@@ -110,9 +110,11 @@ osyx-vehicle-controller/
 │   ├── build.rs                   # Build script
 │   └── Cargo.toml                 # Rust dependencies
 ├── docs/                          # Documentation and references
-│   ├── ThunderSoftSendingCommnad.xlsx
-│   ├── 上位机协议CAN.docx         # CAN protocol specification
+│   ├── CAN_SIGNAL_MAP.md          # Complete CAN signal reference
+│   ├── VERSION.md                 # Version bump guide
 │   └── csv_protocal.png           # Protocol diagram
+├── scripts/                       # Utility scripts
+│   └── bump-version.js            # Version bump script
 ├── public/                        # Static assets
 │   └── car-assets/                # Vehicle assets (3D models, etc.)
 ├── package.json                   # Frontend dependencies
@@ -210,10 +212,19 @@ View CPU usage rate, memory consumption, and other system metrics in real-time.
 
 The application communicates with vehicle hardware via CAN bus. For detailed protocol specifications, refer to the documentation in the `docs/` directory:
 
-- `上位机协议CAN.docx` - Detailed CAN protocol specification
-- `ThunderSoftSendingCommnad.xlsx` - Command reference table
-- `csv_protocal.png` - Protocol diagram
-- `test_data.csv` - Test data examples
+- [`CAN_SIGNAL_MAP.md`](docs/CAN_SIGNAL_MAP.md) — Complete CAN signal reference (all RX/TX IDs, data formats, button mappings)
+- [`VERSION.md`](docs/VERSION.md) — Version bump checklist and script usage
+- `csv_protocal.png` — Protocol diagram
+
+### Bumping the Version
+
+The version appears in 5 files. Use the script to update them all at once:
+
+```bash
+node scripts/bump-version.js 2.4.0
+```
+
+See [`docs/VERSION.md`](docs/VERSION.md) for the full checklist.
 
 ---
 
